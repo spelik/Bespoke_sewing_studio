@@ -3,6 +3,7 @@ using BespokeStudio.Application.Abstractions;
 using BespokeStudio.Application.Contracts.Orders;
 using BespokeStudio.Application.Security;
 using BespokeStudio.Application.Validation;
+using BespokeStudio.Api.Configuration;
 
 namespace BespokeStudio.Api.Endpoints;
 
@@ -14,9 +15,11 @@ public static class OrderEndpoints
             .WithTags("Orders");
 
         orders.MapPost(string.Empty, CreateOrderAsync)
+            .RequireRateLimiting(RateLimitPolicies.PublicOrder)
             .WithName("CreateOrder")
             .Produces<OrderResponse>(StatusCodes.Status201Created)
-            .ProducesValidationProblem();
+            .ProducesValidationProblem()
+            .Produces(StatusCodes.Status429TooManyRequests);
 
         orders.MapGet(string.Empty, GetOrdersAsync)
             .RequireAuthorization(AdminAccess.PolicyName)

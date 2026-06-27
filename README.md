@@ -33,6 +33,8 @@ Current backend status:
 - the public Order form calls `POST /api/orders`
 - the public Order form accepts JPG, PNG, WebP and PDF attachments up to 5 MB each
 - attachment metadata is stored in PostgreSQL; development files are stored under `backend/storage/uploads`
+- public upload and order creation endpoints use configurable per-IP rate limits
+- administrators can manually remove expired orphan uploads through a protected cleanup endpoint
 - admin login and Orders list/detail/status/notes use protected backend endpoints
 - site content and the remaining admin dashboard sections use mock/prototype data
 
@@ -84,6 +86,17 @@ The backend must be available at the configured `VITE_API_BASE_URL` before an
 Order form submission or admin sign-in. Select up to five files in the public
 Order form; after submission, open the enquiry in `/admin` to download its
 protected attachments. `backend/storage/` is ignored by Git.
+
+Public `POST /api/uploads/order-attachments` requests are limited to 10 per 10
+minutes per IP, and public `POST /api/orders` requests to 5 per 10 minutes per
+IP by default. A rejected request returns `429` and a `Retry-After` header; the
+Order form displays the API message without exposing server details.
+
+An upload that is not linked to an order and is older than the configured
+`UploadStorage:OrphanCleanupAgeMinutes` TTL (120 minutes by default) can be
+removed by an administrator through `POST /api/uploads/cleanup-orphans` using
+an Admin JWT. Cleanup is manual at this stage. Production object storage and
+antivirus/deep-content scanning are not implemented.
 
 Commands:
 

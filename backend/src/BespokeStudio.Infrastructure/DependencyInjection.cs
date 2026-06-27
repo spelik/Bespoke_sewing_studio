@@ -29,6 +29,7 @@ public static class DependencyInjection
             .Validate(options => options.PublicBasePath.StartsWith("/api/", StringComparison.Ordinal), "UploadStorage:PublicBasePath must start with /api/.")
             .Validate(options => options.MaxFileSizeBytes > 0, "UploadStorage:MaxFileSizeBytes must be positive.")
             .Validate(options => options.MaxFilesPerRequest is >= 1 and <= 5, "UploadStorage:MaxFilesPerRequest must be between 1 and 5.")
+            .Validate(options => options.OrphanCleanupAgeMinutes is >= 1 and <= 10080, "UploadStorage:OrphanCleanupAgeMinutes must be between 1 and 10080.")
             .Validate(options => options.AllowedContentTypes.Count > 0, "UploadStorage:AllowedContentTypes is required.")
             .ValidateOnStart();
 
@@ -45,6 +46,7 @@ public static class DependencyInjection
 
         services.AddScoped<IOrderService, OrderService>();
         services.AddScoped<IUploadService, LocalUploadService>();
+        services.AddScoped<IUploadCleanupService, UploadCleanupService>();
 
         return services;
     }

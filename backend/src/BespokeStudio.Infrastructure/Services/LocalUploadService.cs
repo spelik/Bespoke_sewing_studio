@@ -33,10 +33,7 @@ public sealed class LocalUploadService : IUploadService
     {
         _dbContext = dbContext;
         _options = options.Value;
-        _storageRoot = Path.GetFullPath(
-            Path.IsPathRooted(_options.RootPath)
-                ? _options.RootPath
-                : Path.Combine(environment.ContentRootPath, _options.RootPath));
+        _storageRoot = UploadStoragePath.ResolveRoot(_options, environment);
     }
 
     public async Task<IReadOnlyList<UploadedFileResponse>> UploadOrderAttachmentsAsync(
@@ -131,7 +128,7 @@ public sealed class LocalUploadService : IUploadService
             return null;
         }
 
-        var physicalPath = ResolveStoragePath(metadata.StorageKey);
+        var physicalPath = UploadStoragePath.ResolveFile(_storageRoot, metadata.StorageKey);
         if (!File.Exists(physicalPath))
         {
             return null;
@@ -233,21 +230,6 @@ public sealed class LocalUploadService : IUploadService
         }
 
         return new PreparedUpload(request, originalFileName, contentType, extension);
-    }
-
-    private string ResolveStoragePath(string storageKey)
-    {
-        var candidate = Path.GetFullPath(Path.Combine(
-            _storageRoot,
-            storageKey.Replace('/', Path.DirectorySeparatorChar)));
-        var rootPrefix = _storageRoot.TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
-
-        if (!candidate.StartsWith(rootPrefix, StringComparison.OrdinalIgnoreCase))
-        {
-            throw new InvalidOperationException("Stored upload path escapes the configured storage root.");
-        }
-
-        return candidate;
     }
 
     private static async Task CopyWithLimitAsync(

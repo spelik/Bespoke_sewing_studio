@@ -33,6 +33,9 @@
 - Admin Orders page использует реальные list/detail/status/note endpoints; изменения статуса и заметки обновляют UI без перезагрузки.
 - Order attachments реализованы двухшаговым flow: public multipart upload возвращает IDs, `POST /api/orders` связывает metadata с заявкой, а admin скачивает файл через JWT-protected endpoint.
 - PostgreSQL хранит только upload metadata; физические dev-файлы находятся в ignored `backend/storage/uploads`, с generated filenames, allowlist типов и лимитом `5 MB` на файл.
+- Public `POST /api/uploads/order-attachments` и `POST /api/orders` защищены configurable fixed-window rate limiting по remote IP; превышение возвращает `429`, JSON problem details и `Retry-After`.
+- Добавлены `IUploadCleanupService`/`UploadCleanupService`: cleanup удаляет только OrderAttachment uploads старше configurable TTL, повторно проверяя отсутствие связи с order перед удалением.
+- Ручной `POST /api/uploads/cleanup-orphans` доступен только Admin JWT и возвращает summary по scanned/deleted/missing/skipped; linked attachments не удаляются.
 
 ## Оптимизация изображений
 
@@ -65,7 +68,7 @@
 - Ручную validation можно позже заменить или дополнить FluentValidation при росте числа команд и правил.
 - Для production auth остаются refresh-token/session strategy, password reset, email confirmation/MFA, rate limiting login и ротация JWT signing key через внешний secret store.
 - Production storage provider (S3/Azure Blob/R2), antivirus/deep content scanning и thumbnail/image processing пока не реализованы.
-- Для анонимно загруженных файлов, после которых заявка не была создана, нужен периодический orphan cleanup; public upload endpoint также потребует production rate limiting/abuse protection.
+- Автоматический background orphan cleanup пока не реализован; доступен защищённый ручной endpoint. Для production нужны distributed rate limiting/abuse protection и trusted forwarded-header configuration за reverse proxy.
 - Email notifications пока не реализованы.
 - Production secret management для admin seed и JWT signing key ещё требует внешнего secret store и operational rotation process.
 

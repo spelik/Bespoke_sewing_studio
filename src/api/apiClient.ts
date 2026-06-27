@@ -46,8 +46,17 @@ async function throwApiError(response: Response): Promise<never> {
     ? ((await response.json()) as unknown)
     : undefined;
   const problem = responseBody as ApiProblemDetails | undefined;
+  const retryAfter = response.headers.get("retry-after");
+  const fallbackMessage =
+    response.status === 429
+      ? "Too many requests were submitted. Please wait before trying again."
+      : "The request could not be completed.";
+  const retryHint =
+    response.status === 429 && retryAfter
+      ? ` Try again in about ${retryAfter} seconds.`
+      : "";
   throw new ApiError(
-    problem?.detail ?? problem?.title ?? "The request could not be completed.",
+    `${problem?.detail ?? problem?.title ?? fallbackMessage}${retryHint}`,
     response.status,
     problem?.errors,
   );

@@ -10,4 +10,4 @@ obj/
 .vs
 .DS_Store
 backend/storage/
-storage/
+/storage/

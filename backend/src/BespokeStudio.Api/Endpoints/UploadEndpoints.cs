@@ -3,6 +3,7 @@ using BespokeStudio.Application.Abstractions;
 using BespokeStudio.Application.Contracts.Uploads;
 using BespokeStudio.Application.Security;
 using BespokeStudio.Application.Validation;
+using BespokeStudio.Api.Configuration;
 
 namespace BespokeStudio.Api.Endpoints;
 
@@ -17,11 +18,20 @@ public static class UploadEndpoints
 
         uploads.MapPost("/order-attachments", UploadOrderAttachmentsAsync)
             .AllowAnonymous()
+            .RequireRateLimiting(RateLimitPolicies.PublicUpload)
             .DisableAntiforgery()
             .WithName("UploadOrderAttachments")
             .Accepts<IFormFileCollection>("multipart/form-data")
             .Produces<IReadOnlyList<UploadedFileResponse>>()
-            .ProducesValidationProblem();
+            .ProducesValidationProblem()
+            .Produces(StatusCodes.Status429TooManyRequests);
+
+        uploads.MapPost("/cleanup-orphans", CleanupOrphansAsync)
+            .RequireAuthorization(AdminAccess.PolicyName)
+            .WithName("CleanupOrphanUploads")
+            .Produces<UploadCleanupResponse>()
+            .Produces(StatusCodes.Status401Unauthorized)
+            .Produces(StatusCodes.Status403Forbidden);
 
         uploads.MapGet("/{uploadedFileId:guid}", DownloadOrderAttachmentAsync)
             .RequireAuthorization(AdminAccess.PolicyName)
@@ -96,6 +106,14 @@ public static class UploadEndpoints
                 file.Content,
                 file.ContentType,
                 enableRangeProcessing: true);
+    }
+
+    private static async Task<IResult> CleanupOrphansAsync(
+        IUploadCleanupService cleanupService,
+        CancellationToken cancellationToken)
+    {
+        var summary = await cleanupService.CleanupOrphansAsync(cancellationToken);
+        return TypedResults.Ok(summary);
     }
 
     private static IResult ValidationProblem(string field, string message) =>

@@ -189,7 +189,8 @@ is excluded by `.gitignore`. Configuration is in `UploadStorage`:
   "RootPath": "../../storage/uploads",
   "PublicBasePath": "/api/uploads",
   "MaxFileSizeBytes": 5242880,
-  "MaxFilesPerRequest": 5
+  "MaxFilesPerRequest": 5,
+  "OrphanCleanupAgeMinutes": 120
 }
 ```
 
@@ -201,6 +202,44 @@ the original filename. Files are not served from `wwwroot`.
 To verify manually, submit an enquiry with an allowed file in `/order`, confirm
 that a generated file appears under `backend/storage/uploads`, then sign in at
 `/admin`, open the enquiry, and select **Download** in Attachments.
+
+### Public request rate limits
+
+ASP.NET Core fixed-window rate limiting is applied per remote IP to the two
+anonymous write endpoints:
+
+- `POST /api/uploads/order-attachments`: 10 requests per 10 minutes
+- `POST /api/orders`: 5 requests per 10 minutes
+
+The values are configurable under `RateLimiting:PublicUploadPermitLimit`,
+`RateLimiting:PublicOrderPermitLimit`, and `RateLimiting:WindowMinutes`.
+Rejected requests return `429 Too Many Requests`, a JSON problem response, and
+a `Retry-After` header. When the API is deployed behind a reverse proxy, trusted
+forwarded-header configuration must be added before remote IP partitioning can
+represent the original client address reliably.
+
+### Orphan upload cleanup
+
+An orphan candidate is `OrderAttachment` upload metadata older than
+`UploadStorage:OrphanCleanupAgeMinutes` (120 minutes by default). The cleanup
+service rechecks that no `OrderAttachments` row references the file before it
+deletes anything. Linked attachments are skipped. Missing physical files are
+handled without failing the whole cleanup and their stale metadata is removed.
+
+Run cleanup manually with an Admin JWT:
+
+```powershell
+$headers = @{ Authorization = "Bearer $($login.accessToken)" }
+Invoke-RestMethod http://localhost:5099/api/uploads/cleanup-orphans `
+  -Method Post `
+  -Headers $headers
+```
+
+The response reports scanned candidates, deleted metadata, deleted physical
+files, missing physical files, and skipped candidates. The endpoint returns
+`401/403` without a valid Admin JWT. There is no scheduled background cleanup
+yet. Production object storage, antivirus/deep-content scanning, and image
+processing are also outside the current local-storage implementation.
 
 ## Administrator authentication
 
