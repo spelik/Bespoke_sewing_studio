@@ -161,7 +161,8 @@ Start the API and use `/swagger` for interactive testing, or open
 the id returned by `POST /api/orders` into the `OrderId` variable before running
 the detail, status, and note examples.
 
-Email notifications are not implemented. The public frontend Order form calls
+New-order email and WhatsApp notifications use development logging providers.
+The public frontend Order form calls
 anonymous `POST /api/orders`. The admin frontend uses
 login, current-user, Orders list/detail, status, and note endpoints; the other
 admin dashboard sections remain prototypes.
@@ -251,17 +252,32 @@ recreates the same fixed-ID default on the next request.
 Available endpoints:
 
 - `GET /api/site-settings/public` — anonymous public contact, social and footer settings
-- `GET /api/admin/site-settings` — complete settings including notification destinations (Admin JWT required)
+- `GET /api/admin/site-settings` — complete settings including notification toggles (Admin JWT required)
 - `PATCH /api/admin/site-settings` — validates and updates settings (Admin JWT required)
 
-The public response excludes notification email/phone, enabled flags,
-business legal name, and other admin-only metadata. The update endpoint returns
+The public response exposes the single studio email and phone but excludes
+notification enabled flags, business legal name, and other admin-only metadata. The update endpoint returns
 `400 ValidationProblem` for an empty studio name, invalid email/phone values,
 invalid non-HTTP(S) URLs, or configured values exceeding their limits.
 
-`NotificationEmail`, `NotificationPhone`, and their enabled flags are stored
-for the next notification task only. The API does not send email, SMS, or
-WhatsApp messages.
+The notification enabled flags use the same email and phone shown on the public
+site. Migration `NormalizeSiteSettingsContacts` removes the former duplicate
+notification and WhatsApp columns.
+
+## Notification foundation
+
+After `POST /api/orders` persists an enquiry, `INotificationService` loads the
+order and current Site Settings. Enabled channels call
+`IEmailNotificationSender` or `IWhatsAppNotificationSender`. The default
+`LoggingEmailNotificationSender` and `LoggingWhatsAppNotificationSender` write
+development messages to the application log and do not contact external
+services. Sender errors are logged and do not change the successful order
+response.
+
+Real SMTP or WhatsApp Business Platform providers are not configured. Future
+provider credentials must come from environment variables, `dotnet user-secrets`,
+or an external secret store; they must not be stored in `SiteSettings`, source
+control, or committed appsettings files.
 
 ## Administrator authentication
 

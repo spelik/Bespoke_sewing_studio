@@ -11,9 +11,9 @@ export function ContactSection() {
       item.kind === "location"
         ? settings.serviceAreaText
         : item.kind === "phone"
-          ? settings.publicPhone
+          ? settings.phone
           : item.kind === "email"
-            ? settings.publicEmail ?? settings.contactIntroText
+            ? settings.email ?? settings.contactIntroText
             : item.text,
   })).filter((item) => item.text);
 

@@ -9,11 +9,8 @@ public sealed class SiteSettings
     public string? SiteTagline { get; set; }
     public string? PublicEmail { get; set; }
     public string? PublicPhone { get; set; }
-    public string? WhatsAppPhone { get; set; }
     public string? ContactButtonLabel { get; set; }
     public string? ContactIntroText { get; set; }
-    public string? NotificationEmail { get; set; }
-    public string? NotificationPhone { get; set; }
     public bool EmailNotificationsEnabled { get; set; }
     public bool WhatsAppNotificationsEnabled { get; set; }
     public string? FacebookUrl { get; set; }

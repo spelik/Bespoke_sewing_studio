@@ -37,7 +37,7 @@ Current backend status:
 - public upload and order creation endpoints use configurable per-IP rate limits
 - administrators can manually remove expired orphan uploads through a protected cleanup endpoint
 - public contact, social and footer settings load from `GET /api/site-settings/public`
-- the Admin **Settings** section edits public and future notification settings
+- the Admin **Settings** section edits public contact and notification settings
 - admin login and Orders list/detail/status/notes use protected backend endpoints
 - site content and the remaining admin dashboard sections use mock/prototype data
 
@@ -104,14 +104,15 @@ antivirus/deep-content scanning are not implemented.
 ## Site settings
 
 Sign in at `http://127.0.0.1:5173/admin`, then select **Settings** in the
-sidebar. The administrator can edit the studio name/tagline, public email and
-phone, WhatsApp phone, contact/footer text, service area, social URLs, and the
-email/phone values reserved for future notifications. Public contact data is
-shown in the Home contact section, Contact page, and Footer.
+sidebar. The administrator edits one email and one Phone / WhatsApp number,
+plus contact/footer text, service area, social URLs, and notification toggles.
+The same email and phone are shown on the public site and used as notification
+destinations, so there are no separate notification contact fields.
 
-Notification delivery is not implemented: the enabled flags and destination
-values are stored only. Public pages keep their typed fallback content if the
-API cannot be reached.
+Enable email or WhatsApp notifications with the corresponding toggle in Admin
+Settings. In development, both channels use safe logging providers: notification
+content is written to the backend log and is not sent externally. Public pages
+keep their typed fallback content if the API cannot be reached.
 
 Commands:
 

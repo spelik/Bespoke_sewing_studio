@@ -13,8 +13,8 @@ export function ContactPage() {
       item.kind === "location"
         ? settings.serviceAreaText
         : item.kind === "phone"
-          ? settings.publicPhone
-          : settings.publicEmail ?? settings.contactIntroText,
+          ? settings.phone
+          : settings.email ?? settings.contactIntroText,
   })).filter((item) => item.text);
 
   return (

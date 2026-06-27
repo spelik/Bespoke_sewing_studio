@@ -27,9 +27,8 @@ export const SITE_SETTINGS: SiteSettings = {
 export const PUBLIC_SITE_SETTINGS_FALLBACK: PublicSiteSettings = {
   studioName: SITE_SETTINGS.brandName,
   siteTagline: "Premium sewing, tailoring, dressmaking, alterations and memory bears.",
-  publicEmail: "hello@logosha.co.uk",
-  publicPhone: CONTACT_DETAILS.phone,
-  whatsAppPhone: null,
+  email: "hello@logosha.co.uk",
+  phone: CONTACT_DETAILS.phone,
   contactButtonLabel: "Send Enquiry",
   contactIntroText: CONTACT_DETAILS.enquiryNote,
   facebookUrl: null,

@@ -60,6 +60,7 @@ public static class OrderEndpoints
     private static async Task<IResult> CreateOrderAsync(
         CreateOrderRequest request,
         IOrderService orderService,
+        INotificationService notificationService,
         CancellationToken cancellationToken)
     {
         var errors = OrderRequestValidator.Validate(request);
@@ -71,6 +72,7 @@ public static class OrderEndpoints
         try
         {
             var order = await orderService.CreateAsync(request, cancellationToken);
+            await notificationService.NotifyNewOrderCreatedAsync(order.Id, cancellationToken);
             return TypedResults.Created($"/api/orders/{order.Id}", order);
         }
         catch (OrderAttachmentValidationException exception)

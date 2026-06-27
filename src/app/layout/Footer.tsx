@@ -13,7 +13,7 @@ export function Footer() {
     { label: "TikTok", shortLabel: "tt", url: settings.tikTokUrl },
     { label: "Pinterest", shortLabel: "pt", url: settings.pinterestUrl },
   ];
-  const publicContactText = settings.publicEmail ?? settings.contactIntroText;
+  const publicContactText = settings.email ?? settings.contactIntroText;
 
   return (
     <footer className="bg-foreground text-primary-foreground">
@@ -99,10 +99,10 @@ export function Footer() {
                   <span>{settings.serviceAreaText}</span>
                 </li>
               ) : null}
-              {settings.publicPhone ? (
+              {settings.phone ? (
                 <li className="flex items-center gap-2.5">
                 <Phone size={13} className="text-accent/70" />
-                  <span>{settings.publicPhone}</span>
+                  <span>{settings.phone}</span>
                 </li>
               ) : null}
               {publicContactText ? (

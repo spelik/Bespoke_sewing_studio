@@ -1,5 +1,6 @@
 using BespokeStudio.Application.Abstractions;
 using BespokeStudio.Infrastructure.Authentication;
+using BespokeStudio.Infrastructure.Notifications;
 using BespokeStudio.Infrastructure.Persistence;
 using BespokeStudio.Infrastructure.Services;
 using BespokeStudio.Infrastructure.Storage;
@@ -46,6 +47,9 @@ public static class DependencyInjection
 
         services.AddScoped<IOrderService, OrderService>();
         services.AddScoped<ISiteSettingsService, SiteSettingsService>();
+        services.AddScoped<INotificationService, NotificationService>();
+        services.AddScoped<IEmailNotificationSender, LoggingEmailNotificationSender>();
+        services.AddScoped<IWhatsAppNotificationSender, LoggingWhatsAppNotificationSender>();
         services.AddScoped<IUploadService, LocalUploadService>();
         services.AddScoped<IUploadCleanupService, UploadCleanupService>();
 

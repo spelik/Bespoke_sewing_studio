@@ -10,6 +10,9 @@ public interface ISiteSettingsService
     Task<AdminSiteSettingsResponse> GetAdminSettingsAsync(
         CancellationToken cancellationToken = default);
 
+    Task<NotificationSettingsResponse> GetNotificationSettingsAsync(
+        CancellationToken cancellationToken = default);
+
     Task<AdminSiteSettingsResponse> UpdateSettingsAsync(
         UpdateSiteSettingsRequest request,
         CancellationToken cancellationToken = default);

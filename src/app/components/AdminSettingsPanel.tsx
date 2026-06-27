@@ -155,24 +155,18 @@ export function AdminSettingsPanel({ onUnauthorized }: AdminSettingsPanelProps) 
         />
       </SettingsGroup>
 
-      <SettingsGroup title="Public contact">
+      <SettingsGroup title="Contact">
         <SettingsField
-          label="Public email"
+          label="Email"
           type="email"
-          value={form.publicEmail}
-          onChange={(value) => setTextField("publicEmail", value)}
+          value={form.email}
+          onChange={(value) => setTextField("email", value)}
         />
         <SettingsField
-          label="Public phone"
+          label="Phone / WhatsApp number"
           type="tel"
-          value={form.publicPhone}
-          onChange={(value) => setTextField("publicPhone", value)}
-        />
-        <SettingsField
-          label="WhatsApp phone"
-          type="tel"
-          value={form.whatsAppPhone}
-          onChange={(value) => setTextField("whatsAppPhone", value)}
+          value={form.phone}
+          onChange={(value) => setTextField("phone", value)}
         />
         <SettingsField
           label="Contact button label"
@@ -198,20 +192,8 @@ export function AdminSettingsPanel({ onUnauthorized }: AdminSettingsPanelProps) 
 
       <SettingsGroup title="Notifications">
         <p className="md:col-span-2 text-[11px] text-muted-foreground font-sans leading-relaxed">
-          These values are stored for the future notification module. This page does not send email, SMS or WhatsApp messages.
+          Notifications will be sent to the email and phone shown above. Development providers currently log messages without sending them externally.
         </p>
-        <SettingsField
-          label="Notification email"
-          type="email"
-          value={form.notificationEmail}
-          onChange={(value) => setTextField("notificationEmail", value)}
-        />
-        <SettingsField
-          label="Notification phone"
-          type="tel"
-          value={form.notificationPhone}
-          onChange={(value) => setTextField("notificationPhone", value)}
-        />
         <SettingsCheckbox
           label="Enable email notifications"
           checked={form.emailNotificationsEnabled}
@@ -331,13 +313,10 @@ function toUpdateRequest(settings: AdminSiteSettings): UpdateSiteSettingsRequest
   return {
     studioName: settings.studioName,
     siteTagline: settings.siteTagline,
-    publicEmail: settings.publicEmail,
-    publicPhone: settings.publicPhone,
-    whatsAppPhone: settings.whatsAppPhone,
+    email: settings.email,
+    phone: settings.phone,
     contactButtonLabel: settings.contactButtonLabel,
     contactIntroText: settings.contactIntroText,
-    notificationEmail: settings.notificationEmail,
-    notificationPhone: settings.notificationPhone,
     emailNotificationsEnabled: settings.emailNotificationsEnabled,
     whatsAppNotificationsEnabled: settings.whatsAppNotificationsEnabled,
     facebookUrl: settings.facebookUrl,

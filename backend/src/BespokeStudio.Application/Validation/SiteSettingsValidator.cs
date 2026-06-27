@@ -12,13 +12,10 @@ public static partial class SiteSettingsValidator
 
         AddRequired(errors, nameof(request.StudioName), request.StudioName, 150);
         AddOptionalMaxLength(errors, nameof(request.SiteTagline), request.SiteTagline, 500);
-        AddEmail(errors, nameof(request.PublicEmail), request.PublicEmail);
-        AddPhone(errors, nameof(request.PublicPhone), request.PublicPhone);
-        AddPhone(errors, nameof(request.WhatsAppPhone), request.WhatsAppPhone);
+        AddEmail(errors, nameof(request.Email), request.Email);
+        AddPhone(errors, nameof(request.Phone), request.Phone);
         AddOptionalMaxLength(errors, nameof(request.ContactButtonLabel), request.ContactButtonLabel, 100);
         AddOptionalMaxLength(errors, nameof(request.ContactIntroText), request.ContactIntroText, 1000);
-        AddEmail(errors, nameof(request.NotificationEmail), request.NotificationEmail);
-        AddPhone(errors, nameof(request.NotificationPhone), request.NotificationPhone);
         AddUrl(errors, nameof(request.FacebookUrl), request.FacebookUrl);
         AddUrl(errors, nameof(request.InstagramUrl), request.InstagramUrl);
         AddUrl(errors, nameof(request.TikTokUrl), request.TikTokUrl);
@@ -27,16 +24,16 @@ public static partial class SiteSettingsValidator
         AddOptionalMaxLength(errors, nameof(request.ServiceAreaText), request.ServiceAreaText, 500);
         AddOptionalMaxLength(errors, nameof(request.BusinessLegalName), request.BusinessLegalName, 200);
 
-        if (request.EmailNotificationsEnabled && string.IsNullOrWhiteSpace(request.NotificationEmail))
+        if (request.EmailNotificationsEnabled && string.IsNullOrWhiteSpace(request.Email))
         {
-            errors[nameof(request.NotificationEmail)] =
-                ["Notification email is required when email notifications are enabled."];
+            errors[nameof(request.Email)] =
+                ["Email is required when email notifications are enabled."];
         }
 
-        if (request.WhatsAppNotificationsEnabled && string.IsNullOrWhiteSpace(request.NotificationPhone))
+        if (request.WhatsAppNotificationsEnabled && string.IsNullOrWhiteSpace(request.Phone))
         {
-            errors[nameof(request.NotificationPhone)] =
-                ["Notification phone is required when WhatsApp notifications are enabled."];
+            errors[nameof(request.Phone)] =
+                ["Phone is required when WhatsApp notifications are enabled."];
         }
 
         return errors;

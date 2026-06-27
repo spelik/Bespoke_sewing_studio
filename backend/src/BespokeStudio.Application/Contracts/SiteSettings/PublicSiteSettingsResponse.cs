@@ -3,9 +3,8 @@ namespace BespokeStudio.Application.Contracts.SiteSettings;
 public sealed record PublicSiteSettingsResponse(
     string StudioName,
     string? SiteTagline,
-    string? PublicEmail,
-    string? PublicPhone,
-    string? WhatsAppPhone,
+    string? Email,
+    string? Phone,
     string? ContactButtonLabel,
     string? ContactIntroText,
     string? FacebookUrl,

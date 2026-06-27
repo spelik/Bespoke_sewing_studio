@@ -22,11 +22,8 @@ public sealed class SiteSettingsConfiguration : IEntityTypeConfiguration<SiteSet
         builder.Property(settings => settings.SiteTagline).HasMaxLength(500);
         builder.Property(settings => settings.PublicEmail).HasMaxLength(320);
         builder.Property(settings => settings.PublicPhone).HasMaxLength(50);
-        builder.Property(settings => settings.WhatsAppPhone).HasMaxLength(50);
         builder.Property(settings => settings.ContactButtonLabel).HasMaxLength(100);
         builder.Property(settings => settings.ContactIntroText).HasMaxLength(1000);
-        builder.Property(settings => settings.NotificationEmail).HasMaxLength(320);
-        builder.Property(settings => settings.NotificationPhone).HasMaxLength(50);
         builder.Property(settings => settings.FacebookUrl).HasMaxLength(2048);
         builder.Property(settings => settings.InstagramUrl).HasMaxLength(2048);
         builder.Property(settings => settings.TikTokUrl).HasMaxLength(2048);

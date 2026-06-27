@@ -22,6 +22,17 @@ public sealed class SiteSettingsService(BespokeStudioDbContext dbContext) : ISit
         return ToAdminResponse(settings);
     }
 
+    public async Task<NotificationSettingsResponse> GetNotificationSettingsAsync(
+        CancellationToken cancellationToken = default)
+    {
+        var settings = await GetOrCreateAsync(cancellationToken);
+        return new NotificationSettingsResponse(
+            settings.PublicEmail,
+            settings.PublicPhone,
+            settings.EmailNotificationsEnabled,
+            settings.WhatsAppNotificationsEnabled);
+    }
+
     public async Task<AdminSiteSettingsResponse> UpdateSettingsAsync(
         UpdateSiteSettingsRequest request,
         CancellationToken cancellationToken = default)
@@ -30,13 +41,10 @@ public sealed class SiteSettingsService(BespokeStudioDbContext dbContext) : ISit
 
         settings.StudioName = request.StudioName.Trim();
         settings.SiteTagline = Normalize(request.SiteTagline);
-        settings.PublicEmail = NormalizeEmail(request.PublicEmail);
-        settings.PublicPhone = Normalize(request.PublicPhone);
-        settings.WhatsAppPhone = Normalize(request.WhatsAppPhone);
+        settings.PublicEmail = NormalizeEmail(request.Email);
+        settings.PublicPhone = Normalize(request.Phone);
         settings.ContactButtonLabel = Normalize(request.ContactButtonLabel);
         settings.ContactIntroText = Normalize(request.ContactIntroText);
-        settings.NotificationEmail = NormalizeEmail(request.NotificationEmail);
-        settings.NotificationPhone = Normalize(request.NotificationPhone);
         settings.EmailNotificationsEnabled = request.EmailNotificationsEnabled;
         settings.WhatsAppNotificationsEnabled = request.WhatsAppNotificationsEnabled;
         settings.FacebookUrl = Normalize(request.FacebookUrl);
@@ -90,7 +98,6 @@ public sealed class SiteSettingsService(BespokeStudioDbContext dbContext) : ISit
             settings.SiteTagline,
             settings.PublicEmail,
             settings.PublicPhone,
-            settings.WhatsAppPhone,
             settings.ContactButtonLabel,
             settings.ContactIntroText,
             settings.FacebookUrl,
@@ -107,11 +114,8 @@ public sealed class SiteSettingsService(BespokeStudioDbContext dbContext) : ISit
             settings.SiteTagline,
             settings.PublicEmail,
             settings.PublicPhone,
-            settings.WhatsAppPhone,
             settings.ContactButtonLabel,
             settings.ContactIntroText,
-            settings.NotificationEmail,
-            settings.NotificationPhone,
             settings.EmailNotificationsEnabled,
             settings.WhatsAppNotificationsEnabled,
             settings.FacebookUrl,

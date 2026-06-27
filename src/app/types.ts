@@ -51,9 +51,8 @@ export interface SiteSettings {
 export interface PublicSiteSettings {
   studioName: string;
   siteTagline: string | null;
-  publicEmail: string | null;
-  publicPhone: string | null;
-  whatsAppPhone: string | null;
+  email: string | null;
+  phone: string | null;
   contactButtonLabel: string | null;
   contactIntroText: string | null;
   facebookUrl: string | null;
@@ -66,8 +65,6 @@ export interface PublicSiteSettings {
 
 export interface AdminSiteSettings extends PublicSiteSettings {
   id: string;
-  notificationEmail: string | null;
-  notificationPhone: string | null;
   emailNotificationsEnabled: boolean;
   whatsAppNotificationsEnabled: boolean;
   businessLegalName: string | null;

@@ -38,7 +38,9 @@
 - Ручной `POST /api/uploads/cleanup-orphans` доступен только Admin JWT и возвращает summary по scanned/deleted/missing/skipped; linked attachments не удаляются.
 - Добавлен strongly typed singleton `SiteSettings` с migration `AddSiteSettings`, EF configuration, validation, application DTO и `ISiteSettingsService`/`SiteSettingsService`.
 - Public contact/social/footer settings доступны через `GET /api/site-settings/public`; admin чтение и изменение защищены policy `AdminOnly` через `GET/PATCH /api/admin/site-settings`.
-- Admin Settings page сохраняет public и notification settings; Footer, Home contact section и Contact page используют backend settings с typed fallback при недоступном API.
+- Site Settings нормализованы до одного email и одного Phone / WhatsApp: эти значения одновременно используются публичным сайтом и как notification destinations. Legacy-колонки удаляются migration `NormalizeSiteSettingsContacts`.
+- Admin Settings page сохраняет единые contact settings и notification toggles; Footer, Home contact section и Contact page используют backend settings с typed fallback при недоступном API.
+- Добавлены `INotificationService`, `IEmailNotificationSender`, `IWhatsAppNotificationSender` и безопасные development logging providers. Новая заявка запускает уведомления владельцу, а ошибки sender логируются и не отменяют создание order.
 
 ## Оптимизация изображений
 
@@ -72,7 +74,8 @@
 - Для production auth остаются refresh-token/session strategy, password reset, email confirmation/MFA, rate limiting login и ротация JWT signing key через внешний secret store.
 - Production storage provider (S3/Azure Blob/R2), antivirus/deep content scanning и thumbnail/image processing пока не реализованы.
 - Автоматический background orphan cleanup пока не реализован; доступен защищённый ручной endpoint. Для production нужны distributed rate limiting/abuse protection и trusted forwarded-header configuration за reverse proxy.
-- Email notification sending — следующая задача; она должна использовать `NotificationEmail` и enabled flag из `SiteSettings`. SMS/WhatsApp provider также пока не реализован.
+- Реальные SMTP и WhatsApp Business Platform providers пока не реализованы; нужны внешняя конфигурация и credentials через user-secrets/env/secret store.
+- Background notification queue и retry policy пока не реализованы: первая версия выполняет dev logging inline после сохранения заявки. Customer confirmation email также не реализован.
 - Services/prices, portfolio/gallery и общий text CMS пока не реализованы.
 - Production secret management для admin seed и JWT signing key ещё требует внешнего secret store и operational rotation process.
 
