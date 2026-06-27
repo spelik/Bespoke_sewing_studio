@@ -1,0 +1,16 @@
+C:\Projects\Bespoke_sewing_studio\backend\src\BespokeStudio.Application\bin\Debug\net10.0\BespokeStudio.Application.deps.json
+C:\Projects\Bespoke_sewing_studio\backend\src\BespokeStudio.Application\bin\Debug\net10.0\BespokeStudio.Application.dll
+C:\Projects\Bespoke_sewing_studio\backend\src\BespokeStudio.Application\bin\Debug\net10.0\BespokeStudio.Application.pdb
+C:\Projects\Bespoke_sewing_studio\backend\src\BespokeStudio.Application\bin\Debug\net10.0\BespokeStudio.Domain.dll
+C:\Projects\Bespoke_sewing_studio\backend\src\BespokeStudio.Application\bin\Debug\net10.0\BespokeStudio.Domain.pdb
+C:\Projects\Bespoke_sewing_studio\backend\src\BespokeStudio.Application\obj\Debug\net10.0\BespokeStudio.Application.csproj.AssemblyReference.cache
+C:\Projects\Bespoke_sewing_studio\backend\src\BespokeStudio.Application\obj\Debug\net10.0\BespokeStudio.Application.GeneratedMSBuildEditorConfig.editorconfig
+C:\Projects\Bespoke_sewing_studio\backend\src\BespokeStudio.Application\obj\Debug\net10.0\BespokeStudio.Application.AssemblyInfoInputs.cache
+C:\Projects\Bespoke_sewing_studio\backend\src\BespokeStudio.Application\obj\Debug\net10.0\BespokeStudio.Application.AssemblyInfo.cs
+C:\Projects\Bespoke_sewing_studio\backend\src\BespokeStudio.Application\obj\Debug\net10.0\BespokeStudio.Application.csproj.CoreCompileInputs.cache
+C:\Projects\Bespoke_sewing_studio\backend\src\BespokeStudio.Application\obj\Debug\net10.0\BespokeStudio.Application.sourcelink.json
+C:\Projects\Bespoke_sewing_studio\backend\src\BespokeStudio.Application\obj\Debug\net10.0\BespokeS.105A1D2B.Up2Date
+C:\Projects\Bespoke_sewing_studio\backend\src\BespokeStudio.Application\obj\Debug\net10.0\BespokeStudio.Application.dll
+C:\Projects\Bespoke_sewing_studio\backend\src\BespokeStudio.Application\obj\Debug\net10.0\refint\BespokeStudio.Application.dll
+C:\Projects\Bespoke_sewing_studio\backend\src\BespokeStudio.Application\obj\Debug\net10.0\BespokeStudio.Application.pdb
+C:\Projects\Bespoke_sewing_studio\backend\src\BespokeStudio.Application\obj\Debug\net10.0\ref\BespokeStudio.Application.dll

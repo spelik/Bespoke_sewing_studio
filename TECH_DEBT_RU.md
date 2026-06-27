@@ -13,6 +13,8 @@
 - Portfolio/card images переведены на оптимизированные локальные derivative-файлы и теперь загружаются с `loading="lazy"` и `decoding="async"`.
 - Внешняя decorative image dependency в `HomeHero` больше не использует `images.unsplash.com`; фон переведён на локальный optimized asset.
 - Production SPA fallback задокументирован в `DEPLOYMENT_NOTES_RU.md`.
+- Backend skeleton создан в `backend/` как отдельный ASP.NET Core Web API solution на `net10.0` с проектами `BespokeStudio.Api`, `BespokeStudio.Domain`, `BespokeStudio.Application`, `BespokeStudio.Infrastructure`.
+- В backend уже есть базовые system endpoints: `/api/health`, `/api/version`, Swagger UI и dev CORS под локальный frontend.
 
 ## Оптимизация изображений
 
@@ -36,10 +38,16 @@
 - Две самые тяжёлые portfolio карточки (`portfolio-1a`, `portfolio-2`) всё ещё заметно крупнее остальных даже после downscale. Следующий шаг по изображениям - отдельные crop-aware thumbnails или AVIF pipeline.
 - Admin bundle остаётся крупным из-за `recharts`: `439.21 KB` в текущей production-сборке.
 - SPA fallback всё ещё должен быть настроен на production-сервере. В репозитории добавлена только документация, не серверная конфигурация.
-- Backend по-прежнему не подключён. API layer работает в `mock/prototype mode`, без реальных HTTP-запросов, БД и авторизации.
+- Frontend по-прежнему не подключён к реальному backend. API layer во frontend всё ещё работает в `mock/prototype mode`, без реальных HTTP-запросов.
+- В backend пока не подключён PostgreSQL.
+- EF Core и migrations пока не настроены.
+- Domain models и реальные API contracts для `Orders`, `Clients`, `Portfolio`, `Categories`, `Services` пока не созданы.
+- Auth/admin login, JWT и role-based access пока не реализованы.
+- Uploads/file storage и email integrations пока не реализованы.
 
 ## Рекомендации на следующие задачи
 
 - Подготовить фактическую production-конфигурацию хостинга с SPA fallback.
 - Добить image pipeline для самых тяжёлых portfolio assets: AVIF или отдельные thumbnails под card layout.
 - Оценить, можно ли уменьшить admin chunk через более узкий импорт графиков или дополнительное lazy splitting внутри admin prototype.
+- Добавить первые domain models и API contracts для `Orders`, `Clients`, `Portfolio`, `Categories`, `Services`, а затем перевести frontend с mock data на реальные HTTP endpoints.

@@ -9,6 +9,39 @@ The frontend currently runs in mock/prototype mode only. Typed mock data is expo
 
 Future API configuration lives in `src/config/appConfig.ts`. `isPrototypeMode` must remain enabled until the real API client is implemented.
 
+## Backend
+
+The backend lives in `backend/` as a separate ASP.NET Core Web API skeleton (`net10.0`).
+
+Current backend status:
+
+- Swagger/OpenAPI is enabled
+- `/api/health` and `/api/version` are available
+- no PostgreSQL connection yet
+- no EF Core migrations yet
+- no authentication yet
+- frontend still works in mock/prototype mode and does not call the backend yet
+
+Commands:
+
+```powershell
+dotnet restore backend/BespokeStudio.sln
+```
+
+```powershell
+dotnet build backend/BespokeStudio.sln
+```
+
+```powershell
+dotnet run --project backend/src/BespokeStudio.Api/BespokeStudio.Api.csproj
+```
+
+If your environment cannot read the user-level `NuGet.Config`, use the repo-local fallback:
+
+```powershell
+dotnet restore backend/BespokeStudio.sln --configfile backend/NuGet.Config
+```
+
 ## Routing
 
 The frontend uses `React Router` with lazy-loaded page routes.

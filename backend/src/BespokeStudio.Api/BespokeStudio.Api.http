@@ -1,0 +1,11 @@
+@BespokeStudio.Api_HostAddress = http://localhost:5099
+
+GET {{BespokeStudio.Api_HostAddress}}/api/health
+Accept: application/json
+
+###
+
+GET {{BespokeStudio.Api_HostAddress}}/api/version
+Accept: application/json
+
+###
