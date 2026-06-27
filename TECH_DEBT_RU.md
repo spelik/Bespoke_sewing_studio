@@ -31,6 +31,8 @@
 - Добавлены `POST /api/auth/login`, защищённый `GET /api/auth/me`, Swagger Bearer authorization и безопасный development seed без credentials в репозитории.
 - Frontend admin login подключён к JWT API: access token хранится в `sessionStorage`, `/admin` защищён route guard, logout очищает сессию.
 - Admin Orders page использует реальные list/detail/status/note endpoints; изменения статуса и заметки обновляют UI без перезагрузки.
+- Order attachments реализованы двухшаговым flow: public multipart upload возвращает IDs, `POST /api/orders` связывает metadata с заявкой, а admin скачивает файл через JWT-protected endpoint.
+- PostgreSQL хранит только upload metadata; физические dev-файлы находятся в ignored `backend/storage/uploads`, с generated filenames, allowlist типов и лимитом `5 MB` на файл.
 
 ## Оптимизация изображений
 
@@ -56,13 +58,15 @@
 - SPA fallback всё ещё должен быть настроен на production-сервере. В репозитории добавлена только документация, не серверная конфигурация.
 - Site content, Contact form и admin-разделы Overview metrics, Clients, Campaigns и Analytics остаются в `mock/prototype mode`; реальный HTTP используется public Order submission и admin Orders flow.
 - PostgreSQL и EF migrations проверены напрямую через connection string на `127.0.0.1:5433`; Docker CLI доступен, но sandbox не разрешил доступ к Docker daemon/pipe для отдельной проверки container health.
-- CRUD/API endpoints для `Portfolio`, `Categories`, `Services` и `Uploads` пока не реализованы.
+- CRUD/API endpoints для `Portfolio`, `Categories`, `Services` и общего upload management пока не реализованы.
 - Application services для остальных модулей и отдельные repository abstractions пока не реализованы.
 - Value objects и правила нормализации/валидации для email, телефона и денежных значений пока не определены.
 - Client matching пока не защищён уникальным normalized email/phone constraint; при конкурентных запросах возможны дубликаты.
 - Ручную validation можно позже заменить или дополнить FluentValidation при росте числа команд и правил.
 - Для production auth остаются refresh-token/session strategy, password reset, email confirmation/MFA, rate limiting login и ротация JWT signing key через внешний secret store.
-- Физическая загрузка файлов, frontend upload integration, file storage и email notifications пока не реализованы; Order form отправляет `attachmentIds: null`.
+- Production storage provider (S3/Azure Blob/R2), antivirus/deep content scanning и thumbnail/image processing пока не реализованы.
+- Для анонимно загруженных файлов, после которых заявка не была создана, нужен периодический orphan cleanup; public upload endpoint также потребует production rate limiting/abuse protection.
+- Email notifications пока не реализованы.
 - Production secret management для admin seed и JWT signing key ещё требует внешнего secret store и operational rotation process.
 
 ## Рекомендации на следующие задачи

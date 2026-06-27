@@ -1,6 +1,8 @@
 import { type FormEvent, useEffect, useState } from "react";
-import { LoaderCircle, X } from "lucide-react";
+import { Download, LoaderCircle, X } from "lucide-react";
+import { ApiError } from "../../api/apiClient";
 import {
+  getAdminAttachmentFile,
   ORDER_STATUSES,
   type AdminOrderDetail as AdminOrderDetailModel,
   type AdminOrderStatus,
@@ -29,6 +31,8 @@ export function AdminOrderDetail({
   onAddNote,
 }: AdminOrderDetailProps) {
   const [note, setNote] = useState("");
+  const [downloadingAttachmentId, setDownloadingAttachmentId] = useState<string | null>(null);
+  const [attachmentError, setAttachmentError] = useState<string | null>(null);
 
   useEffect(() => {
     setNote("");
@@ -42,6 +46,30 @@ export function AdminOrderDetail({
     event.preventDefault();
     if (await onAddNote(note)) {
       setNote("");
+    }
+  }
+
+  async function handleAttachmentDownload(uploadedFileId: string, originalFileName: string) {
+    setDownloadingAttachmentId(uploadedFileId);
+    setAttachmentError(null);
+    try {
+      const blob = await getAdminAttachmentFile(uploadedFileId);
+      const objectUrl = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = objectUrl;
+      link.download = originalFileName;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+    } catch (error) {
+      setAttachmentError(
+        error instanceof ApiError
+          ? error.message
+          : "The attachment could not be downloaded.",
+      );
+    } finally {
+      setDownloadingAttachmentId(null);
     }
   }
 
@@ -111,16 +139,36 @@ export function AdminOrderDetail({
             <section className="bg-card border border-border p-5">
               <h3 className="text-[10px] tracking-wider uppercase text-muted-foreground mb-3">Attachments</h3>
               {order.attachments.length === 0 ? (
-                <p className="text-[11px] text-muted-foreground">Uploads not connected yet.</p>
+                <p className="text-[11px] text-muted-foreground">No attachments were included with this enquiry.</p>
               ) : (
                 <ul className="space-y-2">
                   {order.attachments.map((attachment) => (
-                    <li key={attachment.id} className="text-[11px] text-foreground">
-                      {attachment.originalFileName}
+                    <li key={attachment.id} className="flex items-center justify-between gap-3 border-b border-border/50 pb-2 text-[11px] text-foreground">
+                      <div className="min-w-0">
+                        <div className="truncate">{attachment.originalFileName}</div>
+                        <div className="text-[9px] text-muted-foreground mt-0.5">
+                          {attachment.contentType} &middot; {(attachment.sizeBytes / 1024).toFixed(1)} KB
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        disabled={downloadingAttachmentId === attachment.uploadedFileId}
+                        onClick={() => void handleAttachmentDownload(
+                          attachment.uploadedFileId,
+                          attachment.originalFileName,
+                        )}
+                        className="shrink-0 inline-flex items-center gap-1.5 text-[10px] text-accent hover:text-foreground disabled:opacity-50 transition-colors"
+                      >
+                        <Download size={12} />
+                        {downloadingAttachmentId === attachment.uploadedFileId ? "Downloading..." : "Download"}
+                      </button>
                     </li>
                   ))}
                 </ul>
               )}
+              {attachmentError ? (
+                <p role="alert" className="text-[10px] text-destructive mt-3">{attachmentError}</p>
+              ) : null}
             </section>
 
             <section className="bg-card border border-border p-5">

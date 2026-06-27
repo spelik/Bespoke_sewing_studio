@@ -9,7 +9,8 @@ Site content and the remaining prototype features still use typed mock data from
 `src/api/`. The public Order form now sends real requests to
 `POST /api/orders`, which persists enquiries in PostgreSQL through the ASP.NET
 Core backend. The admin login and Orders screens also use the backend API; the
-remaining admin dashboard sections are still prototype data.
+remaining admin dashboard sections are still prototype data. Optional order
+attachments are uploaded first and linked to the created enquiry by ID.
 
 API configuration lives in `src/config/appConfig.ts`. `VITE_API_BASE_URL`
 defaults to `http://localhost:5099/api` for local development. Copy
@@ -30,6 +31,8 @@ Current backend status:
 - ASP.NET Core Identity + JWT Bearer protects Orders administration routes
 - `/api/auth/login` and `/api/auth/me` provide the backend authentication foundation
 - the public Order form calls `POST /api/orders`
+- the public Order form accepts JPG, PNG, WebP and PDF attachments up to 5 MB each
+- attachment metadata is stored in PostgreSQL; development files are stored under `backend/storage/uploads`
 - admin login and Orders list/detail/status/notes use protected backend endpoints
 - site content and the remaining admin dashboard sections use mock/prototype data
 
@@ -78,7 +81,9 @@ npm.cmd run dev -- --host 127.0.0.1
 ```
 
 The backend must be available at the configured `VITE_API_BASE_URL` before an
-Order form submission or admin sign-in. Upload integration is not enabled.
+Order form submission or admin sign-in. Select up to five files in the public
+Order form; after submission, open the enquiry in `/admin` to download its
+protected attachments. `backend/storage/` is ignored by Git.
 
 Commands:
 

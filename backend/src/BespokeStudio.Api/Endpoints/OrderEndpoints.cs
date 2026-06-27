@@ -65,8 +65,18 @@ public static class OrderEndpoints
             return TypedResults.ValidationProblem(ToJsonPropertyNames(errors));
         }
 
-        var order = await orderService.CreateAsync(request, cancellationToken);
-        return TypedResults.Created($"/api/orders/{order.Id}", order);
+        try
+        {
+            var order = await orderService.CreateAsync(request, cancellationToken);
+            return TypedResults.Created($"/api/orders/{order.Id}", order);
+        }
+        catch (OrderAttachmentValidationException exception)
+        {
+            return TypedResults.ValidationProblem(new Dictionary<string, string[]>
+            {
+                ["attachmentIds"] = [exception.Message]
+            });
+        }
     }
 
     private static async Task<IResult> GetOrdersAsync(

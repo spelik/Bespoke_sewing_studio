@@ -35,9 +35,14 @@ public static class OrderRequestValidator
             errors[nameof(request.Consent)] = ["Consent is required to submit an enquiry."];
         }
 
-        if (request.AttachmentIds is { Count: > 0 })
+        if (request.AttachmentIds is { Count: > 5 })
         {
-            errors[nameof(request.AttachmentIds)] = ["Attachments are not supported yet."];
+            errors[nameof(request.AttachmentIds)] = ["No more than 5 attachments are allowed."];
+        }
+        else if (request.AttachmentIds is { Count: > 0 } &&
+                 request.AttachmentIds.Distinct().Count() != request.AttachmentIds.Count)
+        {
+            errors[nameof(request.AttachmentIds)] = ["Attachment ids must be unique."];
         }
 
         return errors;

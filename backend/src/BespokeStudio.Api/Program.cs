@@ -10,6 +10,7 @@ using BespokeStudio.Application.Security;
 using BespokeStudio.Infrastructure.Authentication;
 using BespokeStudio.Infrastructure.DependencyInjection;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Http.Features;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
@@ -19,6 +20,10 @@ var builder = WebApplication.CreateBuilder(args);
 var corsSettings = builder.Configuration
     .GetSection(CorsSettings.SectionName)
     .Get<CorsSettings>() ?? new CorsSettings();
+var uploadStorageSettings = builder.Configuration
+    .GetSection(BespokeStudio.Infrastructure.Storage.UploadStorageOptions.SectionName)
+    .Get<BespokeStudio.Infrastructure.Storage.UploadStorageOptions>()
+    ?? new BespokeStudio.Infrastructure.Storage.UploadStorageOptions();
 
 builder.Services
     .AddApplication()
@@ -42,6 +47,9 @@ builder.Services.AddSwaggerGen(options =>
 });
 builder.Services.ConfigureHttpJsonOptions(options =>
     options.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
+builder.Services.Configure<FormOptions>(options =>
+    options.MultipartBodyLengthLimit =
+        uploadStorageSettings.MaxFileSizeBytes * uploadStorageSettings.MaxFilesPerRequest + 1024 * 1024);
 
 builder.Services
     .AddOptions<JwtSettings>()
@@ -135,5 +143,6 @@ api.MapGet("/version", () =>
 
 app.MapOrderEndpoints();
 app.MapAuthEndpoints();
+app.MapUploadEndpoints(uploadStorageSettings.PublicBasePath);
 
 app.Run();

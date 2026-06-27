@@ -9,3 +9,5 @@ obj/
 .vscode
 .vs
 .DS_Store
+backend/storage/
+storage/

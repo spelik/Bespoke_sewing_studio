@@ -2,6 +2,7 @@ using BespokeStudio.Application.Abstractions;
 using BespokeStudio.Infrastructure.Authentication;
 using BespokeStudio.Infrastructure.Persistence;
 using BespokeStudio.Infrastructure.Services;
+using BespokeStudio.Infrastructure.Storage;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -22,6 +23,16 @@ public static class DependencyInjection
                 npgsqlOptions.MigrationsAssembly(typeof(BespokeStudioDbContext).Assembly.FullName)));
 
         services
+            .AddOptions<UploadStorageOptions>()
+            .Bind(configuration.GetSection(UploadStorageOptions.SectionName))
+            .Validate(options => !string.IsNullOrWhiteSpace(options.RootPath), "UploadStorage:RootPath is required.")
+            .Validate(options => options.PublicBasePath.StartsWith("/api/", StringComparison.Ordinal), "UploadStorage:PublicBasePath must start with /api/.")
+            .Validate(options => options.MaxFileSizeBytes > 0, "UploadStorage:MaxFileSizeBytes must be positive.")
+            .Validate(options => options.MaxFilesPerRequest is >= 1 and <= 5, "UploadStorage:MaxFilesPerRequest must be between 1 and 5.")
+            .Validate(options => options.AllowedContentTypes.Count > 0, "UploadStorage:AllowedContentTypes is required.")
+            .ValidateOnStart();
+
+        services
             .AddIdentityCore<AdminUser>(options =>
             {
                 options.User.RequireUniqueEmail = true;
@@ -33,6 +44,7 @@ public static class DependencyInjection
             .AddEntityFrameworkStores<BespokeStudioDbContext>();
 
         services.AddScoped<IOrderService, OrderService>();
+        services.AddScoped<IUploadService, LocalUploadService>();
 
         return services;
     }

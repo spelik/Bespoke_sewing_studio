@@ -6,7 +6,9 @@ export interface ApiClient {
   readonly mode: "hybrid";
   resolve<T>(mockData: T): T;
   get<TResponse>(path: string): Promise<TResponse>;
+  getBlob(path: string): Promise<Blob>;
   post<TRequest, TResponse>(path: string, body: TRequest): Promise<TResponse>;
+  postForm<TResponse>(path: string, body: FormData): Promise<TResponse>;
   patch<TRequest, TResponse>(path: string, body: TRequest): Promise<TResponse>;
 }
 
@@ -29,13 +31,34 @@ export class ApiError extends Error {
 
 type ApiMethod = "GET" | "POST" | "PATCH";
 
+function buildUrl(path: string): string {
+  return `${appConfig.apiBaseUrl.replace(/\/$/, "")}/${path.replace(/^\//, "")}`;
+}
+
+function getAuthorizationHeaders(): Record<string, string> {
+  const token = getAccessToken();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+async function throwApiError(response: Response): Promise<never> {
+  const contentType = response.headers.get("content-type") ?? "";
+  const responseBody = contentType.includes("json")
+    ? ((await response.json()) as unknown)
+    : undefined;
+  const problem = responseBody as ApiProblemDetails | undefined;
+  throw new ApiError(
+    problem?.detail ?? problem?.title ?? "The request could not be completed.",
+    response.status,
+    problem?.errors,
+  );
+}
+
 async function request<TResponse>(
   method: ApiMethod,
   path: string,
   body?: unknown,
 ): Promise<TResponse> {
-  const url = `${appConfig.apiBaseUrl.replace(/\/$/, "")}/${path.replace(/^\//, "")}`;
-  const token = getAccessToken();
+  const url = buildUrl(path);
 
   let response: Response;
   try {
@@ -44,7 +67,7 @@ async function request<TResponse>(
       headers: {
         Accept: "application/json",
         ...(body === undefined ? {} : { "Content-Type": "application/json" }),
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...getAuthorizationHeaders(),
       },
       body: body === undefined ? undefined : JSON.stringify(body),
     });
@@ -55,19 +78,14 @@ async function request<TResponse>(
     );
   }
 
+  if (!response.ok) {
+    await throwApiError(response);
+  }
+
   const contentType = response.headers.get("content-type") ?? "";
   const responseBody = contentType.includes("json")
     ? ((await response.json()) as unknown)
     : undefined;
-
-  if (!response.ok) {
-    const problem = responseBody as ApiProblemDetails | undefined;
-    throw new ApiError(
-      problem?.detail ?? problem?.title ?? "The request could not be completed.",
-      response.status,
-      problem?.errors,
-    );
-  }
 
   return responseBody as TResponse;
 }
@@ -88,8 +106,48 @@ export const apiClient: ApiClient = {
   get<TResponse>(path: string) {
     return request<TResponse>("GET", path);
   },
+  async getBlob(path: string) {
+    let response: Response;
+    try {
+      response = await fetch(buildUrl(path), {
+        headers: {
+          Accept: "*/*",
+          ...getAuthorizationHeaders(),
+        },
+      });
+    } catch {
+      throw new ApiError("The server could not be reached. Check that the backend is running and try again.", 0);
+    }
+
+    if (!response.ok) {
+      await throwApiError(response);
+    }
+
+    return response.blob();
+  },
   async post<TRequest, TResponse>(path: string, body: TRequest) {
     return request<TResponse>("POST", path, body);
+  },
+  async postForm<TResponse>(path: string, body: FormData) {
+    let response: Response;
+    try {
+      response = await fetch(buildUrl(path), {
+        method: "POST",
+        headers: {
+          Accept: "application/json",
+          ...getAuthorizationHeaders(),
+        },
+        body,
+      });
+    } catch {
+      throw new ApiError("The server could not be reached. Check that the backend is running and try again.", 0);
+    }
+
+    if (!response.ok) {
+      await throwApiError(response);
+    }
+
+    return (await response.json()) as TResponse;
   },
   patch<TRequest, TResponse>(path: string, body: TRequest) {
     return request<TResponse>("PATCH", path, body);

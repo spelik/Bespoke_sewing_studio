@@ -1,9 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type DragEvent } from "react";
 import { Check, ChevronDown, Send, Upload } from "lucide-react";
 import {
   createOrder,
   getOrderSubmissionErrorMessage,
   parseOrderServiceType,
+  validateOrderAttachments,
 } from "../../api/ordersApi";
 import { SERVICES } from "../appContent";
 import { SectionLabel } from "../components/SectionLabel";
@@ -13,6 +14,8 @@ import type { OrderRequest, OrderSubmissionResponse } from "../types";
 export function OrderPage() {
   const [service, setService] = useState("");
   const [consent, setConsent] = useState(false);
+  const [attachments, setAttachments] = useState<File[]>([]);
+  const [attachmentError, setAttachmentError] = useState<string | null>(null);
   const { submitted, result, isSubmitting, errorMessage, handleSubmit } = useAsyncForm<
     OrderRequest,
     OrderSubmissionResponse
@@ -26,9 +29,26 @@ export function OrderPage() {
       description: String(formData.get("description") ?? ""),
       preferredDate: String(formData.get("preferredDate") ?? "") || undefined,
       consent,
+      attachments,
     }),
     getOrderSubmissionErrorMessage,
   );
+
+  function selectAttachments(files: File[]) {
+    try {
+      validateOrderAttachments(files);
+      setAttachments(files);
+      setAttachmentError(null);
+    } catch (error) {
+      setAttachments([]);
+      setAttachmentError(getOrderSubmissionErrorMessage(error));
+    }
+  }
+
+  function handleDrop(event: DragEvent<HTMLLabelElement>) {
+    event.preventDefault();
+    selectAttachments(Array.from(event.dataTransfer.files));
+  }
 
   useEffect(() => {
     if (submitted) {
@@ -190,19 +210,43 @@ export function OrderPage() {
                     Photos of Your Garment{" "}
                     <span className="text-muted-foreground font-normal">(optional)</span>
                   </label>
-                  <div
-                    aria-disabled="true"
+                  <label
+                    htmlFor="order-attachments"
+                    onDragOver={(event) => event.preventDefault()}
+                    onDrop={handleDrop}
                     className="border-2 border-dashed border-border hover:border-accent/50 transition-colors p-10 text-center cursor-pointer bg-secondary/20 group"
                   >
+                    <input
+                      id="order-attachments"
+                      type="file"
+                      multiple
+                      accept=".jpg,.jpeg,.png,.webp,.pdf,image/jpeg,image/png,image/webp,application/pdf"
+                      className="sr-only"
+                      onChange={(event) => selectAttachments(Array.from(event.target.files ?? []))}
+                    />
                     <Upload size={22} className="mx-auto mb-3 text-muted-foreground/40 group-hover:text-accent/60 transition-colors" />
                     <p className="text-[13px] text-muted-foreground font-sans">
                       Drag and drop images here, or{" "}
                       <span className="text-accent font-medium">click to browse</span>
                     </p>
                     <p className="text-[11px] text-muted-foreground/50 mt-2 font-sans">
-                      JPG, PNG, HEIC &middot; Up to 10 MB each
+                      JPG, PNG, WebP or PDF &middot; Up to 5 MB each &middot; Maximum 5 files
                     </p>
-                  </div>
+                  </label>
+                  {attachments.length > 0 ? (
+                    <ul className="mt-3 space-y-1.5" aria-label="Selected attachments">
+                      {attachments.map((file) => (
+                        <li key={`${file.name}-${file.size}`} className="text-[11px] text-muted-foreground font-sans">
+                          {file.name} &middot; {(file.size / 1024).toFixed(1)} KB
+                        </li>
+                      ))}
+                    </ul>
+                  ) : null}
+                  {attachmentError ? (
+                    <p role="alert" className="text-[11px] text-accent mt-3 font-sans">
+                      {attachmentError}
+                    </p>
+                  ) : null}
                 </div>
               </div>
             </div>
@@ -246,7 +290,7 @@ export function OrderPage() {
 
             <button
               type="submit"
-              disabled={!consent || isSubmitting}
+              disabled={!consent || isSubmitting || attachmentError !== null}
               className="w-full bg-foreground text-primary-foreground py-4 text-[13px] tracking-wide hover:bg-accent transition-colors flex items-center justify-center gap-2.5 font-sans disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-foreground"
             >
               <Send size={13} />

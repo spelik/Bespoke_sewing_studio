@@ -15,6 +15,31 @@ const API_SERVICE_TYPES: Readonly<Record<OrderServiceType, OrderApiServiceType>>
   "Memory Bears": "MemoryBear",
 };
 
+export const MAX_ORDER_ATTACHMENT_SIZE_BYTES = 5 * 1024 * 1024;
+export const MAX_ORDER_ATTACHMENTS = 5;
+const ALLOWED_ORDER_ATTACHMENT_TYPES = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "application/pdf",
+]);
+
+export class OrderFileValidationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "OrderFileValidationError";
+  }
+}
+
+export interface UploadedOrderAttachment {
+  id: string;
+  originalFileName: string;
+  contentType: string;
+  sizeBytes: number;
+  purpose: "OrderAttachment";
+  createdAt: string;
+}
+
 export const ORDER_STATUSES = [
   "New",
   "Contacted",
@@ -98,6 +123,10 @@ export function parseOrderServiceType(value: FormDataEntryValue | null): OrderSe
 export async function createOrder(
   order: OrderRequest,
 ): Promise<OrderSubmissionResponse> {
+  validateOrderAttachments(order.attachments);
+  const uploadedFiles = order.attachments.length > 0
+    ? await uploadOrderAttachments(order.attachments)
+    : [];
   const request: CreateOrderApiRequest = {
     fullName: order.fullName.trim(),
     email: order.email.trim() || null,
@@ -106,10 +135,40 @@ export async function createOrder(
     description: order.description.trim(),
     preferredDate: order.preferredDate || null,
     consent: order.consent,
-    attachmentIds: null,
+    attachmentIds: uploadedFiles.length > 0
+      ? uploadedFiles.map((file) => file.id)
+      : null,
   };
 
   return apiClient.post<CreateOrderApiRequest, OrderSubmissionResponse>("/orders", request);
+}
+
+export function validateOrderAttachments(files: readonly File[]): void {
+  if (files.length > MAX_ORDER_ATTACHMENTS) {
+    throw new OrderFileValidationError(`You can attach up to ${MAX_ORDER_ATTACHMENTS} files.`);
+  }
+
+  for (const file of files) {
+    if (file.size <= 0) {
+      throw new OrderFileValidationError(`"${file.name}" is empty.`);
+    }
+    if (file.size > MAX_ORDER_ATTACHMENT_SIZE_BYTES) {
+      throw new OrderFileValidationError(`"${file.name}" is larger than 5 MB.`);
+    }
+    if (!ALLOWED_ORDER_ATTACHMENT_TYPES.has(file.type)) {
+      throw new OrderFileValidationError(`"${file.name}" is not a supported JPG, PNG, WebP or PDF file.`);
+    }
+  }
+}
+
+export function uploadOrderAttachments(files: readonly File[]): Promise<UploadedOrderAttachment[]> {
+  const formData = new FormData();
+  files.forEach((file) => formData.append("files", file, file.name));
+  return apiClient.postForm<UploadedOrderAttachment[]>("/uploads/order-attachments", formData);
+}
+
+export function getAdminAttachmentFile(uploadedFileId: string): Promise<Blob> {
+  return apiClient.getBlob(`/uploads/${uploadedFileId}`);
 }
 
 export function getAdminOrders(): Promise<AdminOrderListItem[]> {
@@ -149,6 +208,9 @@ export function getAdminApiErrorMessage(error: unknown): string {
 }
 
 export function getOrderSubmissionErrorMessage(error: unknown): string {
+  if (error instanceof OrderFileValidationError) {
+    return error.message;
+  }
   if (error instanceof ApiError) {
     const validationMessage = error.errors
       ? Object.values(error.errors).flat().find(Boolean)

@@ -121,6 +121,7 @@ export interface OrderRequest {
   description: string;
   preferredDate?: string;
   consent: boolean;
+  attachments: File[];
 }
 
 export interface CreateOrderApiRequest {
@@ -131,7 +132,7 @@ export interface CreateOrderApiRequest {
   description: string;
   preferredDate: string | null;
   consent: boolean;
-  attachmentIds: null;
+  attachmentIds: string[] | null;
 }
 
 export interface OrderSubmissionResponse {

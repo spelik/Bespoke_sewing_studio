@@ -1,6 +1,7 @@
 using BespokeStudio.Application.Abstractions;
 using BespokeStudio.Application.Contracts.Clients;
 using BespokeStudio.Application.Contracts.Orders;
+using BespokeStudio.Application.Validation;
 using BespokeStudio.Domain.Entities;
 using BespokeStudio.Domain.Enums;
 using BespokeStudio.Infrastructure.Persistence;
@@ -17,6 +18,29 @@ public sealed class OrderService(BespokeStudioDbContext dbContext) : IOrderServi
         var now = DateTimeOffset.UtcNow;
         var normalizedEmail = NormalizeEmail(request.Email);
         var normalizedPhone = NormalizeOptional(request.Phone);
+        var attachmentIds = request.AttachmentIds?.ToArray() ?? [];
+        UploadedFileMetadata[] uploadedFiles = attachmentIds.Length == 0
+            ? []
+            : await dbContext.UploadedFiles
+                .AsNoTracking()
+                .Where(file =>
+                    attachmentIds.Contains(file.Id) &&
+                    file.Purpose == UploadPurpose.OrderAttachment)
+                .ToArrayAsync(cancellationToken);
+
+        if (uploadedFiles.Length != attachmentIds.Length)
+        {
+            throw new OrderAttachmentValidationException(
+                "One or more uploaded attachments are missing or invalid.");
+        }
+
+        if (attachmentIds.Length > 0 && await dbContext.OrderAttachments
+                .AsNoTracking()
+                .AnyAsync(attachment => attachmentIds.Contains(attachment.UploadedFileId), cancellationToken))
+        {
+            throw new OrderAttachmentValidationException(
+                "One or more uploaded attachments are already linked to an order.");
+        }
 
         Client? client = null;
 
@@ -83,9 +107,31 @@ public sealed class OrderService(BespokeStudioDbContext dbContext) : IOrderServi
         };
 
         dbContext.Orders.Add(order);
+        var uploadedFilesById = uploadedFiles.ToDictionary(file => file.Id);
+        var orderAttachments = attachmentIds.Select((uploadedFileId, index) => new OrderAttachment
+        {
+            OrderId = order.Id,
+            UploadedFileId = uploadedFileId,
+            DisplayOrder = index,
+            CreatedAt = now
+        }).ToArray();
+        dbContext.OrderAttachments.AddRange(orderAttachments);
         await dbContext.SaveChangesAsync(cancellationToken);
 
-        return MapOrderResponse(order, client, [], []);
+        var attachmentResponses = orderAttachments.Select(attachment =>
+        {
+            var file = uploadedFilesById[attachment.UploadedFileId];
+            return new OrderAttachmentResponse(
+                attachment.Id,
+                file.Id,
+                file.OriginalFileName,
+                file.ContentType,
+                file.SizeBytes,
+                attachment.Caption,
+                attachment.DisplayOrder);
+        }).ToArray();
+
+        return MapOrderResponse(order, client, attachmentResponses, []);
     }
 
     public async Task<OrderResponse?> GetByIdAsync(

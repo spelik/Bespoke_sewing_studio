@@ -161,10 +161,46 @@ Start the API and use `/swagger` for interactive testing, or open
 the id returned by `POST /api/orders` into the `OrderId` variable before running
 the detail, status, and note examples.
 
-Physical attachments and email notifications are not implemented. The public
-frontend Order form calls anonymous `POST /api/orders`. The admin frontend uses
+Email notifications are not implemented. The public frontend Order form calls
+anonymous `POST /api/orders`. The admin frontend uses
 login, current-user, Orders list/detail, status, and note endpoints; the other
 admin dashboard sections remain prototypes.
+
+## Order attachments
+
+The public frontend uses a two-step flow that keeps the existing JSON Orders
+contract stable:
+
+1. `POST /api/uploads/order-attachments` receives one multipart batch and returns uploaded file IDs.
+2. `POST /api/orders` receives those IDs in `attachmentIds` and creates `OrderAttachments` links atomically with the order.
+
+The upload endpoint is anonymous because it is used before an order exists. It
+accepts at most five non-empty files, each no larger than `5 MB`, and validates
+both content type and filename extension. Allowed combinations are JPG/JPEG,
+PNG, WebP, and PDF. Server-generated random filenames are used; the original
+filename is retained only as metadata.
+
+PostgreSQL stores only `UploadedFiles` metadata and `OrderAttachments` links.
+Physical development files are stored under `backend/storage/uploads`, which
+is excluded by `.gitignore`. Configuration is in `UploadStorage`:
+
+```json
+{
+  "RootPath": "../../storage/uploads",
+  "PublicBasePath": "/api/uploads",
+  "MaxFileSizeBytes": 5242880,
+  "MaxFilesPerRequest": 5
+}
+```
+
+Administrators download linked files through protected
+`GET /api/uploads/{uploadedFileId}`. Unauthenticated access returns `401`; the
+frontend obtains the file as a Bearer-authenticated blob and downloads it using
+the original filename. Files are not served from `wwwroot`.
+
+To verify manually, submit an enquiry with an allowed file in `/order`, confirm
+that a generated file appears under `backend/storage/uploads`, then sign in at
+`/admin`, open the enquiry, and select **Download** in Attachments.
 
 ## Administrator authentication
 
@@ -262,7 +298,7 @@ execute database queries, so they also remain available when PostgreSQL is
 offline. Database connectivity is verified separately by `database update` and
 the `__EFMigrationsHistory` query above.
 
-Portfolio, services, and upload CRUD endpoints are not implemented yet. The
+Portfolio, services, and general upload-management CRUD endpoints are not implemented yet. The
 public Order form uses this backend, while site content and the admin frontend
 sections outside Orders remain in mock/prototype mode. Refresh tokens, password
 reset, email confirmation, MFA, and production secret rotation are not
