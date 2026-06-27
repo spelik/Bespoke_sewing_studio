@@ -1,3 +1,5 @@
+using BespokeStudio.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -7,6 +9,14 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
+        var connectionString = configuration.GetConnectionString("BespokeStudioDb")
+            ?? throw new InvalidOperationException(
+                "Connection string 'BespokeStudioDb' is not configured.");
+
+        services.AddDbContext<BespokeStudioDbContext>(options =>
+            options.UseNpgsql(connectionString, npgsqlOptions =>
+                npgsqlOptions.MigrationsAssembly(typeof(BespokeStudioDbContext).Assembly.FullName)));
+
         return services;
     }
 }

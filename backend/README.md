@@ -6,8 +6,8 @@ Current status:
 
 - backend is a skeleton only
 - domain model and application contract drafts are in place
-- no PostgreSQL connection yet
-- no EF Core migrations yet
+- EF Core persistence is configured for PostgreSQL
+- the `InitialCreate` migration is included but has not been applied
 - no authentication or admin login yet
 - no real orders/enquiries API yet
 
@@ -40,6 +40,60 @@ business rules are implemented.
 - Services
 - Uploads
 
+## PostgreSQL and EF Core
+
+The EF Core context is `BespokeStudioDbContext` in
+`BespokeStudio.Infrastructure/Persistence`. Entity mappings are defined with
+Fluent API configurations in Infrastructure; Domain remains free of EF Core
+attributes and references.
+
+The development connection string is stored in
+`BespokeStudio.Api/appsettings.Development.json` under
+`ConnectionStrings:BespokeStudioDb`. Its credentials are local placeholders
+matching the Docker Compose service. Use environment variables or a secret
+store for non-development environments.
+
+Start the local PostgreSQL 16 container from the repository root:
+
+```powershell
+docker compose -f docker-compose.postgres.yml up -d
+```
+
+This command requires Docker with the Compose plugin. The compose file was not
+started in the current development environment because the Docker CLI was not
+installed.
+
+Stop it without deleting the named data volume:
+
+```powershell
+docker compose -f docker-compose.postgres.yml down
+```
+
+Create a new migration after changing the persistence model:
+
+```powershell
+dotnet ef migrations add MigrationName --project backend/src/BespokeStudio.Infrastructure --startup-project backend/src/BespokeStudio.Api --output-dir Persistence/Migrations
+```
+
+Apply migrations to the configured development database:
+
+```powershell
+dotnet ef database update --project backend/src/BespokeStudio.Infrastructure --startup-project backend/src/BespokeStudio.Api
+```
+
+The repository currently contains the `InitialCreate` migration. It was
+generated without connecting to PostgreSQL and has not been applied by this
+task. Installing the matching CLI tool, if it is missing locally:
+
+```powershell
+dotnet tool install --global dotnet-ef --version 10.0.9
+```
+
+Registering the DbContext does not open a database connection during API
+startup. The existing system endpoints and Swagger can therefore run while the
+development database is offline. No database health check or automatic
+migration is enabled yet.
+
 Commands:
 
 ```powershell
@@ -65,3 +119,7 @@ Available endpoints after startup:
 - `/swagger`
 - `/api/health`
 - `/api/version`
+
+Orders, clients, portfolio, services, and upload CRUD endpoints are not
+implemented yet. The frontend remains in mock/prototype mode and does not call
+this backend.

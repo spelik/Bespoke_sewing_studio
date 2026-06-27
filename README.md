@@ -17,10 +17,18 @@ Current backend status:
 
 - Swagger/OpenAPI is enabled
 - `/api/health` and `/api/version` are available
-- no PostgreSQL connection yet
-- no EF Core migrations yet
+- EF Core persistence is configured for local PostgreSQL development
+- the `InitialCreate` migration exists but is not applied automatically
 - no authentication yet
 - frontend still works in mock/prototype mode and does not call the backend yet
+
+Local PostgreSQL can be started with:
+
+```powershell
+docker compose -f docker-compose.postgres.yml up -d
+```
+
+Persistence and migration commands are documented in `backend/README.md`.
 
 Commands:
 

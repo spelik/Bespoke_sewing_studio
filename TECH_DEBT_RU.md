@@ -18,6 +18,9 @@
 - Создан независимый от persistence черновик domain models для `Orders`, `Clients`, `Portfolio`, `Categories`, `Services` и upload metadata.
 - Созданы application contracts/DTO и сервисные интерфейсы для будущих модулей `Orders`, `Clients`, `Portfolio`, `Services`, `Uploads`; domain entities не используются как transport responses.
 - Backend `bin/obj` удалены из Git tracking без удаления физических файлов; build artefacts теперь игнорируются через `.gitignore`, housekeeping debt закрыт.
+- Создан EF Core persistence skeleton для PostgreSQL: `BespokeStudioDbContext`, восемь `IEntityTypeConfiguration<T>`, Fluent API relationships, ограничения и строковый mapping enum находятся в Infrastructure.
+- В development-конфигурацию добавлен локальный `ConnectionStrings:BespokeStudioDb`, а в корень проекта — `docker-compose.postgres.yml` для PostgreSQL 16.
+- Создана initial migration `InitialCreate` в `BespokeStudio.Infrastructure/Persistence/Migrations`; migration сгенерирована без подключения к БД и не применялась.
 
 ## Оптимизация изображений
 
@@ -42,8 +45,8 @@
 - Admin bundle остаётся крупным из-за `recharts`: `439.21 KB` в текущей production-сборке.
 - SPA fallback всё ещё должен быть настроен на production-сервере. В репозитории добавлена только документация, не серверная конфигурация.
 - Frontend по-прежнему не подключён к реальному backend. API layer во frontend всё ещё работает в `mock/prototype mode`, без реальных HTTP-запросов.
-- В backend пока не подключён PostgreSQL.
-- EF Core и migrations пока не настроены.
+- PostgreSQL persistence настроен, но development database ещё не поднималась и migration `InitialCreate` не применялась через `database update`.
+- `docker-compose.postgres.yml` добавлен, но не запускался и не проверялся против Docker daemon: Docker CLI отсутствует в текущем окружении.
 - CRUD/API endpoints для `Orders`, `Clients`, `Portfolio`, `Categories`, `Services` и `Uploads` пока не реализованы.
 - Application services и repository/persistence implementations пока не реализованы и не зарегистрированы в DI.
 - Value objects и правила нормализации/валидации для email, телефона и денежных значений пока не определены.
@@ -56,5 +59,5 @@
 - Подготовить фактическую production-конфигурацию хостинга с SPA fallback.
 - Добить image pipeline для самых тяжёлых portfolio assets: AVIF или отдельные thumbnails под card layout.
 - Оценить, можно ли уменьшить admin chunk через более узкий импорт графиков или дополнительное lazy splitting внутри admin prototype.
-- Согласовать бизнес-валидацию и persistence mapping, затем добавить PostgreSQL/EF Core, application service implementations и реальные API endpoints.
+- Поднять локальный PostgreSQL, применить `InitialCreate`, затем добавить application service implementations и реальные API endpoints.
 - Подключать frontend к HTTP API только после стабилизации endpoint contracts; до этого сохранять `mock/prototype mode`.
