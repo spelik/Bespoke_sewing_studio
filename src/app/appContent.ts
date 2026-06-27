@@ -44,10 +44,12 @@ export const WHY_US = getStudioValues().map((value) => ({
 }));
 export const HOME_CONTACT_ITEMS = getHomeContactItems().map((item) => ({
   ...item,
+  kind: item.icon,
   icon: CONTACT_ICONS[item.icon],
 }));
 export const CONTACT_PAGE_ITEMS = getContactPageItems().map((item) => ({
   ...item,
+  kind: item.icon,
   icon: CONTACT_ICONS[item.icon],
 }));
 export const PRIVACY_SECTIONS = getPrivacySections();

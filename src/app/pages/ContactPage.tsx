@@ -2,9 +2,20 @@ import { Check } from "lucide-react";
 import { CONTACT_PAGE_ITEMS } from "../appContent";
 import { SectionLabel } from "../components/SectionLabel";
 import { usePrototypeForm } from "../hooks/usePrototypeForm";
+import { useSiteSettings } from "../siteSettings/SiteSettingsContext";
 
 export function ContactPage() {
   const { submitted: messageSent, handleSubmit } = usePrototypeForm("contact message");
+  const { settings } = useSiteSettings();
+  const contactItems = CONTACT_PAGE_ITEMS.map((item) => ({
+    ...item,
+    text:
+      item.kind === "location"
+        ? settings.serviceAreaText
+        : item.kind === "phone"
+          ? settings.publicPhone
+          : settings.publicEmail ?? settings.contactIntroText,
+  })).filter((item) => item.text);
 
   return (
     <div className="pt-[72px]">
@@ -25,7 +36,7 @@ export function ContactPage() {
             {/* Info */}
             <div>
               <div className="space-y-8">
-                {CONTACT_PAGE_ITEMS.map(({ icon: Icon, label, text: value }) => (
+                {contactItems.map(({ icon: Icon, label, text: value }) => (
                   <div key={label} className="flex gap-4">
                     <div className="w-10 h-10 border border-border flex items-center justify-center shrink-0">
                       <Icon size={13} className="text-accent" />

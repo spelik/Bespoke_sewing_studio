@@ -48,6 +48,37 @@ export interface SiteSettings {
   contact: ContactInfo;
 }
 
+export interface PublicSiteSettings {
+  studioName: string;
+  siteTagline: string | null;
+  publicEmail: string | null;
+  publicPhone: string | null;
+  whatsAppPhone: string | null;
+  contactButtonLabel: string | null;
+  contactIntroText: string | null;
+  facebookUrl: string | null;
+  instagramUrl: string | null;
+  tikTokUrl: string | null;
+  pinterestUrl: string | null;
+  footerText: string | null;
+  serviceAreaText: string | null;
+}
+
+export interface AdminSiteSettings extends PublicSiteSettings {
+  id: string;
+  notificationEmail: string | null;
+  notificationPhone: string | null;
+  emailNotificationsEnabled: boolean;
+  whatsAppNotificationsEnabled: boolean;
+  businessLegalName: string | null;
+  updatedAt: string;
+}
+
+export type UpdateSiteSettingsRequest = Omit<
+  AdminSiteSettings,
+  "id" | "updatedAt"
+>;
+
 export interface ResponsiveImageAsset {
   src: string;
   srcSet?: string;

@@ -1,16 +1,17 @@
 import { useState } from "react";
-import { BarChart2, Bell, Eye, LogOut, Mail, Menu, Package, Search, Send, TrendingUp, Users } from "lucide-react";
+import { BarChart2, Bell, Eye, LogOut, Mail, Menu, Package, Search, Send, Settings, TrendingUp, Users } from "lucide-react";
 import { Bar, BarChart, CartesianGrid, Cell, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { ORDER_STATUSES, type AdminOrderStatus } from "../../api/ordersApi";
 import { ADMIN_STATS, MONTHLY_DATA, SERVICE_BREAKDOWN } from "../appContent";
 import { useAuth } from "../auth/AuthContext";
 import { AdminOrderDetail } from "../components/AdminOrderDetail";
 import { AdminOrdersTable } from "../components/AdminOrdersTable";
+import { AdminSettingsPanel } from "../components/AdminSettingsPanel";
 import { ADMIN_STATUS_LABELS } from "../components/adminOrderFormatting";
 import { useAdminOrders } from "../hooks/useAdminOrders";
 import { usePageNavigation } from "../routing/usePageNavigation";
 
-type AdminSection = "overview" | "orders" | "clients" | "campaigns" | "analytics";
+type AdminSection = "overview" | "orders" | "clients" | "campaigns" | "analytics" | "settings";
 
 export function AdminPage() {
   const navigate = usePageNavigation();
@@ -32,6 +33,7 @@ export function AdminPage() {
     { id: "clients", label: "Clients", icon: Users },
     { id: "campaigns", label: "Campaigns", icon: Mail },
     { id: "analytics", label: "Analytics", icon: TrendingUp },
+    { id: "settings", label: "Settings", icon: Settings },
   ];
 
   return (
@@ -395,6 +397,10 @@ export function AdminPage() {
                 </div>
               </div>
             </div>
+          )}
+
+          {section === "settings" && (
+            <AdminSettingsPanel onUnauthorized={logout} />
           )}
         </div>
       </main>

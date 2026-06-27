@@ -1,10 +1,20 @@
 import { Mail, MapPin, Phone } from "lucide-react";
 import { Link } from "react-router-dom";
-import { CONTACT_DETAILS, NAV_LINKS, SITE_ASSETS } from "../appContent";
+import { NAV_LINKS, SITE_ASSETS } from "../appContent";
 import { StitchDivider } from "../components/StitchDivider";
 import { PAGE_PATHS } from "../routing/routes";
+import { useSiteSettings } from "../siteSettings/SiteSettingsContext";
 
 export function Footer() {
+  const { settings } = useSiteSettings();
+  const socialLinks = [
+    { label: "Instagram", shortLabel: "ig", url: settings.instagramUrl },
+    { label: "Facebook", shortLabel: "fb", url: settings.facebookUrl },
+    { label: "TikTok", shortLabel: "tt", url: settings.tikTokUrl },
+    { label: "Pinterest", shortLabel: "pt", url: settings.pinterestUrl },
+  ];
+  const publicContactText = settings.publicEmail ?? settings.contactIntroText;
+
   return (
     <footer className="bg-foreground text-primary-foreground">
       <div className="max-w-7xl mx-auto px-6 lg:px-10 pt-16 pb-10">
@@ -13,20 +23,42 @@ export function Footer() {
             <div className="mb-5">
               <img
                 src={SITE_ASSETS.headerLogo}
-                alt="Oksana Logosha Logo"
+                alt={`${settings.studioName} logo`}
                 className="h-8 w-auto object-contain brightness-0 invert opacity-90"
               />
             </div>
             <p className="text-sm text-primary-foreground/55 leading-relaxed">
-              Premium sewing, tailoring, dressmaking, alterations and handmade toys in Northern Ireland.
+              {settings.siteTagline ??
+                "Premium sewing, tailoring, dressmaking, alterations and handmade toys in Northern Ireland."}
             </p>
             <div className="mt-6 flex items-center gap-3">
-              <div className="w-8 h-8 border border-primary-foreground/20 flex items-center justify-center hover:border-accent transition-colors cursor-pointer">
-                <span className="text-[10px] text-primary-foreground/50">ig</span>
-              </div>
-              <div className="w-8 h-8 border border-primary-foreground/20 flex items-center justify-center hover:border-accent transition-colors cursor-pointer">
-                <span className="text-[10px] text-primary-foreground/50">fb</span>
-              </div>
+              {socialLinks
+                .filter(
+                  (social) =>
+                    social.url || social.label === "Instagram" || social.label === "Facebook",
+                )
+                .map((social) =>
+                social.url ? (
+                  <a
+                    key={social.label}
+                    href={social.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    aria-label={social.label}
+                    className="w-8 h-8 border border-primary-foreground/20 flex items-center justify-center hover:border-accent transition-colors"
+                  >
+                    <span className="text-[10px] text-primary-foreground/50">{social.shortLabel}</span>
+                  </a>
+                ) : (
+                  <span
+                    key={social.label}
+                    aria-hidden="true"
+                    className="w-8 h-8 border border-primary-foreground/20 flex items-center justify-center"
+                  >
+                    <span className="text-[10px] text-primary-foreground/50">{social.shortLabel}</span>
+                  </span>
+                ),
+              )}
             </div>
           </div>
 
@@ -61,18 +93,24 @@ export function Footer() {
           <div>
             <h3 className="text-[10px] tracking-[0.25em] uppercase text-primary-foreground/35 mb-5">Contact</h3>
             <ul className="space-y-3 text-sm text-primary-foreground/60">
-              <li className="flex items-start gap-2.5">
+              {settings.serviceAreaText ? (
+                <li className="flex items-start gap-2.5">
                 <MapPin size={13} className="mt-0.5 shrink-0 text-accent/70" />
-                <span>{CONTACT_DETAILS.location}</span>
-              </li>
-              <li className="flex items-center gap-2.5">
+                  <span>{settings.serviceAreaText}</span>
+                </li>
+              ) : null}
+              {settings.publicPhone ? (
+                <li className="flex items-center gap-2.5">
                 <Phone size={13} className="text-accent/70" />
-                <span>{CONTACT_DETAILS.phone}</span>
-              </li>
-              <li className="flex items-center gap-2.5">
+                  <span>{settings.publicPhone}</span>
+                </li>
+              ) : null}
+              {publicContactText ? (
+                <li className="flex items-center gap-2.5">
                 <Mail size={13} className="text-accent/70" />
-                <span>Please send an enquiry to discuss your order.</span>
-              </li>
+                  <span>{publicContactText}</span>
+                </li>
+              ) : null}
             </ul>
           </div>
         </div>
@@ -80,7 +118,9 @@ export function Footer() {
         <StitchDivider />
 
         <div className="mt-6 flex flex-col md:flex-row items-center justify-between gap-4 text-[11px] text-primary-foreground/30">
-          <span>&copy; 2024 Bespoke Sewing Studio. All rights reserved.</span>
+          <span>
+            &copy; 2024 {settings.footerText ?? settings.studioName}
+          </span>
           <div className="flex items-center gap-6">
             <Link to="/privacy" className="hover:text-primary-foreground/60 transition-colors">
               Privacy Policy

@@ -1,8 +1,22 @@
 import { MapPin } from "lucide-react";
 import { HOME_CONTACT_ITEMS } from "../appContent";
 import { SectionLabel } from "../components/SectionLabel";
+import { useSiteSettings } from "../siteSettings/SiteSettingsContext";
 
 export function ContactSection() {
+  const { settings } = useSiteSettings();
+  const contactItems = HOME_CONTACT_ITEMS.map((item) => ({
+    ...item,
+    text:
+      item.kind === "location"
+        ? settings.serviceAreaText
+        : item.kind === "phone"
+          ? settings.publicPhone
+          : item.kind === "email"
+            ? settings.publicEmail ?? settings.contactIntroText
+            : item.text,
+  })).filter((item) => item.text);
+
   return (
       <section className="py-24 bg-background">
         <div className="max-w-7xl mx-auto px-6 lg:px-10">
@@ -13,8 +27,8 @@ export function ContactSection() {
                 Visit the Studio
               </h2>
               <div className="space-y-5">
-                {HOME_CONTACT_ITEMS.map(({ icon: Icon, text }) => (
-                  <div key={text} className="flex items-start gap-3 text-[13px] text-muted-foreground font-sans">
+                {contactItems.map(({ icon: Icon, kind, text }) => (
+                  <div key={kind} className="flex items-start gap-3 text-[13px] text-muted-foreground font-sans">
                     <Icon size={14} className="text-accent mt-0.5 shrink-0" />
                     <span>{text}</span>
                   </div>

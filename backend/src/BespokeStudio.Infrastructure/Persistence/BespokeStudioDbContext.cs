@@ -16,6 +16,7 @@ public sealed class BespokeStudioDbContext(DbContextOptions<BespokeStudioDbConte
     public DbSet<PortfolioCategory> PortfolioCategories => Set<PortfolioCategory>();
     public DbSet<PortfolioItem> PortfolioItems => Set<PortfolioItem>();
     public DbSet<ServiceOffering> ServiceOfferings => Set<ServiceOffering>();
+    public DbSet<SiteSettings> SiteSettings => Set<SiteSettings>();
     public DbSet<UploadedFileMetadata> UploadedFiles => Set<UploadedFileMetadata>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)

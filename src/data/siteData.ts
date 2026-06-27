@@ -4,6 +4,7 @@ import type {
   NavigationItem,
   PrivacySection,
   ProcessStep,
+  PublicSiteSettings,
   SiteAssets,
   SiteSettings,
   StudioValue,
@@ -21,6 +22,22 @@ export const SITE_SETTINGS: SiteSettings = {
   brandName: "Bespoke Sewing Studio",
   defaultLanguage: "en",
   contact: CONTACT_DETAILS,
+};
+
+export const PUBLIC_SITE_SETTINGS_FALLBACK: PublicSiteSettings = {
+  studioName: SITE_SETTINGS.brandName,
+  siteTagline: "Premium sewing, tailoring, dressmaking, alterations and memory bears.",
+  publicEmail: "hello@logosha.co.uk",
+  publicPhone: CONTACT_DETAILS.phone,
+  whatsAppPhone: null,
+  contactButtonLabel: "Send Enquiry",
+  contactIntroText: CONTACT_DETAILS.enquiryNote,
+  facebookUrl: null,
+  instagramUrl: null,
+  tikTokUrl: null,
+  pinterestUrl: null,
+  footerText: "Bespoke Sewing Studio. All rights reserved.",
+  serviceAreaText: "Appointments arranged individually.",
 };
 
 export const SITE_ASSETS: SiteAssets = {

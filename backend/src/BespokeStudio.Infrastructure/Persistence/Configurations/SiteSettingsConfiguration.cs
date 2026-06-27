@@ -1,0 +1,54 @@
+using BespokeStudio.Domain.Entities;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Builders;
+
+namespace BespokeStudio.Infrastructure.Persistence.Configurations;
+
+public sealed class SiteSettingsConfiguration : IEntityTypeConfiguration<SiteSettings>
+{
+    private static readonly DateTimeOffset InitialUpdatedAt =
+        new(2026, 6, 27, 0, 0, 0, TimeSpan.Zero);
+
+    public void Configure(EntityTypeBuilder<SiteSettings> builder)
+    {
+        builder.ToTable("SiteSettings", table =>
+            table.HasCheckConstraint(
+                "CK_SiteSettings_Singleton",
+                $"\"Id\" = '{SiteSettings.SingletonId}'::uuid"));
+
+        builder.HasKey(settings => settings.Id);
+        builder.Property(settings => settings.Id).ValueGeneratedNever();
+        builder.Property(settings => settings.StudioName).HasMaxLength(150).IsRequired();
+        builder.Property(settings => settings.SiteTagline).HasMaxLength(500);
+        builder.Property(settings => settings.PublicEmail).HasMaxLength(320);
+        builder.Property(settings => settings.PublicPhone).HasMaxLength(50);
+        builder.Property(settings => settings.WhatsAppPhone).HasMaxLength(50);
+        builder.Property(settings => settings.ContactButtonLabel).HasMaxLength(100);
+        builder.Property(settings => settings.ContactIntroText).HasMaxLength(1000);
+        builder.Property(settings => settings.NotificationEmail).HasMaxLength(320);
+        builder.Property(settings => settings.NotificationPhone).HasMaxLength(50);
+        builder.Property(settings => settings.FacebookUrl).HasMaxLength(2048);
+        builder.Property(settings => settings.InstagramUrl).HasMaxLength(2048);
+        builder.Property(settings => settings.TikTokUrl).HasMaxLength(2048);
+        builder.Property(settings => settings.PinterestUrl).HasMaxLength(2048);
+        builder.Property(settings => settings.FooterText).HasMaxLength(500);
+        builder.Property(settings => settings.ServiceAreaText).HasMaxLength(500);
+        builder.Property(settings => settings.BusinessLegalName).HasMaxLength(200);
+        builder.Property(settings => settings.UpdatedAt).IsRequired();
+
+        builder.HasData(new SiteSettings
+        {
+            Id = SiteSettings.SingletonId,
+            StudioName = "Bespoke Sewing Studio",
+            SiteTagline = "Bespoke sewing, tailoring, dressmaking, alterations and memory bears.",
+            PublicPhone = "074 6734 7194",
+            ContactButtonLabel = "Send Enquiry",
+            ContactIntroText = "Consultations and orders are arranged individually.",
+            ServiceAreaText = "Appointments arranged individually.",
+            EmailNotificationsEnabled = false,
+            WhatsAppNotificationsEnabled = false,
+            FooterText = "Bespoke Sewing Studio. All rights reserved.",
+            UpdatedAt = InitialUpdatedAt
+        });
+    }
+}

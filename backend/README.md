@@ -96,7 +96,7 @@ dotnet ef database update --project backend/src/BespokeStudio.Infrastructure --s
 ```
 
 The repository currently contains `InitialCreate`, `AllowClientsWithoutEmail`,
-and `AddIdentityAuth`. All three migrations were applied to the local
+`AddIdentityAuth`, and `AddSiteSettings`. All four migrations were applied to the local
 development database. Installing the matching CLI tool, if it is missing
 locally:
 
@@ -240,6 +240,28 @@ files, missing physical files, and skipped candidates. The endpoint returns
 `401/403` without a valid Admin JWT. There is no scheduled background cleanup
 yet. Production object storage, antivirus/deep-content scanning, and image
 processing are also outside the current local-storage implementation.
+
+## Site Settings API
+
+Site settings use one strongly typed singleton row rather than a generic
+key/value store. Migration `AddSiteSettings` creates and seeds that row with
+safe development defaults. If the row is removed, `SiteSettingsService`
+recreates the same fixed-ID default on the next request.
+
+Available endpoints:
+
+- `GET /api/site-settings/public` — anonymous public contact, social and footer settings
+- `GET /api/admin/site-settings` — complete settings including notification destinations (Admin JWT required)
+- `PATCH /api/admin/site-settings` — validates and updates settings (Admin JWT required)
+
+The public response excludes notification email/phone, enabled flags,
+business legal name, and other admin-only metadata. The update endpoint returns
+`400 ValidationProblem` for an empty studio name, invalid email/phone values,
+invalid non-HTTP(S) URLs, or configured values exceeding their limits.
+
+`NotificationEmail`, `NotificationPhone`, and their enabled flags are stored
+for the next notification task only. The API does not send email, SMS, or
+WhatsApp messages.
 
 ## Administrator authentication
 

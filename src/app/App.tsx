@@ -11,6 +11,7 @@ import { ProtectedAdminRoute } from "./auth/ProtectedAdminRoute";
 import { RouteLoader } from "./components/RouteLoader";
 import { Footer } from "./layout/Footer";
 import { Header } from "./layout/Header";
+import { SiteSettingsProvider } from "./siteSettings/SiteSettingsContext";
 import type { Language } from "./types";
 
 const HomePage = lazy(() =>
@@ -90,7 +91,9 @@ export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <SiteShell />
+        <SiteSettingsProvider>
+          <SiteShell />
+        </SiteSettingsProvider>
       </AuthProvider>
     </BrowserRouter>
   );

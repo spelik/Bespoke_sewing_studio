@@ -5,8 +5,9 @@ React, Vite and TypeScript frontend for the Bespoke Sewing Studio website. The c
 
 ## Frontend data mode
 
-Site content and the remaining prototype features still use typed mock data from
-`src/api/`. The public Order form now sends real requests to
+Most marketing content and the remaining prototype features still use typed
+mock data from `src/api/`. Public contact/site settings now load from the
+backend with a typed frontend fallback. The public Order form sends real requests to
 `POST /api/orders`, which persists enquiries in PostgreSQL through the ASP.NET
 Core backend. The admin login and Orders screens also use the backend API; the
 remaining admin dashboard sections are still prototype data. Optional order
@@ -35,6 +36,8 @@ Current backend status:
 - attachment metadata is stored in PostgreSQL; development files are stored under `backend/storage/uploads`
 - public upload and order creation endpoints use configurable per-IP rate limits
 - administrators can manually remove expired orphan uploads through a protected cleanup endpoint
+- public contact, social and footer settings load from `GET /api/site-settings/public`
+- the Admin **Settings** section edits public and future notification settings
 - admin login and Orders list/detail/status/notes use protected backend endpoints
 - site content and the remaining admin dashboard sections use mock/prototype data
 
@@ -97,6 +100,18 @@ An upload that is not linked to an order and is older than the configured
 removed by an administrator through `POST /api/uploads/cleanup-orphans` using
 an Admin JWT. Cleanup is manual at this stage. Production object storage and
 antivirus/deep-content scanning are not implemented.
+
+## Site settings
+
+Sign in at `http://127.0.0.1:5173/admin`, then select **Settings** in the
+sidebar. The administrator can edit the studio name/tagline, public email and
+phone, WhatsApp phone, contact/footer text, service area, social URLs, and the
+email/phone values reserved for future notifications. Public contact data is
+shown in the Home contact section, Contact page, and Footer.
+
+Notification delivery is not implemented: the enabled flags and destination
+values are stored only. Public pages keep their typed fallback content if the
+API cannot be reached.
 
 Commands:
 

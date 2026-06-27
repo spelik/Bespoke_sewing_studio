@@ -45,6 +45,7 @@ public static class DependencyInjection
             .AddEntityFrameworkStores<BespokeStudioDbContext>();
 
         services.AddScoped<IOrderService, OrderService>();
+        services.AddScoped<ISiteSettingsService, SiteSettingsService>();
         services.AddScoped<IUploadService, LocalUploadService>();
         services.AddScoped<IUploadCleanupService, UploadCleanupService>();
 
