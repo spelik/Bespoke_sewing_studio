@@ -1,10 +1,13 @@
 using BespokeStudio.Domain.Entities;
+using BespokeStudio.Infrastructure.Authentication;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
 namespace BespokeStudio.Infrastructure.Persistence;
 
 public sealed class BespokeStudioDbContext(DbContextOptions<BespokeStudioDbContext> options)
-    : DbContext(options)
+    : IdentityDbContext<AdminUser, IdentityRole<Guid>, Guid>(options)
 {
     public DbSet<Client> Clients => Set<Client>();
     public DbSet<Order> Orders => Set<Order>();
@@ -17,6 +20,7 @@ public sealed class BespokeStudioDbContext(DbContextOptions<BespokeStudioDbConte
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        base.OnModelCreating(modelBuilder);
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(BespokeStudioDbContext).Assembly);
     }
 }

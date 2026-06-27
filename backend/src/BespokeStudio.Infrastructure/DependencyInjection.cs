@@ -1,6 +1,8 @@
 using BespokeStudio.Application.Abstractions;
+using BespokeStudio.Infrastructure.Authentication;
 using BespokeStudio.Infrastructure.Persistence;
 using BespokeStudio.Infrastructure.Services;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -18,6 +20,17 @@ public static class DependencyInjection
         services.AddDbContext<BespokeStudioDbContext>(options =>
             options.UseNpgsql(connectionString, npgsqlOptions =>
                 npgsqlOptions.MigrationsAssembly(typeof(BespokeStudioDbContext).Assembly.FullName)));
+
+        services
+            .AddIdentityCore<AdminUser>(options =>
+            {
+                options.User.RequireUniqueEmail = true;
+                options.Lockout.MaxFailedAccessAttempts = 5;
+                options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
+            })
+            .AddRoles<IdentityRole<Guid>>()
+            .AddSignInManager()
+            .AddEntityFrameworkStores<BespokeStudioDbContext>();
 
         services.AddScoped<IOrderService, OrderService>();
 

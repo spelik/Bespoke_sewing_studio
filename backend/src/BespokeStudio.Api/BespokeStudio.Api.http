@@ -1,5 +1,8 @@
 @BespokeStudio.Api_HostAddress = http://localhost:5099
 @OrderId = 00000000-0000-0000-0000-000000000000
+@AdminEmail = admin@example.test
+@AdminPassword = replace-with-local-secret
+@AccessToken = paste-login-access-token-here
 
 GET {{BespokeStudio.Api_HostAddress}}/api/health
 Accept: application/json
@@ -8,6 +11,22 @@ Accept: application/json
 
 GET {{BespokeStudio.Api_HostAddress}}/api/version
 Accept: application/json
+
+###
+
+POST {{BespokeStudio.Api_HostAddress}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{AdminEmail}}",
+  "password": "{{AdminPassword}}"
+}
+
+###
+
+GET {{BespokeStudio.Api_HostAddress}}/api/auth/me
+Accept: application/json
+Authorization: Bearer {{AccessToken}}
 
 ###
 
@@ -29,16 +48,19 @@ Content-Type: application/json
 
 GET {{BespokeStudio.Api_HostAddress}}/api/orders?take=100
 Accept: application/json
+Authorization: Bearer {{AccessToken}}
 
 ###
 
 GET {{BespokeStudio.Api_HostAddress}}/api/orders/{{OrderId}}
 Accept: application/json
+Authorization: Bearer {{AccessToken}}
 
 ###
 
 PATCH {{BespokeStudio.Api_HostAddress}}/api/orders/{{OrderId}}/status
 Content-Type: application/json
+Authorization: Bearer {{AccessToken}}
 
 {
   "status": "Contacted"
@@ -48,6 +70,7 @@ Content-Type: application/json
 
 POST {{BespokeStudio.Api_HostAddress}}/api/orders/{{OrderId}}/notes
 Content-Type: application/json
+Authorization: Bearer {{AccessToken}}
 
 {
   "text": "Contacted the client to confirm measurements."

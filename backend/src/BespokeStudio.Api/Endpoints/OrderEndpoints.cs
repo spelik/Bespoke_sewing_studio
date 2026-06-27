@@ -1,6 +1,7 @@
 using System.Text.Json;
 using BespokeStudio.Application.Abstractions;
 using BespokeStudio.Application.Contracts.Orders;
+using BespokeStudio.Application.Security;
 using BespokeStudio.Application.Validation;
 
 namespace BespokeStudio.Api.Endpoints;
@@ -18,25 +19,37 @@ public static class OrderEndpoints
             .ProducesValidationProblem();
 
         orders.MapGet(string.Empty, GetOrdersAsync)
+            .RequireAuthorization(AdminAccess.PolicyName)
             .WithName("GetOrders")
-            .Produces<IReadOnlyList<OrderListItemResponse>>();
+            .Produces<IReadOnlyList<OrderListItemResponse>>()
+            .Produces(StatusCodes.Status401Unauthorized)
+            .Produces(StatusCodes.Status403Forbidden);
 
         orders.MapGet("/{id:guid}", GetOrderByIdAsync)
+            .RequireAuthorization(AdminAccess.PolicyName)
             .WithName("GetOrderById")
             .Produces<OrderResponse>()
-            .Produces(StatusCodes.Status404NotFound);
+            .Produces(StatusCodes.Status404NotFound)
+            .Produces(StatusCodes.Status401Unauthorized)
+            .Produces(StatusCodes.Status403Forbidden);
 
         orders.MapPatch("/{id:guid}/status", UpdateOrderStatusAsync)
+            .RequireAuthorization(AdminAccess.PolicyName)
             .WithName("UpdateOrderStatus")
             .Produces<OrderResponse>()
             .ProducesValidationProblem()
-            .Produces(StatusCodes.Status404NotFound);
+            .Produces(StatusCodes.Status404NotFound)
+            .Produces(StatusCodes.Status401Unauthorized)
+            .Produces(StatusCodes.Status403Forbidden);
 
         orders.MapPost("/{id:guid}/notes", AddOrderNoteAsync)
+            .RequireAuthorization(AdminAccess.PolicyName)
             .WithName("AddOrderNote")
             .Produces<OrderResponse>()
             .ProducesValidationProblem()
-            .Produces(StatusCodes.Status404NotFound);
+            .Produces(StatusCodes.Status404NotFound)
+            .Produces(StatusCodes.Status401Unauthorized)
+            .Produces(StatusCodes.Status403Forbidden);
 
         return endpoints;
     }

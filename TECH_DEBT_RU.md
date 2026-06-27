@@ -26,6 +26,9 @@
 - Migration `AllowClientsWithoutEmail` разрешает phone-only enquiries; обе migration применены к локальной PostgreSQL на порту `5433`.
 - JSON enum сериализуются строками, поэтому API принимает значения вроде `Dressmaking`, `Contacted` и `MemoryBear`.
 - Public Order form подключена к реальному `POST /api/orders`: payload mapping, loading/success/error states и обработка validation problem изолированы во frontend API layer.
+- Добавлена backend-аутентификация на ASP.NET Core Identity + JWT Bearer; Identity users/roles хранятся в PostgreSQL, migration `AddIdentityAuth` применена локально.
+- `POST /api/orders` остаётся публичным, а Orders list/detail/status/notes защищены policy `AdminOnly` и ролью `Admin`.
+- Добавлены `POST /api/auth/login`, защищённый `GET /api/auth/me`, Swagger Bearer authorization и безопасный development seed без credentials в репозитории.
 
 ## Оптимизация изображений
 
@@ -51,13 +54,13 @@
 - SPA fallback всё ещё должен быть настроен на production-сервере. В репозитории добавлена только документация, не серверная конфигурация.
 - Site content, Contact form и admin panel всё ещё работают в `mock/prototype mode`; реальный HTTP сейчас используется только public Order submission.
 - PostgreSQL и EF migrations проверены напрямую через connection string на `127.0.0.1:5433`; Docker CLI доступен, но sandbox не разрешил доступ к Docker daemon/pipe для отдельной проверки container health.
-- Orders list/detail/status/note endpoints временно не защищены authentication/authorization и не должны публиковаться как admin API до добавления auth.
 - CRUD/API endpoints для `Portfolio`, `Categories`, `Services` и `Uploads` пока не реализованы.
 - Application services для остальных модулей и отдельные repository abstractions пока не реализованы.
 - Value objects и правила нормализации/валидации для email, телефона и денежных значений пока не определены.
 - Client matching пока не защищён уникальным normalized email/phone constraint; при конкурентных запросах возможны дубликаты.
 - Ручную validation можно позже заменить или дополнить FluentValidation при росте числа команд и правил.
-- Auth/admin login, JWT и role-based access пока не реализованы.
+- Admin frontend пока не использует login/JWT и защищённые Orders endpoints; UI остаётся прототипом.
+- Для production auth остаются refresh-token/session strategy, password reset, email confirmation/MFA, rate limiting login и ротация JWT signing key через внешний secret store.
 - Физическая загрузка файлов, frontend upload integration, file storage и email notifications пока не реализованы; Order form отправляет `attachmentIds: null`.
 - Admin order list/status/notes integration остаётся prototype и будет отдельной задачей после authentication/authorization.
 
@@ -66,6 +69,6 @@
 - Подготовить фактическую production-конфигурацию хостинга с SPA fallback.
 - Добить image pipeline для самых тяжёлых portfolio assets: AVIF или отдельные thumbnails под card layout.
 - Оценить, можно ли уменьшить admin chunk через более узкий импорт графиков или дополнительное lazy splitting внутри admin prototype.
-- Добавить authentication/authorization перед использованием Orders read/update/note endpoints будущей admin panel.
+- Подключить admin frontend к login/JWT и защищённым Orders endpoints отдельной задачей; текущий frontend не изменён.
 - Спроектировать нормализованные уникальные ключи client matching и обработку конкурентного создания клиентов.
 - Подключать остальные frontend-модули к HTTP API постепенно; site content и admin сохранять в `mock/prototype mode` до появления соответствующих защищённых endpoints.

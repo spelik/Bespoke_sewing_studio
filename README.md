@@ -26,7 +26,8 @@ Current backend status:
 - EF Core persistence is configured for local PostgreSQL development
 - migrations are applied explicitly with `dotnet ef database update`
 - Orders/enquiries API now persists data in PostgreSQL
-- no authentication yet
+- ASP.NET Core Identity + JWT Bearer protects Orders administration routes
+- `/api/auth/login` and `/api/auth/me` provide the backend authentication foundation
 - the public Order form calls `POST /api/orders`
 - site content and the admin prototype still use mock/prototype data
 
@@ -51,7 +52,9 @@ Invoke-WebRequest http://localhost:5099/swagger/index.html -UseBasicParsing
 If PostgreSQL is not needed for the current session, the API can still start
 and serve these system endpoints because they do not execute database queries.
 
-Persistence and migration commands are documented in `backend/README.md`.
+Persistence, admin user-secrets, migration, login, and Swagger Bearer commands
+are documented in `backend/README.md`. No administrator credentials are stored
+in the repository.
 
 Start the frontend in a second PowerShell window:
 
