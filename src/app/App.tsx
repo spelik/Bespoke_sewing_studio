@@ -6,6 +6,8 @@ import {
   useLocation,
 } from "react-router-dom";
 import { SITE_SETTINGS } from "./appContent";
+import { AuthProvider } from "./auth/AuthContext";
+import { ProtectedAdminRoute } from "./auth/ProtectedAdminRoute";
 import { RouteLoader } from "./components/RouteLoader";
 import { Footer } from "./layout/Footer";
 import { Header } from "./layout/Header";
@@ -35,6 +37,9 @@ const PrivacyPage = lazy(() =>
 const AdminPage = lazy(() =>
   import("./pages/AdminPage").then((module) => ({ default: module.AdminPage })),
 );
+const AdminLoginPage = lazy(() =>
+  import("./pages/AdminLoginPage").then((module) => ({ default: module.AdminLoginPage })),
+);
 const NotFoundPage = lazy(() =>
   import("./pages/NotFoundPage").then((module) => ({ default: module.NotFoundPage })),
 );
@@ -52,7 +57,7 @@ function RouteScrollReset() {
 function SiteShell() {
   const [lang, setLang] = useState<Language>(SITE_SETTINGS.defaultLanguage);
   const { pathname } = useLocation();
-  const isAdminRoute = pathname === "/admin";
+  const isAdminRoute = pathname.startsWith("/admin");
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -68,7 +73,10 @@ function SiteShell() {
             <Route path="/about" element={<AboutPage />} />
             <Route path="/contact" element={<ContactPage />} />
             <Route path="/privacy" element={<PrivacyPage />} />
-            <Route path="/admin" element={<AdminPage />} />
+            <Route path="/admin/login" element={<AdminLoginPage />} />
+            <Route element={<ProtectedAdminRoute />}>
+              <Route path="/admin" element={<AdminPage />} />
+            </Route>
             <Route path="*" element={<NotFoundPage />} />
           </Routes>
         </Suspense>
@@ -81,7 +89,9 @@ function SiteShell() {
 export default function App() {
   return (
     <BrowserRouter>
-      <SiteShell />
+      <AuthProvider>
+        <SiteShell />
+      </AuthProvider>
     </BrowserRouter>
   );
 }

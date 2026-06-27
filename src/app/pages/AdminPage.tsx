@@ -1,17 +1,30 @@
 import { useState } from "react";
-import { BarChart2, Bell, Edit2, Eye, Mail, Menu, MoreHorizontal, Package, Search, Send, TrendingUp, Users } from "lucide-react";
+import { BarChart2, Bell, Eye, LogOut, Mail, Menu, Package, Search, Send, TrendingUp, Users } from "lucide-react";
 import { Bar, BarChart, CartesianGrid, Cell, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { ADMIN_ORDERS, ADMIN_STATS, MONTHLY_DATA, SERVICE_BREAKDOWN, STATUS_COLORS } from "../appContent";
+import { ORDER_STATUSES, type AdminOrderStatus } from "../../api/ordersApi";
+import { ADMIN_STATS, MONTHLY_DATA, SERVICE_BREAKDOWN } from "../appContent";
+import { useAuth } from "../auth/AuthContext";
+import { AdminOrderDetail } from "../components/AdminOrderDetail";
+import { AdminOrdersTable } from "../components/AdminOrdersTable";
+import { ADMIN_STATUS_LABELS } from "../components/adminOrderFormatting";
+import { useAdminOrders } from "../hooks/useAdminOrders";
 import { usePageNavigation } from "../routing/usePageNavigation";
 
 type AdminSection = "overview" | "orders" | "clients" | "campaigns" | "analytics";
 
 export function AdminPage() {
   const navigate = usePageNavigation();
+  const { user, logout } = useAuth();
+  const adminOrders = useAdminOrders(logout);
   const [section, setSection] = useState<AdminSection>("overview");
+  const [orderFilter, setOrderFilter] = useState<AdminOrderStatus | "All">("All");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const monthlyData = [...MONTHLY_DATA];
   const serviceBreakdown = [...SERVICE_BREAKDOWN];
+  const filteredOrders =
+    orderFilter === "All"
+      ? adminOrders.orders
+      : adminOrders.orders.filter((order) => order.status === orderFilter);
 
   const navItems: { id: AdminSection; label: string; icon: typeof BarChart2 }[] = [
     { id: "overview", label: "Overview", icon: BarChart2 },
@@ -32,7 +45,7 @@ export function AdminPage() {
         <div className="p-5 border-b border-primary-foreground/10">
           <div className="text-[11px] font-serif tracking-wide text-primary-foreground">Studio Admin</div>
           <div className="text-[9px] tracking-[0.3em] uppercase text-primary-foreground/35 mt-0.5 font-sans">
-            Oksana Logosha
+            {user?.email ?? "Administrator"}
           </div>
         </div>
         <nav className="p-3 flex-1 overflow-y-auto">
@@ -55,6 +68,13 @@ export function AdminPage() {
           ))}
         </nav>
         <div className="p-4 border-t border-primary-foreground/10">
+          <button
+            type="button"
+            onClick={logout}
+            className="w-full flex items-center gap-2 text-[11px] text-primary-foreground/50 hover:text-primary-foreground transition-colors text-left font-sans mb-3"
+          >
+            <LogOut size={12} /> Sign out
+          </button>
           <button
             onClick={() => navigate("home")}
             className="w-full text-[11px] text-primary-foreground/35 hover:text-primary-foreground/65 transition-colors text-left font-sans"
@@ -83,7 +103,7 @@ export function AdminPage() {
                 {navItems.find((n) => n.id === section)?.label}
               </h1>
               <p className="text-[11px] text-muted-foreground mt-1 font-sans">
-                Studio management &middot; Demo data only
+                Studio management &middot; Live enquiries
               </p>
             </div>
             <div className="flex items-center gap-2">
@@ -140,40 +160,11 @@ export function AdminPage() {
                     View all
                   </button>
                 </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="border-b border-border bg-secondary/40">
-                        {["Order ID", "Client", "Service", "Status", "Amount"].map((h) => (
-                          <th key={h} className="px-5 py-3 text-left text-[10px] tracking-wider text-muted-foreground font-sans font-normal">
-                            {h}
-                          </th>
-                        ))}
-                        <th className="px-5 py-3" />
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {ADMIN_ORDERS.slice(0, 5).map((order) => (
-                        <tr key={order.id} className="border-b border-border/40 hover:bg-secondary/25 transition-colors">
-                          <td className="px-5 py-3.5 text-[11px] font-mono text-muted-foreground">{order.id}</td>
-                          <td className="px-5 py-3.5 text-[12px] text-foreground font-sans">{order.client}</td>
-                          <td className="px-5 py-3.5 text-[11px] text-muted-foreground font-sans hidden md:table-cell">{order.service}</td>
-                          <td className="px-5 py-3.5">
-                            <span className={`text-[10px] px-2 py-0.5 font-sans ${STATUS_COLORS[order.status] ?? "bg-muted text-muted-foreground"}`}>
-                              {order.status}
-                            </span>
-                          </td>
-                          <td className="px-5 py-3.5 text-[12px] text-foreground font-sans">{order.amount}</td>
-                          <td className="px-5 py-3.5">
-                            <button className="text-muted-foreground hover:text-foreground transition-colors">
-                              <MoreHorizontal size={13} />
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                <AdminOrdersTable
+                  orders={adminOrders.orders.slice(0, 5)}
+                  isLoading={adminOrders.isLoading}
+                  onSelect={(id) => void adminOrders.selectOrder(id)}
+                />
               </div>
             </div>
           )}
@@ -181,49 +172,35 @@ export function AdminPage() {
           {/* ── ORDERS ── */}
           {section === "orders" && (
             <div className="space-y-5">
-              <div className="flex flex-wrap gap-2">
-                {["All", "In Progress", "Consultation", "Awaiting Collection", "Completed"].map((s) => (
-                  <button
-                    key={s}
-                    className="px-4 py-1.5 text-[10px] tracking-wide border border-border bg-background hover:border-foreground font-sans transition-colors"
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <label className="text-[10px] tracking-wide text-muted-foreground font-sans">
+                  Status
+                  <select
+                    value={orderFilter}
+                    onChange={(event) => setOrderFilter(event.target.value as AdminOrderStatus | "All")}
+                    className="ml-3 px-3 py-2 text-[10px] border border-border bg-background focus:outline-none focus:border-accent"
                   >
-                    {s}
-                  </button>
-                ))}
-              </div>
-              <div className="bg-card border border-border overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-border bg-secondary/40">
-                      {["Order ID", "Client", "Service", "Date", "Status", "Amount", ""].map((h) => (
-                        <th key={h} className="px-5 py-3 text-left text-[10px] tracking-wider text-muted-foreground font-sans font-normal">
-                          {h}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {ADMIN_ORDERS.map((order) => (
-                      <tr key={order.id} className="border-b border-border/40 hover:bg-secondary/25 transition-colors">
-                        <td className="px-5 py-3.5 text-[11px] font-mono text-muted-foreground">{order.id}</td>
-                        <td className="px-5 py-3.5 text-[12px] text-foreground font-sans">{order.client}</td>
-                        <td className="px-5 py-3.5 text-[11px] text-muted-foreground font-sans">{order.service}</td>
-                        <td className="px-5 py-3.5 text-[11px] text-muted-foreground font-sans">{order.date}</td>
-                        <td className="px-5 py-3.5">
-                          <span className={`text-[10px] px-2 py-0.5 font-sans ${STATUS_COLORS[order.status] ?? "bg-muted text-muted-foreground"}`}>
-                            {order.status}
-                          </span>
-                        </td>
-                        <td className="px-5 py-3.5 text-[12px] text-foreground font-medium font-sans">{order.amount}</td>
-                        <td className="px-5 py-3.5 flex gap-2">
-                          <button className="text-muted-foreground hover:text-foreground transition-colors"><Eye size={13} /></button>
-                          <button className="text-muted-foreground hover:text-foreground transition-colors"><Edit2 size={13} /></button>
-                        </td>
-                      </tr>
+                    <option value="All">All statuses</option>
+                    {ORDER_STATUSES.map((status) => (
+                      <option key={status} value={status}>{ADMIN_STATUS_LABELS[status]}</option>
                     ))}
-                  </tbody>
-                </table>
+                  </select>
+                </label>
+                <button
+                  type="button"
+                  onClick={() => void adminOrders.reload()}
+                  disabled={adminOrders.isLoading}
+                  className="px-4 py-2 text-[10px] tracking-wide border border-border bg-background hover:border-foreground disabled:opacity-50 font-sans transition-colors"
+                >
+                  Refresh
+                </button>
               </div>
+              <AdminOrdersTable
+                orders={filteredOrders}
+                isLoading={adminOrders.isLoading}
+                emptyMessage="No enquiries match this status."
+                onSelect={(id) => void adminOrders.selectOrder(id)}
+              />
             </div>
           )}
 
@@ -421,6 +398,19 @@ export function AdminPage() {
           )}
         </div>
       </main>
+      {adminOrders.error ? (
+        <div role="alert" className="fixed bottom-5 right-5 z-[80] max-w-sm bg-card border border-destructive/30 px-4 py-3 text-[11px] text-destructive shadow-lg">
+          {adminOrders.error}
+        </div>
+      ) : null}
+      <AdminOrderDetail
+        order={adminOrders.selectedOrder}
+        isLoading={adminOrders.isDetailLoading}
+        isSaving={adminOrders.isSaving}
+        onClose={adminOrders.clearSelection}
+        onStatusChange={adminOrders.changeStatus}
+        onAddNote={adminOrders.addNote}
+      />
     </div>
   );
 }

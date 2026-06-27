@@ -162,8 +162,9 @@ the id returned by `POST /api/orders` into the `OrderId` variable before running
 the detail, status, and note examples.
 
 Physical attachments and email notifications are not implemented. The public
-frontend Order form calls anonymous `POST /api/orders`; admin frontend
-integration is still a prototype.
+frontend Order form calls anonymous `POST /api/orders`. The admin frontend uses
+login, current-user, Orders list/detail, status, and note endpoints; the other
+admin dashboard sections remain prototypes.
 
 ## Administrator authentication
 
@@ -183,7 +184,7 @@ files.
 Configure local secrets from the repository root:
 
 ```powershell
-dotnet user-secrets set "SeedAdmin:Email" "admin@example.test" --project backend/src/BespokeStudio.Api
+dotnet user-secrets set "SeedAdmin:Email" "admin@example.com" --project backend/src/BespokeStudio.Api
 dotnet user-secrets set "SeedAdmin:Password" "replace-with-a-strong-local-password" --project backend/src/BespokeStudio.Api
 dotnet user-secrets set "Jwt:SigningKey" "replace-with-at-least-32-random-characters" --project backend/src/BespokeStudio.Api
 ```
@@ -191,7 +192,7 @@ dotnet user-secrets set "Jwt:SigningKey" "replace-with-at-least-32-random-charac
 Environment-variable equivalents for deployment or temporary local use are:
 
 ```powershell
-$env:SeedAdmin__Email = "admin@example.test"
+$env:SeedAdmin__Email = "admin@example.com"
 $env:SeedAdmin__Password = "replace-with-a-strong-local-password"
 $env:Jwt__SigningKey = "replace-with-at-least-32-random-characters"
 ```
@@ -207,7 +208,7 @@ After applying migrations and starting the API, request a token:
 $login = Invoke-RestMethod http://localhost:5099/api/auth/login `
   -Method Post `
   -ContentType "application/json" `
-  -Body '{"email":"admin@example.test","password":"replace-with-a-strong-local-password"}'
+  -Body '{"email":"admin@example.com","password":"replace-with-a-strong-local-password"}'
 
 $headers = @{ Authorization = "Bearer $($login.accessToken)" }
 Invoke-RestMethod http://localhost:5099/api/auth/me -Headers $headers
@@ -263,5 +264,6 @@ the `__EFMigrationsHistory` query above.
 
 Portfolio, services, and upload CRUD endpoints are not implemented yet. The
 public Order form uses this backend, while site content and the admin frontend
-remain in mock/prototype mode. Refresh tokens, password reset, email
-confirmation, MFA, and production secret rotation are not implemented.
+sections outside Orders remain in mock/prototype mode. Refresh tokens, password
+reset, email confirmation, MFA, and production secret rotation are not
+implemented.

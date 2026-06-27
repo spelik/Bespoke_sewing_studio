@@ -146,8 +146,11 @@ public sealed class OrderService(BespokeStudioDbContext dbContext) : IOrderServi
                 order.Id,
                 order.ClientId,
                 client.FullName,
+                client.Email,
+                client.Phone,
                 order.ServiceType,
                 order.Status,
+                order.Description,
                 order.PreferredDate,
                 order.CreatedAt))
             .Take(take)

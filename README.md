@@ -8,7 +8,8 @@ React, Vite and TypeScript frontend for the Bespoke Sewing Studio website. The c
 Site content and the remaining prototype features still use typed mock data from
 `src/api/`. The public Order form now sends real requests to
 `POST /api/orders`, which persists enquiries in PostgreSQL through the ASP.NET
-Core backend.
+Core backend. The admin login and Orders screens also use the backend API; the
+remaining admin dashboard sections are still prototype data.
 
 API configuration lives in `src/config/appConfig.ts`. `VITE_API_BASE_URL`
 defaults to `http://localhost:5099/api` for local development. Copy
@@ -29,7 +30,8 @@ Current backend status:
 - ASP.NET Core Identity + JWT Bearer protects Orders administration routes
 - `/api/auth/login` and `/api/auth/me` provide the backend authentication foundation
 - the public Order form calls `POST /api/orders`
-- site content and the admin prototype still use mock/prototype data
+- admin login and Orders list/detail/status/notes use protected backend endpoints
+- site content and the remaining admin dashboard sections use mock/prototype data
 
 Local PostgreSQL and backend setup:
 
@@ -56,6 +58,19 @@ Persistence, admin user-secrets, migration, login, and Swagger Bearer commands
 are documented in `backend/README.md`. No administrator credentials are stored
 in the repository.
 
+Configure the development administrator before starting the backend:
+
+```powershell
+dotnet user-secrets set "SeedAdmin:Email" "admin@example.com" --project backend/src/BespokeStudio.Api
+dotnet user-secrets set "SeedAdmin:Password" "replace-with-a-strong-local-password" --project backend/src/BespokeStudio.Api
+```
+
+The seed only creates a missing administrator and does not replace an existing
+password. Apply migrations before starting the API, then open
+`http://127.0.0.1:5173/admin/login`. The frontend stores only the JWT access
+token in `sessionStorage`; signing out clears it. Passwords are never stored by
+the frontend.
+
 Start the frontend in a second PowerShell window:
 
 ```powershell
@@ -63,7 +78,7 @@ npm.cmd run dev -- --host 127.0.0.1
 ```
 
 The backend must be available at the configured `VITE_API_BASE_URL` before an
-Order form submission. No frontend upload or admin API integration is enabled.
+Order form submission or admin sign-in. Upload integration is not enabled.
 
 Commands:
 
