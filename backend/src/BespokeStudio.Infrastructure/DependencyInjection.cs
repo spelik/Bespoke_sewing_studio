@@ -1,4 +1,6 @@
+using BespokeStudio.Application.Abstractions;
 using BespokeStudio.Infrastructure.Persistence;
+using BespokeStudio.Infrastructure.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -16,6 +18,8 @@ public static class DependencyInjection
         services.AddDbContext<BespokeStudioDbContext>(options =>
             options.UseNpgsql(connectionString, npgsqlOptions =>
                 npgsqlOptions.MigrationsAssembly(typeof(BespokeStudioDbContext).Assembly.FullName)));
+
+        services.AddScoped<IOrderService, OrderService>();
 
         return services;
     }

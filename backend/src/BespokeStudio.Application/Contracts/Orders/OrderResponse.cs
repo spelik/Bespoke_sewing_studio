@@ -1,3 +1,4 @@
+using BespokeStudio.Application.Contracts.Clients;
 using BespokeStudio.Domain.Enums;
 
 namespace BespokeStudio.Application.Contracts.Orders;
@@ -5,6 +6,7 @@ namespace BespokeStudio.Application.Contracts.Orders;
 public sealed record OrderResponse(
     Guid Id,
     Guid ClientId,
+    ClientResponse Client,
     OrderServiceType ServiceType,
     OrderStatus Status,
     string Description,

@@ -4,12 +4,12 @@ ASP.NET Core Web API skeleton for the Bespoke Sewing Studio project.
 
 Current status:
 
-- backend is a skeleton only
+- backend contains the persistence foundation and the first Orders module
 - domain model and application contract drafts are in place
 - EF Core persistence is configured for PostgreSQL
-- the `InitialCreate` migration is included but has not been applied
+- the database migrations are included and applied in local development
+- Orders/enquiries API persists clients, orders, statuses, and internal notes
 - no authentication or admin login yet
-- no real orders/enquiries API yet
 
 ## Domain model draft
 
@@ -52,6 +52,9 @@ The development connection string is stored in
 `ConnectionStrings:BespokeStudioDb`. Its credentials are local placeholders
 matching the Docker Compose service. Use environment variables or a secret
 store for non-development environments.
+
+The current compose mapping exposes PostgreSQL on host port `5433` and maps it
+to container port `5432`.
 
 Start the local PostgreSQL 16 container from the repository root:
 
@@ -122,6 +125,45 @@ startup. The existing system endpoints and Swagger can therefore run while the
 development database is offline. No database health check or automatic
 migration is enabled yet.
 
+## Orders API
+
+The first persistence-backed API module is available under `/api/orders`:
+
+- `POST /api/orders` creates an enquiry and returns `201 Created`
+- `GET /api/orders?take=100` returns the newest enquiries
+- `GET /api/orders/{id}` returns enquiry details
+- `PATCH /api/orders/{id}/status` updates the workflow status
+- `POST /api/orders/{id}/notes` adds an internal note
+
+Example request:
+
+```json
+{
+  "fullName": "Test Client",
+  "email": "test@example.com",
+  "phone": "074 6734 7194",
+  "serviceType": "Dressmaking",
+  "description": "I would like to discuss a custom dress order.",
+  "preferredDate": null,
+  "consent": true,
+  "attachmentIds": null
+}
+```
+
+At least one of `email` or `phone` is required. Client matching first checks a
+normalised email and then an exact trimmed phone. A new client is created only
+when neither value matches an existing client.
+
+Start the API and use `/swagger` for interactive testing, or open
+`BespokeStudio.Api/BespokeStudio.Api.http` and run its prepared requests. Copy
+the id returned by `POST /api/orders` into the `OrderId` variable before running
+the detail, status, and note examples.
+
+`GET`, status, and note endpoints are temporary development/admin endpoints and
+are not protected yet. Do not expose them publicly before authentication and
+authorization are implemented. Physical attachments, email notifications, and
+frontend HTTP integration are also not implemented.
+
 Commands:
 
 ```powershell
@@ -147,6 +189,7 @@ Available endpoints after startup:
 - `/swagger`
 - `/api/health`
 - `/api/version`
+- `/api/orders`
 
 With the API running, verify the existing endpoints from another PowerShell
 window:
@@ -162,6 +205,5 @@ execute database queries, so they also remain available when PostgreSQL is
 offline. Database connectivity is verified separately by `database update` and
 the `__EFMigrationsHistory` query above.
 
-Orders, clients, portfolio, services, and upload CRUD endpoints are not
-implemented yet. The frontend remains in mock/prototype mode and does not call
-this backend.
+Portfolio, services, and upload CRUD endpoints are not implemented yet. The
+frontend remains in mock/prototype mode and does not call this backend.

@@ -1,4 +1,5 @@
 @BespokeStudio.Api_HostAddress = http://localhost:5099
+@OrderId = 00000000-0000-0000-0000-000000000000
 
 GET {{BespokeStudio.Api_HostAddress}}/api/health
 Accept: application/json
@@ -7,5 +8,49 @@ Accept: application/json
 
 GET {{BespokeStudio.Api_HostAddress}}/api/version
 Accept: application/json
+
+###
+
+POST {{BespokeStudio.Api_HostAddress}}/api/orders
+Content-Type: application/json
+
+{
+  "fullName": "Test Client",
+  "email": "test@example.com",
+  "phone": "074 6734 7194",
+  "serviceType": "Dressmaking",
+  "description": "I would like to discuss a custom dress order.",
+  "preferredDate": null,
+  "consent": true,
+  "attachmentIds": null
+}
+
+###
+
+GET {{BespokeStudio.Api_HostAddress}}/api/orders?take=100
+Accept: application/json
+
+###
+
+GET {{BespokeStudio.Api_HostAddress}}/api/orders/{{OrderId}}
+Accept: application/json
+
+###
+
+PATCH {{BespokeStudio.Api_HostAddress}}/api/orders/{{OrderId}}/status
+Content-Type: application/json
+
+{
+  "status": "Contacted"
+}
+
+###
+
+POST {{BespokeStudio.Api_HostAddress}}/api/orders/{{OrderId}}/notes
+Content-Type: application/json
+
+{
+  "text": "Contacted the client to confirm measurements."
+}
 
 ###

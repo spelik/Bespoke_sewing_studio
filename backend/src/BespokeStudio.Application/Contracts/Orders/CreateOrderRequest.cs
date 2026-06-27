@@ -4,7 +4,7 @@ namespace BespokeStudio.Application.Contracts.Orders;
 
 public sealed record CreateOrderRequest(
     string FullName,
-    string Email,
+    string? Email,
     string? Phone,
     OrderServiceType ServiceType,
     string Description,

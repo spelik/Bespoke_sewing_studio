@@ -13,6 +13,7 @@ public interface IOrderService
         CancellationToken cancellationToken = default);
 
     Task<IReadOnlyList<OrderListItemResponse>> GetAllAsync(
+        int take,
         CancellationToken cancellationToken = default);
 
     Task<OrderResponse?> UpdateStatusAsync(

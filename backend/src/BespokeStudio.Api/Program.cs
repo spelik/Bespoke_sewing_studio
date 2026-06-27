@@ -1,4 +1,6 @@
+using System.Text.Json.Serialization;
 using BespokeStudio.Api.Configuration;
+using BespokeStudio.Api.Endpoints;
 using BespokeStudio.Application.Contracts;
 using BespokeStudio.Application.DependencyInjection;
 using BespokeStudio.Infrastructure.DependencyInjection;
@@ -17,6 +19,8 @@ builder.Services
 builder.Services.AddHealthChecks();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+builder.Services.ConfigureHttpJsonOptions(options =>
+    options.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 builder.Services.AddCors(options =>
 {
     options.AddPolicy(CorsSettings.PolicyName, policy =>
@@ -67,5 +71,7 @@ api.MapGet("/version", () =>
         Name: "Bespoke Sewing Studio API",
         Mode: "skeleton")))
     .WithName("GetApiVersion");
+
+app.MapOrderEndpoints();
 
 app.Run();

@@ -18,7 +18,8 @@ Current backend status:
 - Swagger/OpenAPI is enabled
 - `/api/health` and `/api/version` are available
 - EF Core persistence is configured for local PostgreSQL development
-- the `InitialCreate` migration exists but is not applied automatically
+- migrations are applied explicitly with `dotnet ef database update`
+- Orders/enquiries API now persists data in PostgreSQL
 - no authentication yet
 - frontend still works in mock/prototype mode and does not call the backend yet
 

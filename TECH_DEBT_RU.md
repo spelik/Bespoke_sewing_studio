@@ -20,7 +20,11 @@
 - Backend `bin/obj` удалены из Git tracking без удаления физических файлов; build artefacts теперь игнорируются через `.gitignore`, housekeeping debt закрыт.
 - Создан EF Core persistence skeleton для PostgreSQL: `BespokeStudioDbContext`, восемь `IEntityTypeConfiguration<T>`, Fluent API relationships, ограничения и строковый mapping enum находятся в Infrastructure.
 - В development-конфигурацию добавлен локальный `ConnectionStrings:BespokeStudioDb`, а в корень проекта — `docker-compose.postgres.yml` для PostgreSQL 16.
-- Создана initial migration `InitialCreate` в `BespokeStudio.Infrastructure/Persistence/Migrations`; migration сгенерирована без подключения к БД и не применялась.
+- Создана initial migration `InitialCreate` в `BespokeStudio.Infrastructure/Persistence/Migrations`; migration применяется явно, без automatic migration при старте API.
+- Реализован Orders/Enquiries API: создание и чтение заявок, обновление статуса, внутренние заметки, базовая validation и PostgreSQL persistence через `IOrderService`.
+- Реализован простой client matching: сначала нормализованный email, затем точное совпадение trimmed phone; повторная заявка переиспользует существующего клиента.
+- Migration `AllowClientsWithoutEmail` разрешает phone-only enquiries; обе migration применены к локальной PostgreSQL на порту `5433`.
+- JSON enum сериализуются строками, поэтому API принимает значения вроде `Dressmaking`, `Contacted` и `MemoryBear`.
 
 ## Оптимизация изображений
 
@@ -45,19 +49,22 @@
 - Admin bundle остаётся крупным из-за `recharts`: `439.21 KB` в текущей production-сборке.
 - SPA fallback всё ещё должен быть настроен на production-сервере. В репозитории добавлена только документация, не серверная конфигурация.
 - Frontend по-прежнему не подключён к реальному backend. API layer во frontend всё ещё работает в `mock/prototype mode`, без реальных HTTP-запросов.
-- PostgreSQL persistence настроен, но development database ещё не поднималась; `InitialCreate` нужно применить локально командой `dotnet ef database update` после запуска PostgreSQL.
-- `docker-compose.postgres.yml` подготовлен и статически проверен по параметрам PostgreSQL 16, database/user/password/port/volume, но команды `docker compose config/up/ps` не выполнялись: Docker CLI отсутствует в текущем окружении.
-- CRUD/API endpoints для `Orders`, `Clients`, `Portfolio`, `Categories`, `Services` и `Uploads` пока не реализованы.
-- Application services и repository/persistence implementations пока не реализованы и не зарегистрированы в DI.
+- PostgreSQL и EF migrations проверены напрямую через connection string на `127.0.0.1:5433`; Docker CLI доступен, но sandbox не разрешил доступ к Docker daemon/pipe для отдельной проверки container health.
+- Orders list/detail/status/note endpoints временно не защищены authentication/authorization и не должны публиковаться как admin API до добавления auth.
+- CRUD/API endpoints для `Portfolio`, `Categories`, `Services` и `Uploads` пока не реализованы.
+- Application services для остальных модулей и отдельные repository abstractions пока не реализованы.
 - Value objects и правила нормализации/валидации для email, телефона и денежных значений пока не определены.
-- JSON-представление enum и mapping между backend `MemoryBear` и текущим frontend label `Memory Bears` нужно зафиксировать при проектировании реальных endpoints.
+- Client matching пока не защищён уникальным normalized email/phone constraint; при конкурентных запросах возможны дубликаты.
+- Ручную validation можно позже заменить или дополнить FluentValidation при росте числа команд и правил.
 - Auth/admin login, JWT и role-based access пока не реализованы.
 - Физическая загрузка файлов, file storage и email integrations пока не реализованы; существует только модель upload metadata.
+- Frontend integration с `POST /api/orders` остаётся отдельной задачей; React API layer всё ещё работает в mock/prototype mode.
 
 ## Рекомендации на следующие задачи
 
 - Подготовить фактическую production-конфигурацию хостинга с SPA fallback.
 - Добить image pipeline для самых тяжёлых portfolio assets: AVIF или отдельные thumbnails под card layout.
 - Оценить, можно ли уменьшить admin chunk через более узкий импорт графиков или дополнительное lazy splitting внутри admin prototype.
-- Поднять локальный PostgreSQL, применить `InitialCreate`, затем добавить application service implementations и реальные API endpoints.
+- Добавить authentication/authorization перед использованием Orders read/update/note endpoints будущей admin panel.
+- Спроектировать нормализованные уникальные ключи client matching и обработку конкурентного создания клиентов.
 - Подключать frontend к HTTP API только после стабилизации endpoint contracts; до этого сохранять `mock/prototype mode`.
