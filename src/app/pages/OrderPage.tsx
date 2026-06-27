@@ -1,0 +1,235 @@
+import { useState } from "react";
+import { Check, ChevronDown, Send, Upload } from "lucide-react";
+import { createPrototypeOrder, parseOrderServiceType } from "../../api/ordersApi";
+import { SERVICES } from "../appContent";
+import { SectionLabel } from "../components/SectionLabel";
+import { usePrototypeForm } from "../hooks/usePrototypeForm";
+import type { OrderRequest } from "../types";
+
+export function OrderPage() {
+  const [service, setService] = useState("");
+  const [consent, setConsent] = useState(false);
+  const { submitted, isSubmitting, handleSubmit } = usePrototypeForm<OrderRequest>(
+    "order request",
+    createPrototypeOrder,
+    (formData) => ({
+      fullName: String(formData.get("fullName") ?? ""),
+      email: String(formData.get("email") ?? ""),
+      phone: String(formData.get("phone") ?? "") || undefined,
+      service: parseOrderServiceType(formData.get("service")),
+      description: String(formData.get("description") ?? ""),
+      preferredDate: String(formData.get("preferredDate") ?? "") || undefined,
+      consent,
+    }),
+  );
+
+  if (submitted) {
+    return (
+      <div className="pt-[72px] min-h-screen bg-background flex items-center justify-center px-6">
+        <div className="text-center max-w-md">
+          <div className="w-14 h-14 border border-accent/40 flex items-center justify-center mx-auto mb-6">
+            <Check size={22} className="text-accent" />
+          </div>
+          <h2 className="font-serif text-[2rem] font-light text-foreground mb-4">
+            Request Received
+          </h2>
+          <p className="text-[13px] text-muted-foreground leading-relaxed mb-8 font-sans">
+            Thank you for your enquiry. We will be in touch within one working day to discuss your requirements and arrange a consultation at the studio.
+          </p>
+          <p className="text-[11px] text-muted-foreground/60 font-sans">
+            This is a design prototype — no data has been stored or transmitted.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="pt-[72px]">
+      <div className="bg-secondary py-20 px-6 lg:px-10">
+        <div className="max-w-7xl mx-auto">
+          <SectionLabel text="Order Request" />
+          <h1 className="font-serif text-[3rem] lg:text-[4.5rem] font-light text-foreground mt-4 leading-tight">
+            Begin Your
+            <br />
+            <em className="italic text-accent">Request.</em>
+          </h1>
+          <p className="text-[13px] text-muted-foreground mt-6 max-w-md leading-relaxed font-sans">
+            Complete the form below and we will be in touch within one working day to discuss your requirements and arrange a consultation.
+          </p>
+        </div>
+      </div>
+
+      <div className="bg-background py-16">
+        <div className="max-w-2xl mx-auto px-6 lg:px-10">
+          <form
+            className="space-y-10"
+            onSubmit={handleSubmit}
+          >
+            {/* Personal details */}
+            <div>
+              <h3 className="text-[10px] tracking-[0.3em] uppercase text-muted-foreground mb-6 pb-3 border-b border-border font-sans">
+                Your Details
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                <div>
+                  <label className="block text-[13px] text-foreground mb-2 font-sans font-medium">
+                    Full Name <span className="text-accent">*</span>
+                  </label>
+                  <input
+                    name="fullName"
+                    type="text"
+                    required
+                    placeholder="Catherine O'Neill"
+                    className="w-full border border-border bg-background px-4 py-3 text-[13px] focus:outline-none focus:border-accent transition-colors placeholder:text-muted-foreground/40 font-sans"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[13px] text-foreground mb-2 font-sans font-medium">
+                    Email Address <span className="text-accent">*</span>
+                  </label>
+                  <input
+                    name="email"
+                    type="email"
+                    required
+                    placeholder="catherine@example.com"
+                    className="w-full border border-border bg-background px-4 py-3 text-[13px] focus:outline-none focus:border-accent transition-colors placeholder:text-muted-foreground/40 font-sans"
+                  />
+                </div>
+                <div className="sm:col-span-2">
+                  <label className="block text-[13px] text-foreground mb-2 font-sans font-medium">
+                    Phone Number <span className="text-muted-foreground font-normal">(optional)</span>
+                  </label>
+                  <input
+                    name="phone"
+                    type="tel"
+                    placeholder="+44 7700 900 000"
+                    className="w-full border border-border bg-background px-4 py-3 text-[13px] focus:outline-none focus:border-accent transition-colors placeholder:text-muted-foreground/40 font-sans"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Service details */}
+            <div>
+              <h3 className="text-[10px] tracking-[0.3em] uppercase text-muted-foreground mb-6 pb-3 border-b border-border font-sans">
+                Service Details
+              </h3>
+              <div className="space-y-5">
+                <div>
+                  <label className="block text-[13px] text-foreground mb-2 font-sans font-medium">
+                    Service Type <span className="text-accent">*</span>
+                  </label>
+                  <div className="relative">
+                    <select
+                      name="service"
+                      value={service}
+                      onChange={(e) => setService(e.target.value)}
+                      required
+                      className="w-full border border-border bg-background px-4 py-3 text-[13px] focus:outline-none focus:border-accent transition-colors appearance-none cursor-pointer font-sans"
+                    >
+                      <option value="">Select a service...</option>
+                      {SERVICES.map((s) => (
+                        <option key={s.title} value={s.title}>
+                          {s.title}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown
+                      size={13}
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[13px] text-foreground mb-2 font-sans font-medium">
+                    Description <span className="text-accent">*</span>
+                  </label>
+                  <textarea
+                    name="description"
+                    required
+                    rows={5}
+                    placeholder="Please describe your garment and the work required. Include fabric, style, special requirements, and any relevant measurements..."
+                    className="w-full border border-border bg-background px-4 py-3 text-[13px] focus:outline-none focus:border-accent transition-colors resize-none placeholder:text-muted-foreground/40 font-sans"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[13px] text-foreground mb-2 font-sans font-medium">
+                    Preferred Date <span className="text-muted-foreground font-normal">(for consultation)</span>
+                  </label>
+                  <input
+                    name="preferredDate"
+                    type="date"
+                    className="w-full border border-border bg-background px-4 py-3 text-[13px] focus:outline-none focus:border-accent transition-colors text-muted-foreground font-sans"
+                  />
+                </div>
+
+                {/* Photo upload */}
+                <div>
+                  <label className="block text-[13px] text-foreground mb-2 font-sans font-medium">
+                    Photos of Your Garment{" "}
+                    <span className="text-muted-foreground font-normal">(optional)</span>
+                  </label>
+                  <div className="border-2 border-dashed border-border hover:border-accent/50 transition-colors p-10 text-center cursor-pointer bg-secondary/20 group">
+                    <Upload size={22} className="mx-auto mb-3 text-muted-foreground/40 group-hover:text-accent/60 transition-colors" />
+                    <p className="text-[13px] text-muted-foreground font-sans">
+                      Drag and drop images here, or{" "}
+                      <span className="text-accent font-medium">click to browse</span>
+                    </p>
+                    <p className="text-[11px] text-muted-foreground/50 mt-2 font-sans">
+                      JPG, PNG, HEIC &middot; Up to 10 MB each
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Consent */}
+            <div className="pt-1">
+              <label className="flex items-start gap-3 cursor-pointer group">
+                <div
+                  role="checkbox"
+                  aria-checked={consent}
+                  tabIndex={0}
+                  onClick={() => setConsent((current) => !current)}
+                  onKeyDown={(event) => {
+                    if (event.key === " " || event.key === "Enter") {
+                      event.preventDefault();
+                      setConsent((current) => !current);
+                    }
+                  }}
+                  className={`w-4 h-4 mt-0.5 border shrink-0 flex items-center justify-center transition-colors cursor-pointer ${
+                    consent ? "bg-foreground border-foreground" : "border-border group-hover:border-foreground"
+                  }`}
+                >
+                  {consent && <Check size={10} className="text-primary-foreground" />}
+                </div>
+                <span className="text-[13px] text-muted-foreground leading-relaxed font-sans">
+                  I consent to Bespoke Sewing Studio storing my contact information and enquiry details in order to process my request. I have read and agree to the{" "}
+                  <span className="text-foreground underline underline-offset-2 cursor-pointer">Privacy Policy</span>.
+                </span>
+              </label>
+            </div>
+
+            {/* Submit */}
+            <button
+              type="submit"
+              disabled={!consent || isSubmitting}
+              className="w-full bg-foreground text-primary-foreground py-4 text-[13px] tracking-wide hover:bg-accent transition-colors flex items-center justify-center gap-2.5 font-sans disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-foreground"
+            >
+              <Send size={13} />
+              Submit Order Request
+            </button>
+
+            <p className="text-[11px] text-muted-foreground/50 text-center font-sans">
+              Design prototype only &mdash; no data will be submitted or stored.
+            </p>
+          </form>
+        </div>
+      </div>
+    </div>
+  );
+}
+
