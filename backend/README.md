@@ -56,6 +56,10 @@ store for non-development environments.
 Start the local PostgreSQL 16 container from the repository root:
 
 ```powershell
+docker compose -f docker-compose.postgres.yml config
+```
+
+```powershell
 docker compose -f docker-compose.postgres.yml up -d
 ```
 
@@ -67,6 +71,12 @@ Stop it without deleting the named data volume:
 
 ```powershell
 docker compose -f docker-compose.postgres.yml down
+```
+
+Check that the PostgreSQL container is running and healthy:
+
+```powershell
+docker compose -f docker-compose.postgres.yml ps
 ```
 
 Create a new migration after changing the persistence model:
@@ -87,6 +97,24 @@ task. Installing the matching CLI tool, if it is missing locally:
 
 ```powershell
 dotnet tool install --global dotnet-ef --version 10.0.9
+```
+
+If `dotnet-ef` is already installed, update it to the matching version:
+
+```powershell
+dotnet tool update --global dotnet-ef --version 10.0.9
+```
+
+Confirm the installed tool before applying migrations:
+
+```powershell
+dotnet ef --version
+```
+
+After `database update`, verify the applied migration directly in PostgreSQL:
+
+```powershell
+docker compose -f docker-compose.postgres.yml exec postgres psql -U bespoke_user -d bespoke_studio_dev -c 'SELECT "MigrationId" FROM "__EFMigrationsHistory";'
 ```
 
 Registering the DbContext does not open a database connection during API
@@ -119,6 +147,20 @@ Available endpoints after startup:
 - `/swagger`
 - `/api/health`
 - `/api/version`
+
+With the API running, verify the existing endpoints from another PowerShell
+window:
+
+```powershell
+Invoke-WebRequest http://localhost:5099/api/health -UseBasicParsing
+Invoke-WebRequest http://localhost:5099/api/version -UseBasicParsing
+Invoke-WebRequest http://localhost:5099/swagger/index.html -UseBasicParsing
+```
+
+Expected result: all three requests return HTTP `200`. These endpoints do not
+execute database queries, so they also remain available when PostgreSQL is
+offline. Database connectivity is verified separately by `database update` and
+the `__EFMigrationsHistory` query above.
 
 Orders, clients, portfolio, services, and upload CRUD endpoints are not
 implemented yet. The frontend remains in mock/prototype mode and does not call

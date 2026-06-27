@@ -22,11 +22,26 @@ Current backend status:
 - no authentication yet
 - frontend still works in mock/prototype mode and does not call the backend yet
 
-Local PostgreSQL can be started with:
+Local PostgreSQL and backend setup:
 
 ```powershell
+docker compose -f docker-compose.postgres.yml config
 docker compose -f docker-compose.postgres.yml up -d
+dotnet ef database update --project backend/src/BespokeStudio.Infrastructure --startup-project backend/src/BespokeStudio.Api
+dotnet run --project backend/src/BespokeStudio.Api/BespokeStudio.Api.csproj
 ```
+
+Check the container and existing API endpoints with:
+
+```powershell
+docker compose -f docker-compose.postgres.yml ps
+Invoke-WebRequest http://localhost:5099/api/health -UseBasicParsing
+Invoke-WebRequest http://localhost:5099/api/version -UseBasicParsing
+Invoke-WebRequest http://localhost:5099/swagger/index.html -UseBasicParsing
+```
+
+If PostgreSQL is not needed for the current session, the API can still start
+and serve these system endpoints because they do not execute database queries.
 
 Persistence and migration commands are documented in `backend/README.md`.
 

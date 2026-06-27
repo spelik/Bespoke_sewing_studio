@@ -45,8 +45,8 @@
 - Admin bundle остаётся крупным из-за `recharts`: `439.21 KB` в текущей production-сборке.
 - SPA fallback всё ещё должен быть настроен на production-сервере. В репозитории добавлена только документация, не серверная конфигурация.
 - Frontend по-прежнему не подключён к реальному backend. API layer во frontend всё ещё работает в `mock/prototype mode`, без реальных HTTP-запросов.
-- PostgreSQL persistence настроен, но development database ещё не поднималась и migration `InitialCreate` не применялась через `database update`.
-- `docker-compose.postgres.yml` добавлен, но не запускался и не проверялся против Docker daemon: Docker CLI отсутствует в текущем окружении.
+- PostgreSQL persistence настроен, но development database ещё не поднималась; `InitialCreate` нужно применить локально командой `dotnet ef database update` после запуска PostgreSQL.
+- `docker-compose.postgres.yml` подготовлен и статически проверен по параметрам PostgreSQL 16, database/user/password/port/volume, но команды `docker compose config/up/ps` не выполнялись: Docker CLI отсутствует в текущем окружении.
 - CRUD/API endpoints для `Orders`, `Clients`, `Portfolio`, `Categories`, `Services` и `Uploads` пока не реализованы.
 - Application services и repository/persistence implementations пока не реализованы и не зарегистрированы в DI.
 - Value objects и правила нормализации/валидации для email, телефона и денежных значений пока не определены.
