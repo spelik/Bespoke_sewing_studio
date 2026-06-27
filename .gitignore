@@ -1,8 +1,11 @@
-node_modules
-/dist
+node_modules/
+dist/
+[Bb]in/
+[Oo]bj/
+bin/
+obj/
 .env
 .env.local
 .vscode
 .vs
 .DS_Store
-

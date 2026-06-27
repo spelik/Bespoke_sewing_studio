@@ -15,6 +15,9 @@
 - Production SPA fallback задокументирован в `DEPLOYMENT_NOTES_RU.md`.
 - Backend skeleton создан в `backend/` как отдельный ASP.NET Core Web API solution на `net10.0` с проектами `BespokeStudio.Api`, `BespokeStudio.Domain`, `BespokeStudio.Application`, `BespokeStudio.Infrastructure`.
 - В backend уже есть базовые system endpoints: `/api/health`, `/api/version`, Swagger UI и dev CORS под локальный frontend.
+- Создан независимый от persistence черновик domain models для `Orders`, `Clients`, `Portfolio`, `Categories`, `Services` и upload metadata.
+- Созданы application contracts/DTO и сервисные интерфейсы для будущих модулей `Orders`, `Clients`, `Portfolio`, `Services`, `Uploads`; domain entities не используются как transport responses.
+- Backend `bin/obj` удалены из Git tracking без удаления физических файлов; build artefacts теперь игнорируются через `.gitignore`, housekeeping debt закрыт.
 
 ## Оптимизация изображений
 
@@ -41,13 +44,17 @@
 - Frontend по-прежнему не подключён к реальному backend. API layer во frontend всё ещё работает в `mock/prototype mode`, без реальных HTTP-запросов.
 - В backend пока не подключён PostgreSQL.
 - EF Core и migrations пока не настроены.
-- Domain models и реальные API contracts для `Orders`, `Clients`, `Portfolio`, `Categories`, `Services` пока не созданы.
+- CRUD/API endpoints для `Orders`, `Clients`, `Portfolio`, `Categories`, `Services` и `Uploads` пока не реализованы.
+- Application services и repository/persistence implementations пока не реализованы и не зарегистрированы в DI.
+- Value objects и правила нормализации/валидации для email, телефона и денежных значений пока не определены.
+- JSON-представление enum и mapping между backend `MemoryBear` и текущим frontend label `Memory Bears` нужно зафиксировать при проектировании реальных endpoints.
 - Auth/admin login, JWT и role-based access пока не реализованы.
-- Uploads/file storage и email integrations пока не реализованы.
+- Физическая загрузка файлов, file storage и email integrations пока не реализованы; существует только модель upload metadata.
 
 ## Рекомендации на следующие задачи
 
 - Подготовить фактическую production-конфигурацию хостинга с SPA fallback.
 - Добить image pipeline для самых тяжёлых portfolio assets: AVIF или отдельные thumbnails под card layout.
 - Оценить, можно ли уменьшить admin chunk через более узкий импорт графиков или дополнительное lazy splitting внутри admin prototype.
-- Добавить первые domain models и API contracts для `Orders`, `Clients`, `Portfolio`, `Categories`, `Services`, а затем перевести frontend с mock data на реальные HTTP endpoints.
+- Согласовать бизнес-валидацию и persistence mapping, затем добавить PostgreSQL/EF Core, application service implementations и реальные API endpoints.
+- Подключать frontend к HTTP API только после стабилизации endpoint contracts; до этого сохранять `mock/prototype mode`.
