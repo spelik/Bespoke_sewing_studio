@@ -161,8 +161,9 @@ the detail, status, and note examples.
 
 `GET`, status, and note endpoints are temporary development/admin endpoints and
 are not protected yet. Do not expose them publicly before authentication and
-authorization are implemented. Physical attachments, email notifications, and
-frontend HTTP integration are also not implemented.
+authorization are implemented. Physical attachments and email notifications
+are not implemented. The public frontend Order form calls `POST /api/orders`;
+admin/read/update integration is still a prototype.
 
 Commands:
 
@@ -206,4 +207,5 @@ offline. Database connectivity is verified separately by `database update` and
 the `__EFMigrationsHistory` query above.
 
 Portfolio, services, and upload CRUD endpoints are not implemented yet. The
-frontend remains in mock/prototype mode and does not call this backend.
+public Order form uses this backend, while site content and admin features
+remain in mock/prototype mode.

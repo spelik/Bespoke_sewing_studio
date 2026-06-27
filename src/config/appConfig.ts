@@ -4,6 +4,6 @@ export interface AppConfig {
 }
 
 export const appConfig: Readonly<AppConfig> = {
-  apiBaseUrl: import.meta.env.VITE_API_BASE_URL ?? "/api",
+  apiBaseUrl: import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5099/api",
   isPrototypeMode: true,
 };

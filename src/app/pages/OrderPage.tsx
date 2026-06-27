@@ -1,17 +1,23 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Check, ChevronDown, Send, Upload } from "lucide-react";
-import { createPrototypeOrder, parseOrderServiceType } from "../../api/ordersApi";
+import {
+  createOrder,
+  getOrderSubmissionErrorMessage,
+  parseOrderServiceType,
+} from "../../api/ordersApi";
 import { SERVICES } from "../appContent";
 import { SectionLabel } from "../components/SectionLabel";
-import { usePrototypeForm } from "../hooks/usePrototypeForm";
-import type { OrderRequest } from "../types";
+import { useAsyncForm } from "../hooks/useAsyncForm";
+import type { OrderRequest, OrderSubmissionResponse } from "../types";
 
 export function OrderPage() {
   const [service, setService] = useState("");
   const [consent, setConsent] = useState(false);
-  const { submitted, isSubmitting, handleSubmit } = usePrototypeForm<OrderRequest>(
-    "order request",
-    createPrototypeOrder,
+  const { submitted, result, isSubmitting, errorMessage, handleSubmit } = useAsyncForm<
+    OrderRequest,
+    OrderSubmissionResponse
+  >(
+    createOrder,
     (formData) => ({
       fullName: String(formData.get("fullName") ?? ""),
       email: String(formData.get("email") ?? ""),
@@ -21,7 +27,14 @@ export function OrderPage() {
       preferredDate: String(formData.get("preferredDate") ?? "") || undefined,
       consent,
     }),
+    getOrderSubmissionErrorMessage,
   );
+
+  useEffect(() => {
+    if (submitted) {
+      window.scrollTo({ top: 0, behavior: "auto" });
+    }
+  }, [submitted]);
 
   if (submitted) {
     return (
@@ -37,7 +50,7 @@ export function OrderPage() {
             Thank you for your enquiry. We will be in touch within one working day to discuss your requirements and arrange a consultation at the studio.
           </p>
           <p className="text-[11px] text-muted-foreground/60 font-sans">
-            This is a design prototype — no data has been stored or transmitted.
+            Request reference: {result?.id}
           </p>
         </div>
       </div>
@@ -65,6 +78,7 @@ export function OrderPage() {
           <form
             className="space-y-10"
             onSubmit={handleSubmit}
+            aria-busy={isSubmitting}
           >
             {/* Personal details */}
             <div>
@@ -80,6 +94,7 @@ export function OrderPage() {
                     name="fullName"
                     type="text"
                     required
+                    maxLength={200}
                     placeholder="Catherine O'Neill"
                     className="w-full border border-border bg-background px-4 py-3 text-[13px] focus:outline-none focus:border-accent transition-colors placeholder:text-muted-foreground/40 font-sans"
                   />
@@ -92,6 +107,7 @@ export function OrderPage() {
                     name="email"
                     type="email"
                     required
+                    maxLength={320}
                     placeholder="catherine@example.com"
                     className="w-full border border-border bg-background px-4 py-3 text-[13px] focus:outline-none focus:border-accent transition-colors placeholder:text-muted-foreground/40 font-sans"
                   />
@@ -103,6 +119,7 @@ export function OrderPage() {
                   <input
                     name="phone"
                     type="tel"
+                    maxLength={50}
                     placeholder="+44 7700 900 000"
                     className="w-full border border-border bg-background px-4 py-3 text-[13px] focus:outline-none focus:border-accent transition-colors placeholder:text-muted-foreground/40 font-sans"
                   />
@@ -149,6 +166,7 @@ export function OrderPage() {
                   <textarea
                     name="description"
                     required
+                    maxLength={4000}
                     rows={5}
                     placeholder="Please describe your garment and the work required. Include fabric, style, special requirements, and any relevant measurements..."
                     className="w-full border border-border bg-background px-4 py-3 text-[13px] focus:outline-none focus:border-accent transition-colors resize-none placeholder:text-muted-foreground/40 font-sans"
@@ -172,7 +190,10 @@ export function OrderPage() {
                     Photos of Your Garment{" "}
                     <span className="text-muted-foreground font-normal">(optional)</span>
                   </label>
-                  <div className="border-2 border-dashed border-border hover:border-accent/50 transition-colors p-10 text-center cursor-pointer bg-secondary/20 group">
+                  <div
+                    aria-disabled="true"
+                    className="border-2 border-dashed border-border hover:border-accent/50 transition-colors p-10 text-center cursor-pointer bg-secondary/20 group"
+                  >
                     <Upload size={22} className="mx-auto mb-3 text-muted-foreground/40 group-hover:text-accent/60 transition-colors" />
                     <p className="text-[13px] text-muted-foreground font-sans">
                       Drag and drop images here, or{" "}
@@ -214,17 +235,26 @@ export function OrderPage() {
             </div>
 
             {/* Submit */}
+            {errorMessage ? (
+              <p
+                role="alert"
+                className="text-[12px] text-accent text-center font-sans leading-relaxed"
+              >
+                {errorMessage}
+              </p>
+            ) : null}
+
             <button
               type="submit"
               disabled={!consent || isSubmitting}
               className="w-full bg-foreground text-primary-foreground py-4 text-[13px] tracking-wide hover:bg-accent transition-colors flex items-center justify-center gap-2.5 font-sans disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-foreground"
             >
               <Send size={13} />
-              Submit Order Request
+              {isSubmitting ? "Submitting..." : "Submit Order Request"}
             </button>
 
             <p className="text-[11px] text-muted-foreground/50 text-center font-sans">
-              Design prototype only &mdash; no data will be submitted or stored.
+              Your request will be sent securely to Bespoke Sewing Studio.
             </p>
           </form>
         </div>

@@ -1,13 +1,19 @@
 
 # Bespoke Sewing Studio frontend
 
-React, Vite and TypeScript frontend for the Bespoke Sewing Studio website. The current UI was exported from Figma Make and is being stabilised incrementally without a backend connection.
+React, Vite and TypeScript frontend for the Bespoke Sewing Studio website. The current UI was exported from Figma Make and is being stabilised incrementally with an ASP.NET Core backend.
 
-## Prototype/mock mode
+## Frontend data mode
 
-The frontend currently runs in mock/prototype mode only. Typed mock data is exposed through the modules in `src/api/`; they do not use `fetch`, Axios, a database, or any external backend. A separate ASP.NET Core Web API will replace these mock implementations in a later phase.
+Site content and the remaining prototype features still use typed mock data from
+`src/api/`. The public Order form now sends real requests to
+`POST /api/orders`, which persists enquiries in PostgreSQL through the ASP.NET
+Core backend.
 
-Future API configuration lives in `src/config/appConfig.ts`. `isPrototypeMode` must remain enabled until the real API client is implemented.
+API configuration lives in `src/config/appConfig.ts`. `VITE_API_BASE_URL`
+defaults to `http://localhost:5099/api` for local development. Copy
+`.env.example` to `.env.local` when an explicit override is needed; `.env.local`
+is ignored by Git.
 
 ## Backend
 
@@ -21,7 +27,8 @@ Current backend status:
 - migrations are applied explicitly with `dotnet ef database update`
 - Orders/enquiries API now persists data in PostgreSQL
 - no authentication yet
-- frontend still works in mock/prototype mode and does not call the backend yet
+- the public Order form calls `POST /api/orders`
+- site content and the admin prototype still use mock/prototype data
 
 Local PostgreSQL and backend setup:
 
@@ -45,6 +52,15 @@ If PostgreSQL is not needed for the current session, the API can still start
 and serve these system endpoints because they do not execute database queries.
 
 Persistence and migration commands are documented in `backend/README.md`.
+
+Start the frontend in a second PowerShell window:
+
+```powershell
+npm.cmd run dev -- --host 127.0.0.1
+```
+
+The backend must be available at the configured `VITE_API_BASE_URL` before an
+Order form submission. No frontend upload or admin API integration is enabled.
 
 Commands:
 

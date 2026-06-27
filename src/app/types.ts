@@ -16,6 +16,13 @@ export type OrderServiceType =
   | "Alterations"
   | "Memory Bears";
 
+export type OrderApiServiceType =
+  | "Tailoring"
+  | "Dressmaking"
+  | "Alterations"
+  | "MemoryBear"
+  | "Other";
+
 export type ServiceIconKey = "scissors" | "sparkles" | "refresh" | "package";
 export type ValueIconKey = "award" | "heart" | "shield" | "check";
 export type ContactIconKey = "location" | "phone" | "email" | "hours";
@@ -116,8 +123,19 @@ export interface OrderRequest {
   consent: boolean;
 }
 
-export interface PrototypeOrderResult {
-  requestId: string;
-  accepted: true;
-  mode: "prototype";
+export interface CreateOrderApiRequest {
+  fullName: string;
+  email: string | null;
+  phone: string | null;
+  serviceType: OrderApiServiceType;
+  description: string;
+  preferredDate: string | null;
+  consent: boolean;
+  attachmentIds: null;
+}
+
+export interface OrderSubmissionResponse {
+  id: string;
+  status: "New";
+  createdAt: string;
 }

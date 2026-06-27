@@ -25,6 +25,7 @@
 - Реализован простой client matching: сначала нормализованный email, затем точное совпадение trimmed phone; повторная заявка переиспользует существующего клиента.
 - Migration `AllowClientsWithoutEmail` разрешает phone-only enquiries; обе migration применены к локальной PostgreSQL на порту `5433`.
 - JSON enum сериализуются строками, поэтому API принимает значения вроде `Dressmaking`, `Contacted` и `MemoryBear`.
+- Public Order form подключена к реальному `POST /api/orders`: payload mapping, loading/success/error states и обработка validation problem изолированы во frontend API layer.
 
 ## Оптимизация изображений
 
@@ -48,7 +49,7 @@
 - Две самые тяжёлые portfolio карточки (`portfolio-1a`, `portfolio-2`) всё ещё заметно крупнее остальных даже после downscale. Следующий шаг по изображениям - отдельные crop-aware thumbnails или AVIF pipeline.
 - Admin bundle остаётся крупным из-за `recharts`: `439.21 KB` в текущей production-сборке.
 - SPA fallback всё ещё должен быть настроен на production-сервере. В репозитории добавлена только документация, не серверная конфигурация.
-- Frontend по-прежнему не подключён к реальному backend. API layer во frontend всё ещё работает в `mock/prototype mode`, без реальных HTTP-запросов.
+- Site content, Contact form и admin panel всё ещё работают в `mock/prototype mode`; реальный HTTP сейчас используется только public Order submission.
 - PostgreSQL и EF migrations проверены напрямую через connection string на `127.0.0.1:5433`; Docker CLI доступен, но sandbox не разрешил доступ к Docker daemon/pipe для отдельной проверки container health.
 - Orders list/detail/status/note endpoints временно не защищены authentication/authorization и не должны публиковаться как admin API до добавления auth.
 - CRUD/API endpoints для `Portfolio`, `Categories`, `Services` и `Uploads` пока не реализованы.
@@ -57,8 +58,8 @@
 - Client matching пока не защищён уникальным normalized email/phone constraint; при конкурентных запросах возможны дубликаты.
 - Ручную validation можно позже заменить или дополнить FluentValidation при росте числа команд и правил.
 - Auth/admin login, JWT и role-based access пока не реализованы.
-- Физическая загрузка файлов, file storage и email integrations пока не реализованы; существует только модель upload metadata.
-- Frontend integration с `POST /api/orders` остаётся отдельной задачей; React API layer всё ещё работает в mock/prototype mode.
+- Физическая загрузка файлов, frontend upload integration, file storage и email notifications пока не реализованы; Order form отправляет `attachmentIds: null`.
+- Admin order list/status/notes integration остаётся prototype и будет отдельной задачей после authentication/authorization.
 
 ## Рекомендации на следующие задачи
 
@@ -67,4 +68,4 @@
 - Оценить, можно ли уменьшить admin chunk через более узкий импорт графиков или дополнительное lazy splitting внутри admin prototype.
 - Добавить authentication/authorization перед использованием Orders read/update/note endpoints будущей admin panel.
 - Спроектировать нормализованные уникальные ключи client matching и обработку конкурентного создания клиентов.
-- Подключать frontend к HTTP API только после стабилизации endpoint contracts; до этого сохранять `mock/prototype mode`.
+- Подключать остальные frontend-модули к HTTP API постепенно; site content и admin сохранять в `mock/prototype mode` до появления соответствующих защищённых endpoints.
