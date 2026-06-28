@@ -60,6 +60,7 @@ builder.Services
     .Bind(builder.Configuration.GetSection(RateLimitingSettings.SectionName))
     .Validate(settings => settings.PublicUploadPermitLimit > 0, "RateLimiting:PublicUploadPermitLimit must be positive.")
     .Validate(settings => settings.PublicOrderPermitLimit > 0, "RateLimiting:PublicOrderPermitLimit must be positive.")
+    .Validate(settings => settings.PublicContactPermitLimit > 0, "RateLimiting:PublicContactPermitLimit must be positive.")
     .Validate(settings => settings.WindowMinutes is >= 1 and <= 1440, "RateLimiting:WindowMinutes must be between 1 and 1440.")
     .ValidateOnStart();
 builder.Services.AddRateLimiter(options =>
@@ -100,6 +101,12 @@ builder.Services.AddRateLimiter(options =>
             rateLimitingSettings.PublicOrderPermitLimit,
             rateLimitingSettings.WindowMinutes,
             RateLimitPolicies.PublicOrder));
+    options.AddPolicy(RateLimitPolicies.PublicContact, context =>
+        CreateFixedWindowPartition(
+            context,
+            rateLimitingSettings.PublicContactPermitLimit,
+            rateLimitingSettings.WindowMinutes,
+            RateLimitPolicies.PublicContact));
 });
 
 builder.Services
@@ -194,6 +201,7 @@ api.MapGet("/version", () =>
     .WithName("GetApiVersion");
 
 app.MapOrderEndpoints();
+app.MapContactMessageEndpoints();
 app.MapAuthEndpoints();
 app.MapSiteSettingsEndpoints();
 app.MapNotificationEndpoints();

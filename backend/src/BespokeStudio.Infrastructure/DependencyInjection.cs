@@ -49,6 +49,7 @@ public static class DependencyInjection
             .AddSignInManager()
             .AddEntityFrameworkStores<BespokeStudioDbContext>();
 
+        services.AddScoped<IContactMessageService, ContactMessageService>();
         services.AddScoped<IOrderService, OrderService>();
         services.AddScoped<IServiceOfferingService, ServiceOfferingService>();
         services.AddScoped<IPortfolioService, PortfolioService>();

@@ -382,3 +382,46 @@ export interface OrderSubmissionResponse {
   status: "New";
   createdAt: string;
 }
+
+export type ContactMessageStatus = "New" | "Read" | "Replied" | "Archived";
+
+export interface ContactMessageRequest {
+  fullName: string;
+  email: string;
+  phone?: string;
+  subject?: string;
+  message: string;
+  consent: boolean;
+}
+
+export interface ContactMessageResponse {
+  id: string;
+  fullName: string;
+  email: string;
+  phone: string | null;
+  subject: string | null;
+  message: string;
+  status: ContactMessageStatus;
+  consentGiven: boolean;
+  consentRecordedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AdminContactMessageListItem {
+  id: string;
+  fullName: string;
+  email: string;
+  phone: string | null;
+  subject: string | null;
+  messagePreview: string;
+  status: ContactMessageStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type AdminContactMessageDetail = ContactMessageResponse;
+
+export interface UpdateContactMessageStatusRequest {
+  status: ContactMessageStatus;
+}

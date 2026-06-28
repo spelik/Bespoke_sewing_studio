@@ -2,6 +2,14 @@
 
 ## Закрыто
 
+- Contact Messages API реализован: public `POST /api/contact-messages` сохраняет сообщения Contact form в PostgreSQL, admin JWT endpoints позволяют просматривать сообщения и менять статусы `New` / `Read` / `Replied` / `Archived`.
+
+- Public Contact page подключена к backend: добавлены loading/success/error states, backend validation handling, optional phone/subject и обязательное consent-подтверждение.
+
+- Admin sidebar получил раздел **Contact Messages**: сообщения видны в списке, открываются в drawer, фильтруются по статусу и сохраняют изменения статуса после refresh.
+
+- Contact messages подключены к существующей email notification foundation: при включённых email notifications и заданном email владельца Logging/SMTP provider получает уведомление о новом сообщении; ошибка отправки не отменяет создание сообщения.
+
 - Неиспользуемая зависимость `recharts` удалена из `package.json`/`package-lock.json`; неиспользуемый shadcn/ui wrapper `src/app/components/ui/chart.tsx` удалён, так как больше не импортировался.
 
 - Routing и deep links переведены на `react-router-dom`: доступны маршруты `/`, `/services`, `/portfolio`, `/order`, `/about`, `/contact`, `/privacy`, `/admin`.
@@ -71,7 +79,7 @@
 
 - Две самые тяжёлые portfolio карточки (`portfolio-1a`, `portfolio-2`) всё ещё заметно крупнее остальных даже после downscale. Следующий шаг по изображениям - отдельные crop-aware thumbnails или AVIF pipeline.
 - SPA fallback всё ещё должен быть настроен на production-сервере. В репозитории добавлена только документация, не серверная конфигурация.
-- Contact form остаётся prototype-only: отдельного Contact Messages API нет. Public Order form и семь видимых admin-разделов используют реальные backend endpoints.
+- Contact Messages API реализован, поэтому Contact form больше не является prototype-only. Public Order form, Contact form и admin-разделы используют реальные backend endpoints.
 - PostgreSQL и EF migrations проверены напрямую через connection string на `127.0.0.1:5433`; Docker CLI доступен, но sandbox не разрешил доступ к Docker daemon/pipe для отдельной проверки container health.
 - Portfolio/Gallery CMS реализован: категории, items, active/featured/order, Admin image upload и backend-first public gallery работают через PostgreSQL. Локальные frontend assets остаются typed fallback при недоступном API.
 - Website Content CMS реализован для основных текстов и page images Home/About/Services/Portfolio/Order/Contact/Privacy; public frontend использует backend-first данные с typed fallback.
@@ -85,7 +93,7 @@
 - Автоматическая очистка orphan `PortfolioImage` пока не реализована; существующий cleanup обрабатывает только orphan order attachments. Архивирование portfolio item намеренно сохраняет физический файл.
 - Автоматический background orphan cleanup пока не реализован; доступен защищённый ручной endpoint. Для production нужны distributed rate limiting/abuse protection и trusted forwarded-header configuration за reverse proxy.
 - SMTP provider реализован; production credentials должны задаваться через user-secrets/env/secret store. До production остаются настройка deliverability (SPF/DKIM/DMARC), мониторинг bounce/rejection и операционная ротация credentials.
-- Background notification queue и retry policy пока не реализованы: отправка выполняется inline после сохранения заявки. Customer confirmation email также не реализован.
+- Background notification queue и retry policy пока не реализованы: отправка owner notifications для orders/contact messages выполняется inline после сохранения. Customer confirmation email также не реализован.
 - Service image upload пока не реализован; advanced money/currency model и drag-and-drop reorder для Services/Portfolio можно добавить позже. Rich text page CMS ещё не реализован.
 - Полноценный rich-text editor/page builder не реализован: Content CMS и Repeatable Content CMS используют безопасные plain-text поля. Version history/drafts остаются будущими задачами. Multilingual CMS не планируется: проект принят как English-only.
 - Production secret management для admin seed и JWT signing key ещё требует внешнего secret store и operational rotation process.
@@ -95,7 +103,6 @@
 - Подготовить фактическую production-конфигурацию хостинга с SPA fallback.
 - Добить image pipeline для самых тяжёлых portfolio assets: AVIF или отдельные thumbnails под card layout.
 - Спроектировать нормализованные уникальные ключи client matching и обработку конкурентного создания клиентов.
-- Решить, нужен ли отдельный Contact Messages API; до этого форма Contact явно остаётся prototype-only.
 
 ## Task 23 — Brand / Logo / SEO
 
@@ -140,4 +147,16 @@
 - Удалена неиспользуемая npm dependency `recharts`.
 - Удалён неиспользуемый wrapper `src/app/components/ui/chart.tsx`; поиск показал, что chart-компоненты больше нигде не импортировались.
 - Изменены `package.json` и `package-lock.json`.
+- Проверки: `npm.cmd run typecheck`, `npm.cmd run build`, `dotnet build backend\BespokeStudio.sln`.
+
+
+## Task 28 — Contact Messages API
+
+- Добавлена backend-модель `ContactMessage`, enum `ContactMessageStatus`, EF configuration, `DbSet`, migration `AddContactMessages`, application contracts, validation и `IContactMessageService`/`ContactMessageService`.
+- Добавлен public endpoint `POST /api/contact-messages` с отдельным rate limit `RateLimiting:PublicContactPermitLimit`.
+- Добавлены Admin JWT endpoints `GET /api/admin/contact-messages`, `GET /api/admin/contact-messages/{id}` и `PATCH /api/admin/contact-messages/{id}/status`.
+- Public Contact page подключена к backend: форма отправляет реальные сообщения, показывает loading/success/error states, backend validation errors, optional phone/subject и consent checkbox.
+- Admin sidebar получил раздел **Contact Messages**. UI поддерживает фильтр `All/New/Read/Replied/Archived`, drawer просмотра и изменение статуса с сохранением после refresh.
+- Contact messages подключены к существующей email notification foundation. При включённых email notifications и заданном Site Settings email logging/SMTP provider получает owner notification; ошибка отправки логируется и не отменяет созданное сообщение.
+- Runtime-проверки: прямой `POST /api/contact-messages` возвращает `201`, admin list возвращает сохранённые сообщения по Admin JWT, frontend Contact form создаёт сообщения, admin UI отображает их и меняет статус, logging email notification пишет письмо в backend log после clean rebuild/run.
 - Проверки: `npm.cmd run typecheck`, `npm.cmd run build`, `dotnet build backend\BespokeStudio.sln`.

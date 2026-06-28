@@ -6,11 +6,13 @@ React, Vite and TypeScript frontend for the Bespoke Sewing Studio website. The c
 ## Frontend data mode
 
 The public site is backend-first and CMS-driven: contact settings, brand/navigation/SEO,
-page content, repeatable content, services/prices and portfolio data load from the ASP.NET Core API.
+page content, repeatable content, services/prices, portfolio data and Contact form submissions load from or write to the ASP.NET Core API.
 Centralised typed frontend defaults are used only when the corresponding public API
 cannot be reached. The public Order form sends real requests to
 `POST /api/orders`, which persists enquiries in PostgreSQL through the ASP.NET
-Core backend. The admin login and Orders screens also use the backend API; the
+Core backend. The public Contact form sends real requests to
+`POST /api/contact-messages`, which stores messages in PostgreSQL and can notify
+the owner by email. The admin login, Orders and Contact Messages screens also use the backend API; the
 admin Services, Portfolio, Content, Repeatable Content, Settings and Brand/SEO sections use protected backend APIs. Optional order
 attachments are uploaded first and linked to the created enquiry by ID.
 
@@ -35,12 +37,14 @@ Current backend status:
 - ASP.NET Core Identity + JWT Bearer protects Orders administration routes
 - `/api/auth/login` and `/api/auth/me` provide the backend authentication foundation
 - the public Order form calls `POST /api/orders`
+- the public Contact form calls `POST /api/contact-messages` and persists messages in PostgreSQL
 - the public Order form accepts JPG, PNG, WebP and PDF attachments up to 5 MB each
 - attachment metadata is stored in PostgreSQL; development files are stored under `backend/storage/uploads`
-- public upload and order creation endpoints use configurable per-IP rate limits
+- public upload, order creation and Contact form endpoints use configurable per-IP rate limits
 - administrators can manually remove expired orphan uploads through a protected cleanup endpoint
 - public contact, social and footer settings load from `GET /api/site-settings/public`
 - the Admin **Settings** section edits public contact and notification settings
+- the Admin **Contact Messages** section lists Contact form messages and manages their workflow status
 - public services/prices load from `GET /api/services`
 - the Admin **Services** section creates, edits, hides, features, deletes or archives services and price options
 - public portfolio/gallery data loads from `GET /api/portfolio`
@@ -50,8 +54,8 @@ Current backend status:
 - repeatable public blocks such as process steps, studio values, testimonials and privacy subsections load from the Repeatable Content CMS
 - logo, favicon, default SEO metadata, header CTA and navigation labels/visibility are managed in Admin **Brand / SEO**
 - the public Order form submits a dynamic `serviceOfferingId` while preserving legacy enum compatibility
-- admin login and Orders list/detail/status/notes use protected backend endpoints
-- the admin sidebar exposes only backend-backed Orders, Services, Portfolio, Content, Repeatable Content, Brand/SEO and Settings modules
+- admin login, Orders list/detail/status/notes and Contact Messages list/detail/status use protected backend endpoints
+- the admin sidebar exposes only backend-backed Orders, Contact Messages, Services, Portfolio, Content, Repeatable Content, Brand/SEO and Settings modules
 
 Local PostgreSQL and backend setup:
 
@@ -103,8 +107,8 @@ Order form; after submission, open the enquiry in `/admin` to download its
 protected attachments. `backend/storage/` is ignored by Git.
 
 Public `POST /api/uploads/order-attachments` requests are limited to 10 per 10
-minutes per IP, and public `POST /api/orders` requests to 5 per 10 minutes per
-IP by default. A rejected request returns `429` and a `Retry-After` header; the
+minutes per IP, public `POST /api/orders` requests to 5 per 10 minutes per IP,
+and public `POST /api/contact-messages` requests to 5 per 10 minutes per IP by default. A rejected request returns `429` and a `Retry-After` header; the
 Order form displays the API message without exposing server details.
 
 An upload that is not linked to an order and is older than the configured
@@ -140,6 +144,24 @@ default development provider writes email content to the backend log; SMTP can
 be configured through user-secrets or environment variables. WhatsApp and SMS
 notifications are not implemented or planned for the current product scope.
 Public pages keep their typed fallback content if the API cannot be reached.
+
+
+## Contact messages
+
+The public Contact page sends real enquiries to `POST /api/contact-messages`.
+The backend validates name, email, optional phone, optional subject, message and
+consent, stores the message in PostgreSQL, and returns `201 Created`. The form
+shows loading, success and validation/API error states and clears after a
+successful submission.
+
+Sign in at `http://127.0.0.1:5173/admin`, then select **Contact Messages** to
+view Contact form messages, filter by status and update the workflow status:
+`New`, `Read`, `Replied` or `Archived`. New contact messages use the same owner
+email notification foundation as Orders when email notifications are enabled in
+Site Settings. In development the default logging provider writes the email
+content to the backend log; SMTP can be configured through user-secrets or
+environment variables.
+
 
 ## Language
 

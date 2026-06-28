@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { FileText, Images, ListOrdered, LogOut, Menu, Package, Palette, Scissors, Settings } from "lucide-react";
+import { FileText, Images, ListOrdered, LogOut, Mail, Menu, Package, Palette, Scissors, Settings } from "lucide-react";
 import { ORDER_STATUSES, type AdminOrderStatus } from "../../api/ordersApi";
 import { useAuth } from "../auth/AuthContext";
 import { AdminBrandSettingsPanel } from "../components/AdminBrandSettingsPanel";
+import { AdminContactMessagesPanel } from "../components/AdminContactMessagesPanel";
 import { AdminContentPanel } from "../components/AdminContentPanel";
 import { AdminOrderDetail } from "../components/AdminOrderDetail";
 import { AdminOrdersTable } from "../components/AdminOrdersTable";
@@ -14,10 +15,11 @@ import { ADMIN_STATUS_LABELS } from "../components/adminOrderFormatting";
 import { useAdminOrders } from "../hooks/useAdminOrders";
 import { usePageNavigation } from "../routing/usePageNavigation";
 
-type AdminSection = "orders" | "services" | "portfolio" | "content" | "repeatable" | "brand" | "settings";
+type AdminSection = "orders" | "contactMessages" | "services" | "portfolio" | "content" | "repeatable" | "brand" | "settings";
 
 const NAV_ITEMS: ReadonlyArray<{ id: AdminSection; label: string; icon: typeof Package }> = [
   { id: "orders", label: "Orders", icon: Package },
+  { id: "contactMessages", label: "Contact Messages", icon: Mail },
   { id: "services", label: "Services", icon: Scissors },
   { id: "portfolio", label: "Portfolio", icon: Images },
   { id: "content", label: "Content", icon: FileText },
@@ -76,6 +78,7 @@ export function AdminPage() {
             </div>
             <AdminOrdersTable orders={filteredOrders} isLoading={adminOrders.isLoading} emptyMessage="No enquiries match this status." onSelect={(id) => void adminOrders.selectOrder(id)} />
           </div> : null}
+          {section === "contactMessages" ? <AdminContactMessagesPanel onUnauthorized={logout} /> : null}
           {section === "services" ? <AdminServicesPanel onUnauthorized={logout} /> : null}
           {section === "portfolio" ? <AdminPortfolioPanel onUnauthorized={logout} /> : null}
           {section === "content" ? <AdminContentPanel onUnauthorized={logout} /> : null}

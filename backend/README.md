@@ -1,11 +1,12 @@
 # Bespoke Sewing Studio backend
 
-ASP.NET Core Web API for the Bespoke Sewing Studio project. The backend powers the public CMS-driven website, admin modules, uploads, authentication, PostgreSQL persistence and email notification foundation.
+ASP.NET Core Web API for the Bespoke Sewing Studio project. The backend powers the public CMS-driven website, contact messages, admin modules, uploads, authentication, PostgreSQL persistence and email notification foundation.
 
 Current status:
 
 - EF Core persistence is configured for PostgreSQL and migrations are applied explicitly in local development
 - Orders/enquiries API persists clients, orders, selected services, statuses, internal notes and attachment links
+- Contact Messages API persists public Contact form messages and admin workflow statuses
 - ASP.NET Core Identity stores administrator accounts and roles
 - JWT Bearer authentication protects admin endpoints
 - uploads use local development storage plus PostgreSQL metadata; order attachments stay private
@@ -13,8 +14,9 @@ Current status:
 - Portfolio/Gallery CMS manages categories, work items, images, publication state and ordering
 - Website Content CMS manages page sections, copy, CTA data and page images
 - Repeatable Content CMS manages process steps, studio values, testimonials and privacy subsections
+- Admin Contact Messages module lists messages, filters by status and updates workflow state
 - Site Settings and Brand/Logo/SEO settings provide public contact, navigation, logo, CTA and metadata configuration
-- email notification foundation supports Logging and SMTP providers; WhatsApp/SMS channels are intentionally not implemented
+- email notification foundation supports owner notifications for Orders and Contact Messages through Logging and SMTP providers; WhatsApp/SMS channels are intentionally not implemented
 - the product is English-only; multilingual CMS, language fields and EN/UA switching are not part of the current scope
 
 ## Language and content scope
@@ -113,9 +115,10 @@ attachments, portfolio images, content images or an unlinked brand upload.
 ## Domain model draft
 
 `BespokeStudio.Domain` contains persistence-independent entities for clients,
-orders and notes/attachments, portfolio items and categories, service offerings,
-and uploaded-file metadata. Domain enums describe order status, service type,
-portfolio publication status, and upload purpose.
+orders and notes/attachments, contact messages, portfolio items and categories,
+service offerings, and uploaded-file metadata. Domain enums describe order
+status, contact message status, service type, portfolio publication status, and
+upload purpose.
 
 The domain does not reference EF Core, database attributes, `DbContext`, or a
 storage provider. Email, phone, and money value objects remain a future design
@@ -127,12 +130,14 @@ decision after validation and currency rules are agreed.
 interfaces. These contracts are separate from domain entities so future HTTP
 payloads do not expose persistence models directly.
 
-Infrastructure implementations are registered for Orders, Services, Portfolio,
-Page Content, Repeatable Content, Site/Brand Settings, uploads and notification delivery.
+Infrastructure implementations are registered for Orders, Contact Messages,
+Services, Portfolio, Page Content, Repeatable Content, Site/Brand Settings,
+uploads and notification delivery.
 
 ## Implemented modules
 
 - Orders and client records
+- Contact messages
 - Order attachments and upload cleanup
 - Administrator authentication with Identity/JWT
 - Site Settings
@@ -200,7 +205,7 @@ dotnet ef database update --project backend/src/BespokeStudio.Infrastructure --s
 The repository currently contains migrations for the initial schema, phone-only
 orders, Identity/JWT, Site Settings, contact normalisation, removal of WhatsApp
 notification fields, dynamic services/prices, Portfolio/Gallery CMS, Website
-Content CMS, Brand/SEO settings and Repeatable Content CMS. They have been
+Content CMS, Brand/SEO settings, Repeatable Content CMS and Contact Messages. They have been
 applied to the local development database during the corresponding tasks. Installing the matching
 CLI tool, if it is missing locally:
 
@@ -266,10 +271,42 @@ the id returned by `POST /api/orders` into the `OrderId` variable before running
 the detail, status, and note examples.
 
 New-order email notifications use the logging provider by default and can use SMTP.
-The public frontend Order form calls
-anonymous `POST /api/orders`. The admin frontend uses
-login, current-user, Orders list/detail/status/notes, Services, Portfolio,
-Content, Repeatable Content, Site Settings and Brand/SEO endpoints.
+The public frontend Order form calls anonymous `POST /api/orders`.
+The public frontend Contact form calls anonymous `POST /api/contact-messages`.
+The admin frontend uses login, current-user, Orders list/detail/status/notes,
+Contact Messages list/detail/status, Services, Portfolio, Content, Repeatable
+Content, Site Settings and Brand/SEO endpoints.
+
+
+## Contact Messages API
+
+Contact Messages are submitted by the public Contact page and persisted in
+PostgreSQL. They are separate from Orders because they may be general questions
+rather than service enquiries.
+
+Public endpoint:
+
+- `POST /api/contact-messages` anonymously creates a contact message and returns `201 Created`
+
+Admin JWT endpoints:
+
+- `GET /api/admin/contact-messages?take=100&status=New` returns newest messages, optionally filtered by status
+- `GET /api/admin/contact-messages/{id}` returns one message
+- `PATCH /api/admin/contact-messages/{id}/status` updates the workflow status
+
+Supported statuses are `New`, `Read`, `Replied` and `Archived`. The public
+request requires name, email, message and `consent=true`; phone and subject are
+optional. Validation failures return `400 ValidationProblem` with JSON property
+names matching the frontend form. Public contact message creation uses the
+`PublicContactPolicy` fixed-window rate limit configured through
+`RateLimiting:PublicContactPermitLimit` and `RateLimiting:WindowMinutes`.
+
+After a message is stored, `INotificationService` sends an owner notification
+through the same email foundation used for Orders. `EmailNotificationsEnabled`
+and the Site Settings email control delivery. The logging provider writes the
+message to the backend log in development; SMTP can be enabled through
+user-secrets or environment variables. Notification errors are logged but do not
+cancel the successful contact message response.
 
 ## Services and Prices API
 
@@ -340,14 +377,16 @@ that a generated file appears under `backend/storage/uploads`, then sign in at
 
 ### Public request rate limits
 
-ASP.NET Core fixed-window rate limiting is applied per remote IP to the two
-anonymous write endpoints:
+ASP.NET Core fixed-window rate limiting is applied per remote IP to anonymous
+write endpoints:
 
 - `POST /api/uploads/order-attachments`: 10 requests per 10 minutes
 - `POST /api/orders`: 5 requests per 10 minutes
+- `POST /api/contact-messages`: 5 requests per 10 minutes
 
 The values are configurable under `RateLimiting:PublicUploadPermitLimit`,
-`RateLimiting:PublicOrderPermitLimit`, and `RateLimiting:WindowMinutes`.
+`RateLimiting:PublicOrderPermitLimit`, `RateLimiting:PublicContactPermitLimit`,
+and `RateLimiting:WindowMinutes`.
 Rejected requests return `429 Too Many Requests`, a JSON problem response, and
 a `Retry-After` header. When the API is deployed behind a reverse proxy, trusted
 forwarded-header configuration must be added before remote IP partitioning can
@@ -401,13 +440,14 @@ destination. Migrations `NormalizeSiteSettingsContacts` and
 
 ## Notification foundation
 
-After `POST /api/orders` persists an enquiry, `INotificationService` loads the
-order and current Site Settings. When email notifications are enabled it calls
+After `POST /api/orders` persists an enquiry or `POST /api/contact-messages`
+persists a contact message, `INotificationService` loads the saved record and
+current Site Settings. When email notifications are enabled it calls
 `IEmailNotificationSender` with the Site Settings email. `Provider=Logging`
 uses `LoggingEmailNotificationSender`; `Provider=Smtp` uses
 `SmtpEmailNotificationSender`. Missing/invalid SMTP configuration and SMTP
 delivery errors are logged and fall back to the logging provider without
-changing the successful order response.
+changing the successful order or contact message response.
 
 `POST /api/admin/notifications/test-email` is protected by the `AdminOnly`
 policy. It requires enabled email notifications and a Site Settings email, then
@@ -514,11 +554,13 @@ Available core endpoints after startup include:
 - `/api/auth/login`
 - `/api/auth/me`
 - `/api/orders`
+- `/api/contact-messages`
 - `/api/services`
 - `/api/portfolio`
 - `/api/content/pages/{pageKey}`
 - `/api/repeatable-content`
 - `/api/repeatable-content/groups/{groupKey}`
+- `/api/admin/contact-messages`
 - `/api/site-settings/public`
 - `/api/brand-settings/public`
 

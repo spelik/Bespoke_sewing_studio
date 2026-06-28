@@ -10,6 +10,7 @@ public sealed class BespokeStudioDbContext(DbContextOptions<BespokeStudioDbConte
     : IdentityDbContext<AdminUser, IdentityRole<Guid>, Guid>(options)
 {
     public DbSet<Client> Clients => Set<Client>();
+    public DbSet<ContactMessage> ContactMessages => Set<ContactMessage>();
     public DbSet<Order> Orders => Set<Order>();
     public DbSet<OrderAttachment> OrderAttachments => Set<OrderAttachment>();
     public DbSet<OrderNote> OrderNotes => Set<OrderNote>();
