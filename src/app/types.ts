@@ -25,8 +25,6 @@ export type OrderApiServiceType =
 
 export type ServiceIconKey = "scissors" | "sparkles" | "refresh" | "package";
 export type ValueIconKey = "award" | "heart" | "shield" | "check";
-export type ContactIconKey = "location" | "phone" | "email" | "hours";
-export type AdminStatIconKey = "orders" | "active" | "clients" | "revenue";
 
 export type PortfolioFilter = "all" | string;
 
@@ -35,16 +33,9 @@ export interface NavigationItem {
   page: Page;
 }
 
-export interface ContactInfo {
-  phone: string;
-  location: string;
-  enquiryNote: string;
-}
-
 export interface SiteSettings {
   brandName: string;
   defaultLanguage: Language;
-  contact: ContactInfo;
 }
 
 export interface PublicSiteSettings {
@@ -304,11 +295,6 @@ export interface StudioValue {
   icon: ValueIconKey;
   title: string;
   desc: string;
-}
-
-export interface ContactDisplayItem {
-  icon: ContactIconKey;
-  text: string;
 }
 
 export interface PrivacySection {

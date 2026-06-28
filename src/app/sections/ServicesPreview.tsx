@@ -1,12 +1,12 @@
 import { ChevronRight } from "lucide-react";
 import { ServiceCard } from "../components/ServiceCard";
 import { SectionLabel } from "../components/SectionLabel";
-import type { NavigableSectionProps } from "./sectionTypes";
 import { useServices } from "../services/ServicesContext";
 import { usePageContent } from "../content/PageContentContext";
 import { CmsHeading } from "../components/CmsHeading";
+import { AppLink } from "../components/AppLink";
 
-export function ServicesPreview({ navigate }: NavigableSectionProps) {
+export function ServicesPreview() {
   const { services } = useServices();
   const featuredServices = services.filter((service) => service.isFeatured);
   const displayedServices = featuredServices.length > 0 ? featuredServices : services;
@@ -16,17 +16,10 @@ export function ServicesPreview({ navigate }: NavigableSectionProps) {
         <div className="max-w-7xl mx-auto px-6 lg:px-10">
           <SectionLabel text="Our Services" />
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-20 items-end mb-16">
-            <CmsHeading as="h2" title={intro?.title??"Every Stitch,\na Promise of Care."} className="font-serif text-[2.4rem] lg:text-[3.2rem] font-light text-foreground leading-tight"/>
+            {intro?.title ? <CmsHeading as="h2" title={intro.title} className="font-serif text-[2.4rem] lg:text-[3.2rem] font-light text-foreground leading-tight"/> : <div />}
             <div>
-              <p className="text-sm text-muted-foreground leading-relaxed mb-6 font-sans">
-                {intro?.body??"From bridal alterations to fully bespoke commissions, we handle your garments with the reverence they deserve. Browse our complete range of specialist services."}
-              </p>
-              <button
-                onClick={() => navigate("services")}
-                className="flex items-center gap-2 text-sm text-foreground border-b border-foreground pb-0.5 hover:text-accent hover:border-accent transition-colors font-sans"
-              >
-                {intro?.ctaLabel??"All Services"} <ChevronRight size={13} />
-              </button>
+              {intro?.body ? <p className="text-sm text-muted-foreground leading-relaxed mb-6 font-sans">{intro.body}</p> : null}
+              {intro?.ctaLabel && intro.ctaUrl ? <AppLink href={intro.ctaUrl} className="flex items-center gap-2 text-sm text-foreground border-b border-foreground pb-0.5 hover:text-accent hover:border-accent transition-colors font-sans">{intro.ctaLabel} <ChevronRight size={13} /></AppLink> : null}
             </div>
           </div>
 

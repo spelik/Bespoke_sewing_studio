@@ -16,7 +16,7 @@ export function StudioValuesSection() {
                 <em className="italic text-accent">Meets Precision.</em>
               </h2>
               <p className="text-[13px] text-primary-foreground/60 leading-relaxed font-sans max-w-md">
-                We bring together Northern Irish craftsmanship heritage and modern tailoring precision. Every client receives our full attention, every garment our full skill.
+                We bring together traditional craftsmanship and modern tailoring precision. Every client receives our full attention, every garment our full skill.
               </p>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 lg:gap-10">

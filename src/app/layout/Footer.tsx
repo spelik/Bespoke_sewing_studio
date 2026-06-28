@@ -5,9 +5,11 @@ import { StitchDivider } from "../components/StitchDivider";
 import { PAGE_PATHS } from "../routing/routes";
 import { useSiteSettings } from "../siteSettings/SiteSettingsContext";
 import { getBrandNavigation } from "../siteSettings/brandNavigation";
+import { useServices } from "../services/ServicesContext";
 
 export function Footer() {
   const { settings, brand } = useSiteSettings();
+  const { services } = useServices();
   const navigation=getBrandNavigation(brand.navigation);
   const socialLinks = [
     { label: "Instagram", shortLabel: "ig", url: settings.instagramUrl },
@@ -30,15 +32,11 @@ export function Footer() {
               />
             </div>
             <p className="text-sm text-primary-foreground/55 leading-relaxed">
-              {settings.siteTagline ??
-                "Premium sewing, tailoring, dressmaking, alterations and handmade toys in Northern Ireland."}
+              {settings.siteTagline}
             </p>
             <div className="mt-6 flex items-center gap-3">
               {socialLinks
-                .filter(
-                  (social) =>
-                    social.url || social.label === "Instagram" || social.label === "Facebook",
-                )
+                .filter((social) => social.url)
                 .map((social) =>
                 social.url ? (
                   <a
@@ -51,15 +49,7 @@ export function Footer() {
                   >
                     <span className="text-[10px] text-primary-foreground/50">{social.shortLabel}</span>
                   </a>
-                ) : (
-                  <span
-                    key={social.label}
-                    aria-hidden="true"
-                    className="w-8 h-8 border border-primary-foreground/20 flex items-center justify-center"
-                  >
-                    <span className="text-[10px] text-primary-foreground/50">{social.shortLabel}</span>
-                  </span>
-                ),
+                ) : null,
               )}
             </div>
           </div>
@@ -83,12 +73,7 @@ export function Footer() {
           <div>
             <h3 className="text-[10px] tracking-[0.25em] uppercase text-primary-foreground/35 mb-5">Services</h3>
             <ul className="space-y-2.5 text-sm text-primary-foreground/60">
-              <li>Luxury Custom Tailoring</li>
-              <li>Dressmaking & Alterations</li>
-              <li>Occasionwear & Bridal</li>
-              <li>Handmade Toys</li>
-              <li>Memory Bears</li>
-              <li>Repairs & Restyling</li>
+              {services.map((service) => <li key={service.id ?? service.slug}>{service.name}</li>)}
             </ul>
           </div>
 

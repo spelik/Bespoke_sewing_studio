@@ -5,12 +5,13 @@ React, Vite and TypeScript frontend for the Bespoke Sewing Studio website. The c
 
 ## Frontend data mode
 
-Most marketing content and the remaining prototype features still use typed
-mock data from `src/api/`. Public contact/site settings and services/prices load
-from the backend with typed frontend fallbacks. The public Order form sends real requests to
+The public site is backend-first and CMS-driven: contact settings, brand/navigation/SEO,
+page content, services/prices and portfolio data load from the ASP.NET Core API.
+Centralised typed frontend defaults are used only when the corresponding public API
+cannot be reached. The public Order form sends real requests to
 `POST /api/orders`, which persists enquiries in PostgreSQL through the ASP.NET
 Core backend. The admin login and Orders screens also use the backend API; the
-remaining admin dashboard sections are still prototype data. Optional order
+admin Services, Portfolio, Content, Settings and Brand/SEO sections use protected backend APIs. Optional order
 attachments are uploaded first and linked to the created enquiry by ID.
 
 API configuration lives in `src/config/appConfig.ts`. `VITE_API_BASE_URL`
@@ -47,7 +48,7 @@ Current backend status:
 - logo, favicon, default SEO metadata, header CTA and navigation labels/visibility are managed in Admin **Brand / SEO**
 - the public Order form submits a dynamic `serviceOfferingId` while preserving legacy enum compatibility
 - admin login and Orders list/detail/status/notes use protected backend endpoints
-- site content and the remaining admin dashboard sections use mock/prototype data
+- the admin sidebar exposes only backend-backed Orders, Services, Portfolio, Content, Brand/SEO and Settings modules
 
 Local PostgreSQL and backend setup:
 

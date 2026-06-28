@@ -90,14 +90,13 @@ decision after validation and currency rules are agreed.
 interfaces. These contracts are separate from domain entities so future HTTP
 payloads do not expose persistence models directly.
 
-No mock or production service implementation is registered yet. The existing
-API surface is intentionally limited to system endpoints until persistence and
-business rules are implemented.
+Infrastructure implementations are registered for Orders, Services, Portfolio,
+Page Content, Site/Brand Settings, uploads and notification delivery.
 
-## Planned modules
+## Implemented modules
 
 - Orders
-- Clients
+- Client records through Orders
 - Portfolio and categories
 - Services
 - Uploads
@@ -225,8 +224,8 @@ the detail, status, and note examples.
 New-order email notifications use the logging provider by default and can use SMTP.
 The public frontend Order form calls
 anonymous `POST /api/orders`. The admin frontend uses
-login, current-user, Orders list/detail, status, note, Services and Settings
-endpoints; the other admin dashboard sections remain prototypes.
+login, current-user, Orders list/detail/status/notes, Services, Portfolio,
+Content, Site Settings and Brand/SEO endpoints.
 
 ## Services and Prices API
 
@@ -487,9 +486,9 @@ offline. Database connectivity is verified separately by `database update` and
 the `__EFMigrationsHistory` query above.
 
 Portfolio/Gallery CRUD and its dedicated image upload are implemented. General
-upload-library management is not implemented. The public Order form, Portfolio,
-Services, Settings and Orders admin modules use this backend, while the
-remaining site/admin content stays in mock/prototype mode.
+upload-library management is not implemented. Public pages are backend-first for
+Site/Brand Settings, Services, Portfolio and Page Content; centralised typed
+frontend fallbacks are used only when a public API is unavailable.
 Refresh tokens, password
 reset, email confirmation, MFA, and production secret rotation are not
 implemented.

@@ -1,12 +1,15 @@
 import { ArrowRight, Scissors, Star } from "lucide-react";
 import { SITE_ASSETS } from "../appContent";
 import { ResponsiveImage } from "../components/ResponsiveImage";
-import type { NavigableSectionProps } from "./sectionTypes";
 import { usePageContent } from "../content/PageContentContext";
 import { CmsHeading } from "../components/CmsHeading";
+import { useSiteSettings } from "../siteSettings/SiteSettingsContext";
+import { AppLink } from "../components/AppLink";
 
-export function HomeHero({ navigate }: NavigableSectionProps) {
+export function HomeHero() {
   const hero=usePageContent("home").section("hero");
+  const {brand}=useSiteSettings();
+  if(!hero) return null;
   return (
       <section className="relative min-h-screen flex items-center overflow-hidden bg-secondary">
         <div className="absolute inset-0 opacity-[0.07] pointer-events-none">
@@ -25,34 +28,22 @@ export function HomeHero({ navigate }: NavigableSectionProps) {
             {/* Text */}
             <div>
               <div className="text-[10px] tracking-[0.45em] uppercase text-muted-foreground mb-10 font-sans">
-                Bespoke Sewing Studio
+                {brand.brandDisplayName}
               </div>
-              <CmsHeading title={hero?.title ?? "Premium Sewing,\nTailoring, Dressmaking\n& Memory Bears."} accentLine={1} className="font-serif text-[3.2rem] lg:text-[4rem] font-light leading-[1.06] text-foreground mb-8" />
-              <p className="text-base lg:text-[1.05rem] text-muted-foreground leading-relaxed max-w-[420px] mb-10 font-sans">
-                {hero?.subtitle ?? "Exceptional tailoring, delicate dressmaking, expert alterations, and deeply personal memory bears, crafted with a refined touch."}
-              </p>
+              {hero.title ? <CmsHeading title={hero.title} accentLine={1} className="font-serif text-[3.2rem] lg:text-[4rem] font-light leading-[1.06] text-foreground mb-8" /> : null}
+              {hero.subtitle ? <p className="text-base lg:text-[1.05rem] text-muted-foreground leading-relaxed max-w-[420px] mb-10 font-sans">{hero.subtitle}</p> : null}
               <div className="flex flex-col sm:flex-row gap-4">
-                <button
-                  onClick={() => navigate("order")}
-                  className="flex items-center justify-center gap-2.5 bg-foreground text-primary-foreground px-8 py-4 text-[13px] tracking-wide hover:bg-accent transition-colors duration-300"
-                >
-                  {hero?.ctaLabel ?? "Request an Order"} <ArrowRight size={15} />
-                </button>
-                <button
-                  onClick={() => navigate("portfolio")}
-                  className="flex items-center justify-center gap-2.5 border border-foreground text-foreground px-8 py-4 text-[13px] tracking-wide hover:bg-foreground hover:text-primary-foreground transition-colors duration-300"
-                >
-                  View Portfolio
-                </button>
+                {hero.ctaLabel && hero.ctaUrl ? <AppLink href={hero.ctaUrl} className="flex items-center justify-center gap-2.5 bg-foreground text-primary-foreground px-8 py-4 text-[13px] tracking-wide hover:bg-accent transition-colors duration-300">{hero.ctaLabel} <ArrowRight size={15} /></AppLink> : null}
+                {brand.navigation.showPortfolioLink ? <AppLink href="/portfolio" className="flex items-center justify-center gap-2.5 border border-foreground text-foreground px-8 py-4 text-[13px] tracking-wide hover:bg-foreground hover:text-primary-foreground transition-colors duration-300">{brand.navigation.portfolioLabel}</AppLink> : null}
               </div>
             </div>
 
             {/* Image + badge */}
             <div className="relative hidden lg:block">
               <div className="relative aspect-[4/5] bg-muted overflow-hidden">
-                {hero?.imageUrl ? <img src={hero.imageUrl} alt={hero.imageAltText ?? "Bespoke Sewing Studio"} className="w-full h-full object-cover" /> : <ResponsiveImage
+                {hero.imageUrl ? <img src={hero.imageUrl} alt={hero.imageAltText ?? brand.brandDisplayName} className="w-full h-full object-cover" /> : <ResponsiveImage
                   asset={SITE_ASSETS.homeHero}
-                  alt="Bespoke Sewing Studio"
+                  alt={hero.imageAltText ?? brand.brandDisplayName}
                   pictureClassName="block w-full h-full"
                   imgClassName="w-full h-full object-cover"
                   decoding="async"

@@ -1,7 +1,9 @@
 import { ArrowRight, Scissors } from "lucide-react";
-import type { NavigableSectionProps } from "./sectionTypes";
+import { useSiteSettings } from "../siteSettings/SiteSettingsContext";
+import { AppLink } from "../components/AppLink";
 
-export function OrderCtaSection({ navigate }: NavigableSectionProps) {
+export function OrderCtaSection() {
+  const {settings,brand}=useSiteSettings();
   return (
       <section className="py-24 bg-secondary">
         <div className="max-w-2xl mx-auto px-6 lg:px-10 text-center">
@@ -15,14 +17,9 @@ export function OrderCtaSection({ navigate }: NavigableSectionProps) {
             <em className="italic text-accent">Awaits You.</em>
           </h2>
           <p className="text-[13px] text-muted-foreground leading-relaxed mb-10 font-sans">
-            Begin your order request today and we will be in touch within one working day to arrange your personal consultation at the studio.
+            {settings.contactIntroText}
           </p>
-          <button
-            onClick={() => navigate("order")}
-            className="inline-flex items-center gap-2.5 bg-foreground text-primary-foreground px-10 py-4 text-[13px] tracking-wide hover:bg-accent transition-colors duration-300"
-          >
-            Place an Order Request <ArrowRight size={15} />
-          </button>
+          <AppLink href={brand.headerCtaUrl} className="inline-flex items-center gap-2.5 bg-foreground text-primary-foreground px-10 py-4 text-[13px] tracking-wide hover:bg-accent transition-colors duration-300">{brand.headerCtaLabel} <ArrowRight size={15} /></AppLink>
         </div>
       </section>
 

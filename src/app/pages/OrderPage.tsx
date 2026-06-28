@@ -11,10 +11,12 @@ import type { OrderRequest, OrderSubmissionResponse } from "../types";
 import { useServices } from "../services/ServicesContext";
 import { usePageContent } from "../content/PageContentContext";
 import { CmsHeading } from "../components/CmsHeading";
+import { useSiteSettings } from "../siteSettings/SiteSettingsContext";
 
 export function OrderPage() {
   const { services } = useServices();
   const intro=usePageContent("order").section("intro");
+  const {settings,brand}=useSiteSettings();
   const [service, setService] = useState("");
   const [consent, setConsent] = useState(false);
   const [attachments, setAttachments] = useState<File[]>([]);
@@ -87,7 +89,7 @@ export function OrderPage() {
             Request Received
           </h2>
           <p className="text-[13px] text-muted-foreground leading-relaxed mb-8 font-sans">
-            Thank you for your enquiry. We will be in touch within one working day to discuss your requirements and arrange a consultation at the studio.
+            {settings.contactIntroText ?? "Thank you for your enquiry. We will contact you about your request."}
           </p>
           <p className="text-[11px] text-muted-foreground/60 font-sans">
             Request reference: {result?.id}
@@ -101,11 +103,9 @@ export function OrderPage() {
     <div className="pt-[72px]">
       <div className="bg-secondary py-20 px-6 lg:px-10">
         <div className="max-w-7xl mx-auto">
-          <SectionLabel text="Order Request" />
-          <CmsHeading title={intro?.title??"Begin Your\nRequest."} className="font-serif text-[3rem] lg:text-[4.5rem] font-light text-foreground mt-4 leading-tight"/>
-          <p className="text-[13px] text-muted-foreground mt-6 max-w-md leading-relaxed font-sans">
-            {intro?.body??"Complete the form below and we will be in touch within one working day to discuss your requirements and arrange a consultation."}
-          </p>
+          <SectionLabel text={brand.navigation.orderLabel} />
+          {intro?.title ? <CmsHeading title={intro.title} className="font-serif text-[3rem] lg:text-[4.5rem] font-light text-foreground mt-4 leading-tight"/> : null}
+          {intro?.body ? <p className="text-[13px] text-muted-foreground mt-6 max-w-md leading-relaxed font-sans">{intro.body}</p> : null}
         </div>
       </div>
 
@@ -291,7 +291,7 @@ export function OrderPage() {
                   {consent && <Check size={10} className="text-primary-foreground" />}
                 </div>
                 <span className="text-[13px] text-muted-foreground leading-relaxed font-sans">
-                  I consent to Bespoke Sewing Studio storing my contact information and enquiry details in order to process my request. I have read and agree to the{" "}
+                  I consent to {brand.brandDisplayName} storing my contact information and enquiry details in order to process my request. I have read and agree to the{" "}
                   <span className="text-foreground underline underline-offset-2 cursor-pointer">Privacy Policy</span>.
                 </span>
               </label>
@@ -317,7 +317,7 @@ export function OrderPage() {
             </button>
 
             <p className="text-[11px] text-muted-foreground/50 text-center font-sans">
-              Your request will be sent securely to Bespoke Sewing Studio.
+              Your request will be sent securely to {brand.brandDisplayName}.
             </p>
           </form>
         </div>

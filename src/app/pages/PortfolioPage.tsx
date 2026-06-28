@@ -1,26 +1,27 @@
 import { useState } from "react";
 import { PortfolioCard } from "../components/PortfolioCard";
 import { SectionLabel } from "../components/SectionLabel";
-import { usePageNavigation } from "../routing/usePageNavigation";
 import type { PortfolioFilter } from "../types";
 import { usePortfolio } from "../portfolio/PortfolioContext";
 import { usePageContent } from "../content/PageContentContext";
 import { CmsHeading } from "../components/CmsHeading";
+import { useSiteSettings } from "../siteSettings/SiteSettingsContext";
+import { AppLink } from "../components/AppLink";
 
 export function PortfolioPage() {
-  const navigate = usePageNavigation();
   const { items, categories: portfolioCategories } = usePortfolio();
   const [filter, setFilter] = useState<PortfolioFilter>("all");
   const categories: ReadonlyArray<PortfolioFilter> = ["all", ...portfolioCategories.map((category) => category.slug)];
   const filtered = filter === "all" ? items : items.filter((item) => item.category.slug === filter);
   const intro=usePageContent("portfolio").section("intro");
+  const {brand}=useSiteSettings();
 
   return (
     <div className="pt-[72px]">
       <div className="bg-secondary py-20 px-6 lg:px-10">
         <div className="max-w-7xl mx-auto">
-          <SectionLabel text="Portfolio" />
-          <CmsHeading title={intro?.title??"Gallery of\nOur Work."} className="font-serif text-[3rem] lg:text-[5rem] font-light text-foreground mt-4 leading-tight"/>
+          <SectionLabel text={brand.navigation.portfolioLabel} />
+          {intro?.title ? <CmsHeading title={intro.title} className="font-serif text-[3rem] lg:text-[5rem] font-light text-foreground mt-4 leading-tight"/> : null}
         </div>
       </div>
 
@@ -59,12 +60,7 @@ export function PortfolioPage() {
             <p className="text-[13px] text-muted-foreground mb-4 font-sans">
               Interested in commissioning a piece or requesting alterations?
             </p>
-            <button
-              onClick={() => navigate("order")}
-              className="text-[13px] text-foreground border-b border-foreground pb-0.5 hover:text-accent hover:border-accent transition-colors font-sans"
-            >
-              Place an Order Request &rarr;
-            </button>
+            <AppLink href={brand.headerCtaUrl} className="text-[13px] text-foreground border-b border-foreground pb-0.5 hover:text-accent hover:border-accent transition-colors font-sans">{brand.headerCtaLabel} &rarr;</AppLink>
           </div>
         </div>
       </div>

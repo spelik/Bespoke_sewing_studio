@@ -13,13 +13,13 @@ export function HomePage() {
 
   return (
     <div>
-      <HomeHero navigate={navigate} />
-      <ServicesPreview navigate={navigate} />
+      <HomeHero />
+      <ServicesPreview />
       <ProcessSection />
       <PortfolioPreview navigate={navigate} />
       <StudioValuesSection />
       <TestimonialsSection />
-      <OrderCtaSection navigate={navigate} />
+      <OrderCtaSection />
       <ContactSection />
     </div>
   );

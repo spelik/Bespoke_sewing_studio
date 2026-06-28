@@ -1,6 +1,4 @@
 import type {
-  ContactDisplayItem,
-  ContactInfo,
   NavigationItem,
   PrivacySection,
   ProcessStep,
@@ -13,25 +11,18 @@ import type {
 } from "../app/types";
 import { ABOUT_HERO_IMAGE, HEADER_LOGO, HOME_HERO_IMAGE } from "./imageAssets";
 
-export const CONTACT_DETAILS: ContactInfo = {
-  phone: "074 6734 7194",
-  location: "Northern Ireland",
-  enquiryNote: "Consultations and orders are arranged individually.",
-};
-
 export const SITE_SETTINGS: SiteSettings = {
   brandName: "Bespoke Sewing Studio",
   defaultLanguage: "en",
-  contact: CONTACT_DETAILS,
 };
 
 export const PUBLIC_SITE_SETTINGS_FALLBACK: PublicSiteSettings = {
   studioName: SITE_SETTINGS.brandName,
   siteTagline: "Premium sewing, tailoring, dressmaking, alterations and memory bears.",
-  email: "hello@logosha.co.uk",
-  phone: CONTACT_DETAILS.phone,
+  email: null,
+  phone: "074 6734 7194",
   contactButtonLabel: "Send Enquiry",
-  contactIntroText: CONTACT_DETAILS.enquiryNote,
+  contactIntroText: "Consultations and orders are arranged individually.",
   facebookUrl: null,
   instagramUrl: null,
   tikTokUrl: null,
@@ -114,20 +105,6 @@ export const STUDIO_VALUES: ReadonlyArray<StudioValue> = [
   { icon: "check", title: "Attention to Detail", desc: "We focus on the small details that make a piece truly special and bespoke." },
 ];
 
-// Preserves the current exported prototype content. Business copy will be corrected separately.
-export const HOME_CONTACT_ITEMS: ReadonlyArray<ContactDisplayItem> = [
-  { icon: "location", text: "Northern Ireland" },
-  { icon: "phone", text: "+44 (0)28 9012 3456" },
-  { icon: "email", text: "hello@logosha.co.uk" },
-  { icon: "hours", text: "Mon–Fri 9am–6pm · Sat 10am–4pm · Sun Closed" },
-];
-
-export const CONTACT_PAGE_ITEMS: ReadonlyArray<ContactDisplayItem & { label: string }> = [
-  { icon: "location", label: "Location", text: CONTACT_DETAILS.location },
-  { icon: "phone", label: "Telephone", text: CONTACT_DETAILS.phone },
-  { icon: "email", label: "Enquiries", text: CONTACT_DETAILS.enquiryNote },
-];
-
 export const PRIVACY_SECTIONS: ReadonlyArray<PrivacySection> = [
   {
     title: "1. Information We Collect",
@@ -143,7 +120,7 @@ export const PRIVACY_SECTIONS: ReadonlyArray<PrivacySection> = [
   },
   {
     title: "4. Your Rights",
-    body: "Under the UK General Data Protection Regulation (UK GDPR) and the Data Protection Act 2018, you have the right to access, correct, or delete your personal data. You may also object to the processing of your data or request that we restrict its use. To exercise any of these rights, please contact us at hello@linenhouse.co.uk.",
+    body: "Under the UK General Data Protection Regulation (UK GDPR) and the Data Protection Act 2018, you have the right to access, correct, or delete your personal data. You may also object to the processing of your data or request that we restrict its use. To exercise any of these rights, please contact us by phone or enquiry.",
   },
   {
     title: "5. Cookies",

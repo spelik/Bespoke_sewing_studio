@@ -65,9 +65,9 @@
 ## Осталось
 
 - Две самые тяжёлые portfolio карточки (`portfolio-1a`, `portfolio-2`) всё ещё заметно крупнее остальных даже после downscale. Следующий шаг по изображениям - отдельные crop-aware thumbnails или AVIF pipeline.
-- Admin bundle остаётся крупным из-за `recharts`: `439.21 KB` в текущей production-сборке.
+- Старые mock-графики и `recharts` imports удалены из AdminPage; Admin chunk уменьшился примерно с `496.57 KB` до `63.69 KB`. Зависимость `recharts` пока остаётся в package.json и может быть удалена отдельной dependency-cleanup задачей.
 - SPA fallback всё ещё должен быть настроен на production-сервере. В репозитории добавлена только документация, не серверная конфигурация.
-- Marketing content, Contact form и admin-разделы Overview metrics, Clients, Campaigns и Analytics остаются в `mock/prototype mode`; реальный HTTP используется public Order submission, Services CMS, admin Orders flow и Site Settings.
+- Contact form остаётся prototype-only: отдельного Contact Messages API нет. Public Order form и шесть видимых admin-разделов используют реальные backend endpoints.
 - PostgreSQL и EF migrations проверены напрямую через connection string на `127.0.0.1:5433`; Docker CLI доступен, но sandbox не разрешил доступ к Docker daemon/pipe для отдельной проверки container health.
 - Portfolio/Gallery CMS реализован: категории, items, active/featured/order, Admin image upload и backend-first public gallery работают через PostgreSQL. Локальные frontend assets остаются typed fallback при недоступном API.
 - Website Content CMS реализован для основных текстов и page images Home/About/Services/Portfolio/Order/Contact/Privacy; public frontend использует backend-first данные с typed fallback.
@@ -82,17 +82,16 @@
 - SMTP provider реализован; production credentials должны задаваться через user-secrets/env/secret store. До production остаются настройка deliverability (SPF/DKIM/DMARC), мониторинг bounce/rejection и операционная ротация credentials.
 - Background notification queue и retry policy пока не реализованы: отправка выполняется inline после сохранения заявки. Customer confirmation email также не реализован.
 - Service image upload пока не реализован; advanced money/currency model и drag-and-drop reorder для Services/Portfolio можно добавить позже. Rich text page CMS ещё не реализован.
-- Полноценный rich-text editor/page builder не реализован: Content CMS использует безопасные plain-text поля. Logo upload, version history/drafts и локализация контента остаются будущими задачами.
+- Полноценный rich-text editor/page builder не реализован: Content CMS использует безопасные plain-text поля. Version history/drafts и multilingual CMS остаются будущими задачами.
 - Production secret management для admin seed и JWT signing key ещё требует внешнего secret store и operational rotation process.
 
 ## Рекомендации на следующие задачи
 
 - Подготовить фактическую production-конфигурацию хостинга с SPA fallback.
 - Добить image pipeline для самых тяжёлых portfolio assets: AVIF или отдельные thumbnails под card layout.
-- Оценить, можно ли уменьшить admin chunk через более узкий импорт графиков или дополнительное lazy splitting внутри admin prototype.
-- Заменять оставшиеся admin prototype sections реальными API постепенно, не смешивая их с уже подключённым Orders flow.
+- Удалить неиспользуемую package dependency `recharts` после отдельной проверки lock-файла.
 - Спроектировать нормализованные уникальные ключи client matching и обработку конкурентного создания клиентов.
-- Подключать остальные frontend-модули к HTTP API постепенно; site content и admin сохранять в `mock/prototype mode` до появления соответствующих защищённых endpoints.
+- Решить, нужен ли отдельный Contact Messages API; до этого форма Contact явно остаётся prototype-only.
 
 ## Task 23 — Brand / Logo / SEO
 
@@ -101,3 +100,12 @@
 - Brand images используют отдельный `BrandAsset` purpose и публичны только при ссылке из текущих settings; order attachments остаются private.
 - SVG upload намеренно не реализован из-за security-рисков. Разрешены JPG, PNG и WebP.
 - Future debt: advanced/per-page SEO, sitemap/robots generation, image cropper/thumbnails и production CDN/object storage.
+
+## Task 24 — CMS completeness audit
+
+- Public data flow проверен: SiteSettings управляет контактами/footer, BrandSettings — logo/navigation/CTA/SEO, PageContent — основными page sections, Services/Portfolio APIs — карточками и ценами/галереей, Orders API — заявками.
+- Удалены устаревшие inline public values (`Logosha Studio`, старый телефон, часы работы, старые email) и hardcoded footer services. Typed fallback email теперь `null`, пока владелец не задаст его через Site Settings.
+- Inline PageContent copy больше не подменяет скрытую backend-секцию. Fallback сосредоточен в `src/data/pageContentData.ts` и используется только при недоступности Content API.
+- Admin sidebar очищен от mock Overview/Clients/Campaigns/Analytics; видимы только работающие Orders, Services, Portfolio, Content, Brand/SEO и Settings.
+- Осознанно остаются статическими typed data: process steps, studio values, testimonials и подробные privacy subsections — для них нет отдельной repeatable-content модели. Contact form остаётся prototype-only.
+- Fallback не является основным источником при доступном backend. Multilingual CMS, rich text editor/page builder и repeatable-section CMS остаются future work.

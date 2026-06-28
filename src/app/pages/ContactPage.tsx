@@ -1,5 +1,4 @@
-import { Check } from "lucide-react";
-import { CONTACT_PAGE_ITEMS } from "../appContent";
+import { Check, Mail, MapPin, Phone } from "lucide-react";
 import { SectionLabel } from "../components/SectionLabel";
 import { usePrototypeForm } from "../hooks/usePrototypeForm";
 import { useSiteSettings } from "../siteSettings/SiteSettingsContext";
@@ -10,22 +9,18 @@ export function ContactPage() {
   const { submitted: messageSent, handleSubmit } = usePrototypeForm("contact message");
   const { settings } = useSiteSettings();
   const intro=usePageContent("contact").section("intro");
-  const contactItems = CONTACT_PAGE_ITEMS.map((item) => ({
-    ...item,
-    text:
-      item.kind === "location"
-        ? settings.serviceAreaText
-        : item.kind === "phone"
-          ? settings.phone
-          : settings.email ?? settings.contactIntroText,
-  })).filter((item) => item.text);
+  const contactItems = [
+    { label: "Service area", icon: MapPin, text: settings.serviceAreaText },
+    { label: "Telephone", icon: Phone, text: settings.phone },
+    { label: "Enquiries", icon: Mail, text: settings.email ?? settings.contactIntroText },
+  ].filter((item): item is typeof item & { text: string } => Boolean(item.text));
 
   return (
     <div className="pt-[72px]">
       <div className="bg-secondary py-20 px-6 lg:px-10">
         <div className="max-w-7xl mx-auto">
           <SectionLabel text="Contact" />
-          <CmsHeading title={intro?.title??"Get in\nTouch."} className="font-serif text-[3rem] lg:text-[5rem] font-light text-foreground mt-4 leading-tight"/>
+          {intro?.title ? <CmsHeading title={intro.title} className="font-serif text-[3rem] lg:text-[5rem] font-light text-foreground mt-4 leading-tight"/> : null}
         </div>
       </div>
 

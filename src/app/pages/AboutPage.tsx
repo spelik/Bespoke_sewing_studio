@@ -1,19 +1,20 @@
 import { SITE_ASSETS, WHY_US } from "../appContent";
 import { ResponsiveImage } from "../components/ResponsiveImage";
 import { SectionLabel } from "../components/SectionLabel";
-import { usePageNavigation } from "../routing/usePageNavigation";
 import { usePageContent } from "../content/PageContentContext";
 import { CmsHeading } from "../components/CmsHeading";
+import { useSiteSettings } from "../siteSettings/SiteSettingsContext";
+import { AppLink } from "../components/AppLink";
 
 export function AboutPage() {
-  const navigate = usePageNavigation();
   const { section }=usePageContent("about");const hero=section("hero");const main=section("main-content");
+  const {settings,brand}=useSiteSettings();
   return (
     <div className="pt-[72px]">
       <div className="bg-secondary py-20 px-6 lg:px-10">
         <div className="max-w-7xl mx-auto">
           <SectionLabel text="About Us" />
-          <CmsHeading title={hero?.title ?? "A Studio\nBuilt on Craft."} className="font-serif text-[3rem] lg:text-[5rem] font-light text-foreground mt-4 leading-tight" />
+          {hero?.title ? <CmsHeading title={hero.title} className="font-serif text-[3rem] lg:text-[5rem] font-light text-foreground mt-4 leading-tight" /> : null}
         </div>
       </div>
 
@@ -32,11 +33,11 @@ export function AboutPage() {
             </div>
             <div>
               <div className="text-[10px] tracking-[0.4em] uppercase text-muted-foreground mb-6 font-sans">
-                {main?.subtitle ?? "Our Story"}
+                {main?.subtitle}
               </div>
-              <CmsHeading title={main?.title ?? "Crafted with passion,\nand a refined personal touch."} className="font-serif text-[2rem] lg:text-[2.5rem] font-light text-foreground mb-8 leading-tight" />
+              {main?.title ? <CmsHeading title={main.title} className="font-serif text-[2rem] lg:text-[2.5rem] font-light text-foreground mb-8 leading-tight" /> : null}
               <div className="space-y-4 text-[13px] text-muted-foreground leading-relaxed font-sans">
-                {(main?.body ?? "Bespoke Sewing Studio offers premium sewing, tailoring, dressmaking, alterations, and memory bears.\n\nBorn from a lifelong passion for fabric, form, and the art of creating garments that truly fit, our work ranges from intricate wedding dress alterations to full bespoke commissions and deeply personal memory bears, always with a quiet dedication to quality.\n\nEvery piece is created with care, attention to detail, and a refined personal touch.").split("\n\n").map(p=><p key={p}>{p}</p>)}
+                {main?.body?.split("\n\n").map(p=><p key={p}>{p}</p>)}
               </div>
             </div>
           </div>
@@ -68,17 +69,12 @@ export function AboutPage() {
       <section className="py-20 bg-foreground text-primary-foreground">
         <div className="max-w-2xl mx-auto px-6 text-center">
           <h2 className="font-serif text-[2rem] font-light mb-4">
-            Discuss Your Order
+            {brand.headerCtaLabel}
           </h2>
           <p className="text-[13px] text-primary-foreground/60 mb-8 font-sans leading-relaxed">
-            Please send an enquiry to discuss your order. Consultations and orders are arranged individually.
+            {settings.contactIntroText}
           </p>
-          <button
-            onClick={() => navigate("order")}
-            className="bg-primary-foreground text-foreground px-8 py-3.5 text-[13px] tracking-wide hover:bg-accent hover:text-accent-foreground transition-colors font-sans"
-          >
-            Send an Enquiry
-          </button>
+          <AppLink href={brand.headerCtaUrl} className="inline-block bg-primary-foreground text-foreground px-8 py-3.5 text-[13px] tracking-wide hover:bg-accent hover:text-accent-foreground transition-colors font-sans">{brand.headerCtaLabel}</AppLink>
         </div>
       </section>
     </div>
