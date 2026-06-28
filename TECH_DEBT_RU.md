@@ -2,6 +2,8 @@
 
 ## Закрыто
 
+- Неиспользуемая зависимость `recharts` удалена из `package.json`/`package-lock.json`; неиспользуемый shadcn/ui wrapper `src/app/components/ui/chart.tsx` удалён, так как больше не импортировался.
+
 - Routing и deep links переведены на `react-router-dom`: доступны маршруты `/`, `/services`, `/portfolio`, `/order`, `/about`, `/contact`, `/privacy`, `/admin`.
 - Неизвестные URL больше не редиректят на главную. Вместо этого используется отдельная `404` page.
 - Основной `App.tsx` сокращён до router/layout orchestration.
@@ -68,7 +70,6 @@
 ## Осталось
 
 - Две самые тяжёлые portfolio карточки (`portfolio-1a`, `portfolio-2`) всё ещё заметно крупнее остальных даже после downscale. Следующий шаг по изображениям - отдельные crop-aware thumbnails или AVIF pipeline.
-- Старые mock-графики и `recharts` imports удалены из AdminPage; Admin chunk уменьшился примерно с `496.57 KB` до `63.69 KB`. Зависимость `recharts` пока остаётся в package.json и может быть удалена отдельной dependency-cleanup задачей.
 - SPA fallback всё ещё должен быть настроен на production-сервере. В репозитории добавлена только документация, не серверная конфигурация.
 - Contact form остаётся prototype-only: отдельного Contact Messages API нет. Public Order form и семь видимых admin-разделов используют реальные backend endpoints.
 - PostgreSQL и EF migrations проверены напрямую через connection string на `127.0.0.1:5433`; Docker CLI доступен, но sandbox не разрешил доступ к Docker daemon/pipe для отдельной проверки container health.
@@ -93,7 +94,6 @@
 
 - Подготовить фактическую production-конфигурацию хостинга с SPA fallback.
 - Добить image pipeline для самых тяжёлых portfolio assets: AVIF или отдельные thumbnails под card layout.
-- Удалить неиспользуемую package dependency `recharts` после отдельной проверки lock-файла.
 - Спроектировать нормализованные уникальные ключи client matching и обработку конкурентного создания клиентов.
 - Решить, нужен ли отдельный Contact Messages API; до этого форма Contact явно остаётся prototype-only.
 
@@ -134,3 +134,10 @@
 - Admin sidebar получил раздел **Repeatable Content**. UI поддерживает фильтр групп, add/edit item, hide/show, archive и refresh публичного repeatable content после сохранения.
 - Выполнен visual polish админки: рабочая область справа от sidebar центрирована, карточки шире, actions `Edit / Hide / Archive` отображаются в одну строку.
 - Проверено вручную: `/api/health`, `/api/repeatable-content/groups/process-steps`, `/api/repeatable-content` возвращают `200`; frontend Network показывает успешные `200` для `process-steps`, `studio-values`, `testimonials`, `privacy-sections`.
+
+## Task 27 — Remove unused recharts
+
+- Удалена неиспользуемая npm dependency `recharts`.
+- Удалён неиспользуемый wrapper `src/app/components/ui/chart.tsx`; поиск показал, что chart-компоненты больше нигде не импортировались.
+- Изменены `package.json` и `package-lock.json`.
+- Проверки: `npm.cmd run typecheck`, `npm.cmd run build`, `dotnet build backend\BespokeStudio.sln`.
