@@ -52,6 +52,7 @@ public static class DependencyInjection
         services.AddScoped<IOrderService, OrderService>();
         services.AddScoped<IServiceOfferingService, ServiceOfferingService>();
         services.AddScoped<IPortfolioService, PortfolioService>();
+        services.AddScoped<IPageContentService, PageContentService>();
         services.AddScoped<ISiteSettingsService, SiteSettingsService>();
         services.AddScoped<INotificationService, NotificationService>();
         services.AddScoped<LoggingEmailNotificationSender>();

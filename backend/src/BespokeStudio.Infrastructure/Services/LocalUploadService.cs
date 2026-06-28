@@ -156,6 +156,35 @@ public sealed class LocalUploadService : IUploadService
         }
     }
 
+    public async Task<UploadedFileResponse> UploadContentImageAsync(UploadFileRequest file,CancellationToken cancellationToken=default)
+    {
+        var prepared=ValidateAndPrepare(file);
+        if(!prepared.ContentType.StartsWith("image/",StringComparison.Ordinal))throw new UploadValidationException("Content uploads must be JPG, PNG or WebP images.");
+        var relativeDirectory=Path.Combine("content-images",DateTime.UtcNow.ToString("yyyy"),DateTime.UtcNow.ToString("MM"));
+        var storedFileName=$"{Guid.NewGuid():N}{prepared.Extension}";var storageKey=Path.Combine(relativeDirectory,storedFileName).Replace(Path.DirectorySeparatorChar,'/');
+        var directoryPath=Path.Combine(_storageRoot,relativeDirectory);var physicalPath=Path.Combine(directoryPath,storedFileName);Directory.CreateDirectory(directoryPath);
+        try
+        {
+            await using(var destination=new FileStream(physicalPath,FileMode.CreateNew,FileAccess.Write,FileShare.None,81920,true))
+                await CopyWithLimitAsync(prepared.Request.Content,destination,_options.MaxFileSizeBytes,cancellationToken);
+            var metadata=new UploadedFileMetadata{Purpose=UploadPurpose.SiteAsset,OriginalFileName=prepared.OriginalFileName,StoredFileName=storedFileName,StorageKey=storageKey,ContentType=prepared.ContentType,SizeBytes=prepared.Request.SizeBytes};
+            _dbContext.UploadedFiles.Add(metadata);await _dbContext.SaveChangesAsync(cancellationToken);return ToResponse(metadata);
+        }catch{TryDelete(physicalPath);throw;}
+    }
+
+    public async Task<UploadDownloadResponse?> OpenPublicContentImageAsync(Guid uploadedFileId,CancellationToken cancellationToken=default)
+    {
+        var metadata=await(from content in _dbContext.PageContents.AsNoTracking() join file in _dbContext.UploadedFiles.AsNoTracking() on content.ImageFileId equals file.Id
+            where file.Id==uploadedFileId&&file.Purpose==UploadPurpose.SiteAsset&&content.IsActive&&content.ArchivedAt==null&&file.ContentType.StartsWith("image/") select file).FirstOrDefaultAsync(cancellationToken);
+        return OpenFile(metadata);
+    }
+
+    public async Task<UploadDownloadResponse?> OpenContentImageForAdminAsync(Guid uploadedFileId,CancellationToken cancellationToken=default)
+    {
+        var metadata=await _dbContext.UploadedFiles.AsNoTracking().SingleOrDefaultAsync(file=>file.Id==uploadedFileId&&file.Purpose==UploadPurpose.SiteAsset&&file.ContentType.StartsWith("image/"),cancellationToken);
+        return OpenFile(metadata);
+    }
+
     public async Task<UploadDownloadResponse?> OpenPublicPortfolioImageAsync(
         Guid uploadedFileId,
         CancellationToken cancellationToken = default)
@@ -342,6 +371,12 @@ public sealed class LocalUploadService : IUploadService
             file.SizeBytes,
             file.Purpose,
             file.CreatedAt);
+
+    private UploadDownloadResponse? OpenFile(UploadedFileMetadata? metadata)
+    {
+        if(metadata is null)return null;var physicalPath=UploadStoragePath.ResolveFile(_storageRoot,metadata.StorageKey);if(!File.Exists(physicalPath))return null;
+        return new UploadDownloadResponse(new FileStream(physicalPath,FileMode.Open,FileAccess.Read,FileShare.Read,81920,true),metadata.OriginalFileName,metadata.ContentType,metadata.SizeBytes);
+    }
 
     private static void TryDelete(string path)
     {

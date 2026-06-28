@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { BarChart2, Bell, Eye, Images, LogOut, Mail, Menu, Package, Scissors, Search, Send, Settings, TrendingUp, Users } from "lucide-react";
+import { BarChart2, Bell, Eye, FileText, Images, LogOut, Mail, Menu, Package, Scissors, Search, Send, Settings, TrendingUp, Users } from "lucide-react";
 import { Bar, BarChart, CartesianGrid, Cell, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { ORDER_STATUSES, type AdminOrderStatus } from "../../api/ordersApi";
 import { ADMIN_STATS, MONTHLY_DATA, SERVICE_BREAKDOWN } from "../appContent";
@@ -9,11 +9,12 @@ import { AdminOrdersTable } from "../components/AdminOrdersTable";
 import { AdminSettingsPanel } from "../components/AdminSettingsPanel";
 import { AdminServicesPanel } from "../components/AdminServicesPanel";
 import { AdminPortfolioPanel } from "../components/AdminPortfolioPanel";
+import { AdminContentPanel } from "../components/AdminContentPanel";
 import { ADMIN_STATUS_LABELS } from "../components/adminOrderFormatting";
 import { useAdminOrders } from "../hooks/useAdminOrders";
 import { usePageNavigation } from "../routing/usePageNavigation";
 
-type AdminSection = "overview" | "orders" | "services" | "portfolio" | "clients" | "campaigns" | "analytics" | "settings";
+type AdminSection = "overview" | "orders" | "services" | "portfolio" | "content" | "clients" | "campaigns" | "analytics" | "settings";
 
 export function AdminPage() {
   const navigate = usePageNavigation();
@@ -34,6 +35,7 @@ export function AdminPage() {
     { id: "orders", label: "Orders", icon: Package },
     { id: "services", label: "Services", icon: Scissors },
     { id: "portfolio", label: "Portfolio", icon: Images },
+    { id: "content", label: "Content", icon: FileText },
     { id: "clients", label: "Clients", icon: Users },
     { id: "campaigns", label: "Campaigns", icon: Mail },
     { id: "analytics", label: "Analytics", icon: TrendingUp },
@@ -217,6 +219,8 @@ export function AdminPage() {
           {section === "portfolio" && (
             <AdminPortfolioPanel onUnauthorized={logout} />
           )}
+
+          {section === "content" && <AdminContentPanel onUnauthorized={logout} />}
 
           {/* ── CLIENTS ── */}
           {section === "clients" && (

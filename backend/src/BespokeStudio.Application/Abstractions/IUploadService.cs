@@ -12,6 +12,9 @@ public interface IUploadService
     Task<UploadedFileResponse> UploadPortfolioImageAsync(
         UploadFileRequest file,
         CancellationToken cancellationToken = default);
+    Task<UploadedFileResponse> UploadContentImageAsync(UploadFileRequest file, CancellationToken cancellationToken = default);
+    Task<UploadDownloadResponse?> OpenPublicContentImageAsync(Guid uploadedFileId, CancellationToken cancellationToken = default);
+    Task<UploadDownloadResponse?> OpenContentImageForAdminAsync(Guid uploadedFileId, CancellationToken cancellationToken = default);
 
     Task<UploadDownloadResponse?> OpenPublicPortfolioImageAsync(
         Guid uploadedFileId,

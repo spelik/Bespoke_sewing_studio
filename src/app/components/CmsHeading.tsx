@@ -1,0 +1,1 @@
+export function CmsHeading({title,accentLine=1,className,as="h1"}:{title:string;accentLine?:number;className:string;as?:"h1"|"h2"}){const Tag=as;const lines=title.split(/\n|\s*\|\s*/);return <Tag className={className}>{lines.map((line,index)=><span key={`${line}-${index}`} className="block">{index===accentLine?<em className="italic text-accent">{line}</em>:line}</span>)}</Tag>}

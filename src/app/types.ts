@@ -236,6 +236,30 @@ export interface UploadedPortfolioImage {
   createdAt: string;
 }
 
+export interface PageContentSection {
+  id: string;
+  sectionKey: string;
+  title: string | null;
+  subtitle: string | null;
+  body: string | null;
+  ctaLabel: string | null;
+  ctaUrl: string | null;
+  imageUrl: string | null;
+  imageAltText: string | null;
+  displayOrder: number;
+}
+export interface PublicPageContent { pageKey: string; sections: PageContentSection[]; }
+export interface AdminPageContent extends PageContentSection {
+  pageKey: string; imageFileId: string | null; isActive: boolean; updatedAt: string; archivedAt: string | null;
+}
+export interface SavePageContentRequest {
+  pageKey: string; sectionKey: string; title: string | null; subtitle: string | null; body: string | null;
+  ctaLabel: string | null; ctaUrl: string | null; imageFileId: string | null; imageAltText: string | null;
+  displayOrder: number; isActive: boolean;
+}
+export interface UploadedContentImage { id: string; originalFileName: string; contentType: string; sizeBytes: number; purpose: "SiteAsset"; createdAt: string; }
+export interface DeletePageContentResult { id: string; archived: boolean; message: string; }
+
 export interface Testimonial {
   name: string;
   location: string;

@@ -9,9 +9,12 @@ import { SectionLabel } from "../components/SectionLabel";
 import { useAsyncForm } from "../hooks/useAsyncForm";
 import type { OrderRequest, OrderSubmissionResponse } from "../types";
 import { useServices } from "../services/ServicesContext";
+import { usePageContent } from "../content/PageContentContext";
+import { CmsHeading } from "../components/CmsHeading";
 
 export function OrderPage() {
   const { services } = useServices();
+  const intro=usePageContent("order").section("intro");
   const [service, setService] = useState("");
   const [consent, setConsent] = useState(false);
   const [attachments, setAttachments] = useState<File[]>([]);
@@ -99,13 +102,9 @@ export function OrderPage() {
       <div className="bg-secondary py-20 px-6 lg:px-10">
         <div className="max-w-7xl mx-auto">
           <SectionLabel text="Order Request" />
-          <h1 className="font-serif text-[3rem] lg:text-[4.5rem] font-light text-foreground mt-4 leading-tight">
-            Begin Your
-            <br />
-            <em className="italic text-accent">Request.</em>
-          </h1>
+          <CmsHeading title={intro?.title??"Begin Your\nRequest."} className="font-serif text-[3rem] lg:text-[4.5rem] font-light text-foreground mt-4 leading-tight"/>
           <p className="text-[13px] text-muted-foreground mt-6 max-w-md leading-relaxed font-sans">
-            Complete the form below and we will be in touch within one working day to discuss your requirements and arrange a consultation.
+            {intro?.body??"Complete the form below and we will be in touch within one working day to discuss your requirements and arrange a consultation."}
           </p>
         </div>
       </div>

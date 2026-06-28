@@ -2,12 +2,15 @@ import { ArrowRight, Scissors, Star } from "lucide-react";
 import { SITE_ASSETS } from "../appContent";
 import { ResponsiveImage } from "../components/ResponsiveImage";
 import type { NavigableSectionProps } from "./sectionTypes";
+import { usePageContent } from "../content/PageContentContext";
+import { CmsHeading } from "../components/CmsHeading";
 
 export function HomeHero({ navigate }: NavigableSectionProps) {
+  const hero=usePageContent("home").section("hero");
   return (
       <section className="relative min-h-screen flex items-center overflow-hidden bg-secondary">
         <div className="absolute inset-0 opacity-[0.07] pointer-events-none">
-          <ResponsiveImage
+          {hero?.imageUrl ? <img src={hero.imageUrl} alt="" className="w-full h-full object-cover" aria-hidden="true" /> : <ResponsiveImage
             asset={SITE_ASSETS.homeHero}
             alt=""
             pictureClassName="block w-full h-full"
@@ -15,7 +18,7 @@ export function HomeHero({ navigate }: NavigableSectionProps) {
             decoding="async"
             fetchPriority="low"
             aria-hidden="true"
-          />
+          />}
         </div>
         <div className="relative z-10 max-w-7xl mx-auto px-6 lg:px-10 w-full pt-[72px]">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-20 items-center min-h-[88vh] py-16">
@@ -24,22 +27,16 @@ export function HomeHero({ navigate }: NavigableSectionProps) {
               <div className="text-[10px] tracking-[0.45em] uppercase text-muted-foreground mb-10 font-sans">
                 Bespoke Sewing Studio
               </div>
-              <h1 className="font-serif text-[3.2rem] lg:text-[4rem] font-light leading-[1.06] text-foreground mb-8">
-                Premium Sewing,
-                <br />
-                <em className="italic text-accent">Tailoring, Dressmaking</em>
-                <br />
-                & Memory Bears.
-              </h1>
+              <CmsHeading title={hero?.title ?? "Premium Sewing,\nTailoring, Dressmaking\n& Memory Bears."} accentLine={1} className="font-serif text-[3.2rem] lg:text-[4rem] font-light leading-[1.06] text-foreground mb-8" />
               <p className="text-base lg:text-[1.05rem] text-muted-foreground leading-relaxed max-w-[420px] mb-10 font-sans">
-                Exceptional tailoring, delicate dressmaking, expert alterations, and deeply personal memory bears, crafted with a refined touch.
+                {hero?.subtitle ?? "Exceptional tailoring, delicate dressmaking, expert alterations, and deeply personal memory bears, crafted with a refined touch."}
               </p>
               <div className="flex flex-col sm:flex-row gap-4">
                 <button
                   onClick={() => navigate("order")}
                   className="flex items-center justify-center gap-2.5 bg-foreground text-primary-foreground px-8 py-4 text-[13px] tracking-wide hover:bg-accent transition-colors duration-300"
                 >
-                  Request an Order <ArrowRight size={15} />
+                  {hero?.ctaLabel ?? "Request an Order"} <ArrowRight size={15} />
                 </button>
                 <button
                   onClick={() => navigate("portfolio")}
@@ -53,14 +50,14 @@ export function HomeHero({ navigate }: NavigableSectionProps) {
             {/* Image + badge */}
             <div className="relative hidden lg:block">
               <div className="relative aspect-[4/5] bg-muted overflow-hidden">
-                <ResponsiveImage
+                {hero?.imageUrl ? <img src={hero.imageUrl} alt={hero.imageAltText ?? "Bespoke Sewing Studio"} className="w-full h-full object-cover" /> : <ResponsiveImage
                   asset={SITE_ASSETS.homeHero}
                   alt="Bespoke Sewing Studio"
                   pictureClassName="block w-full h-full"
                   imgClassName="w-full h-full object-cover"
                   decoding="async"
                   fetchPriority="high"
-                />
+                />}
                 <div className="absolute inset-0 bg-foreground/5" />
               </div>
               <div className="absolute -bottom-5 -left-5 bg-background border border-border p-6 shadow-sm">

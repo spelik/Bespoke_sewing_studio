@@ -2,10 +2,11 @@ import type { ImgHTMLAttributes } from "react";
 import type { ResponsiveImageAsset } from "../types";
 
 interface ResponsiveImageProps
-  extends Omit<ImgHTMLAttributes<HTMLImageElement>, "src" | "srcSet" | "sizes"> {
+  extends Omit<ImgHTMLAttributes<HTMLImageElement>, "src" | "srcSet" | "sizes" | "fetchPriority"> {
   asset: ResponsiveImageAsset;
   pictureClassName?: string;
   imgClassName?: string;
+  fetchPriority?: "high" | "low" | "auto";
 }
 
 export function ResponsiveImage({
@@ -13,6 +14,7 @@ export function ResponsiveImage({
   alt,
   pictureClassName,
   imgClassName,
+  fetchPriority,
   ...imgProps
 }: ResponsiveImageProps) {
   return (
@@ -33,6 +35,7 @@ export function ResponsiveImage({
       )}
       <img
         {...imgProps}
+        {...(fetchPriority ? { fetchpriority: fetchPriority } : {})}
         src={asset.src}
         srcSet={asset.srcSet}
         sizes={asset.sizes}

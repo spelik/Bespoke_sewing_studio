@@ -13,6 +13,7 @@ public sealed class BespokeStudioDbContext(DbContextOptions<BespokeStudioDbConte
     public DbSet<Order> Orders => Set<Order>();
     public DbSet<OrderAttachment> OrderAttachments => Set<OrderAttachment>();
     public DbSet<OrderNote> OrderNotes => Set<OrderNote>();
+    public DbSet<PageContent> PageContents => Set<PageContent>();
     public DbSet<PortfolioCategory> PortfolioCategories => Set<PortfolioCategory>();
     public DbSet<PortfolioItem> PortfolioItems => Set<PortfolioItem>();
     public DbSet<ServiceOffering> ServiceOfferings => Set<ServiceOffering>();

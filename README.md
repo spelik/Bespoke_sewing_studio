@@ -43,6 +43,7 @@ Current backend status:
 - public portfolio/gallery data loads from `GET /api/portfolio`
 - the Admin **Portfolio** section manages categories, work items, publication state, order and featured items
 - portfolio images are uploaded to local development storage and served publicly only while linked to an active portfolio item
+- page headings, body text, CTAs and key page images load from the Website Content CMS
 - the public Order form submits a dynamic `serviceOfferingId` while preserving legacy enum compatibility
 - admin login and Orders list/detail/status/notes use protected backend endpoints
 - site content and the remaining admin dashboard sections use mock/prototype data
@@ -148,6 +149,17 @@ the API is unavailable. In development, newly uploaded portfolio images are
 stored under `backend/storage/uploads/portfolio-images`; `backend/storage/` is
 ignored by Git. Production object storage and generated thumbnails are future
 work.
+
+## Website content
+
+Sign in to Admin and select **Content** to filter sections by page, edit titles,
+subtitles, body text, CTA labels/URLs, ordering and visibility, or upload a
+JPG/PNG/WebP page image. Home, About, Services, Portfolio, Order, Contact and
+Privacy use backend-first content from `GET /api/content/pages/{pageKey}`.
+Typed frontend defaults remain available when the backend cannot be reached.
+Content images are stored locally under `backend/storage/uploads/content-images`
+in development. The existing logo remains a bundled frontend fallback; logo
+upload is not part of this module.
 
 Commands:
 

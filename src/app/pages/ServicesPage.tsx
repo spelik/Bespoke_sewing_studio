@@ -3,23 +3,22 @@ import { ServiceCard } from "../components/ServiceCard";
 import { SectionLabel } from "../components/SectionLabel";
 import { usePageNavigation } from "../routing/usePageNavigation";
 import { useServices } from "../services/ServicesContext";
+import { usePageContent } from "../content/PageContentContext";
+import { CmsHeading } from "../components/CmsHeading";
 
 export function ServicesPage() {
   const navigate = usePageNavigation();
   const { services } = useServices();
+  const intro=usePageContent("services").section("intro");
 
   return (
     <div className="pt-[72px]">
       <div className="bg-secondary py-20 px-6 lg:px-10">
         <div className="max-w-7xl mx-auto">
           <SectionLabel text="Services" />
-          <h1 className="font-serif text-[3rem] lg:text-[5rem] font-light text-foreground mt-4 leading-tight">
-            Our Craft,
-            <br />
-            <em className="italic text-accent">Your Vision.</em>
-          </h1>
+          <CmsHeading title={intro?.title??"Our Craft,\nYour Vision."} className="font-serif text-[3rem] lg:text-[5rem] font-light text-foreground mt-4 leading-tight"/>
           <p className="text-[13px] text-muted-foreground mt-6 max-w-lg leading-relaxed font-sans">
-            Every garment that passes through our studio receives the same devoted attention — whether a quick repair or a fully bespoke commission.
+            {intro?.body??"Every garment that passes through our studio receives the same devoted attention — whether a quick repair or a fully bespoke commission."}
           </p>
         </div>
       </div>

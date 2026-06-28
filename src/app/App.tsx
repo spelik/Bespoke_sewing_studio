@@ -14,6 +14,7 @@ import { Header } from "./layout/Header";
 import { SiteSettingsProvider } from "./siteSettings/SiteSettingsContext";
 import { ServicesProvider } from "./services/ServicesContext";
 import { PortfolioProvider } from "./portfolio/PortfolioContext";
+import { PageContentProvider } from "./content/PageContentContext";
 import type { Language } from "./types";
 
 const HomePage = lazy(() =>
@@ -96,7 +97,7 @@ export default function App() {
         <SiteSettingsProvider>
           <ServicesProvider>
             <PortfolioProvider>
-              <SiteShell />
+              <PageContentProvider><SiteShell /></PageContentProvider>
             </PortfolioProvider>
           </ServicesProvider>
         </SiteSettingsProvider>

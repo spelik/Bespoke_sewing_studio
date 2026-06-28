@@ -2,19 +2,18 @@ import { SITE_ASSETS, WHY_US } from "../appContent";
 import { ResponsiveImage } from "../components/ResponsiveImage";
 import { SectionLabel } from "../components/SectionLabel";
 import { usePageNavigation } from "../routing/usePageNavigation";
+import { usePageContent } from "../content/PageContentContext";
+import { CmsHeading } from "../components/CmsHeading";
 
 export function AboutPage() {
   const navigate = usePageNavigation();
+  const { section }=usePageContent("about");const hero=section("hero");const main=section("main-content");
   return (
     <div className="pt-[72px]">
       <div className="bg-secondary py-20 px-6 lg:px-10">
         <div className="max-w-7xl mx-auto">
           <SectionLabel text="About Us" />
-          <h1 className="font-serif text-[3rem] lg:text-[5rem] font-light text-foreground mt-4 leading-tight">
-            A Studio
-            <br />
-            <em className="italic text-accent">Built on Craft.</em>
-          </h1>
+          <CmsHeading title={hero?.title ?? "A Studio\nBuilt on Craft."} className="font-serif text-[3rem] lg:text-[5rem] font-light text-foreground mt-4 leading-tight" />
         </div>
       </div>
 
@@ -23,33 +22,21 @@ export function AboutPage() {
         <div className="max-w-7xl mx-auto px-6 lg:px-10">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
             <div className="aspect-[4/5] bg-muted overflow-hidden">
-              <ResponsiveImage
+              {main?.imageUrl||hero?.imageUrl?<img src={main?.imageUrl??hero?.imageUrl??""} alt={main?.imageAltText??hero?.imageAltText??"Bespoke Sewing Studio workspace"} className="w-full h-full object-cover grayscale hover:grayscale-0 transition-all duration-700"/>:<ResponsiveImage
                 asset={SITE_ASSETS.aboutHero}
                 alt="Bespoke Sewing Studio workspace"
                 pictureClassName="block w-full h-full"
                 imgClassName="w-full h-full object-cover grayscale hover:grayscale-0 transition-all duration-700"
                 decoding="async"
-              />
+              />}
             </div>
             <div>
               <div className="text-[10px] tracking-[0.4em] uppercase text-muted-foreground mb-6 font-sans">
-                Our Story
+                {main?.subtitle ?? "Our Story"}
               </div>
-              <h2 className="font-serif text-[2rem] lg:text-[2.5rem] font-light text-foreground mb-8 leading-tight">
-                Crafted with passion,
-                <br />
-                <em className="italic text-accent">and a refined personal touch.</em>
-              </h2>
+              <CmsHeading title={main?.title ?? "Crafted with passion,\nand a refined personal touch."} className="font-serif text-[2rem] lg:text-[2.5rem] font-light text-foreground mb-8 leading-tight" />
               <div className="space-y-4 text-[13px] text-muted-foreground leading-relaxed font-sans">
-                <p>
-                  Bespoke Sewing Studio offers premium sewing, tailoring, dressmaking, alterations, and memory bears.
-                </p>
-                <p>
-                  Born from a lifelong passion for fabric, form, and the art of creating garments that truly fit, our work ranges from intricate wedding dress alterations to full bespoke commissions and deeply personal memory bears, always with a quiet dedication to quality.
-                </p>
-                <p>
-                  Every piece is created with care, attention to detail, and a refined personal touch.
-                </p>
+                {(main?.body ?? "Bespoke Sewing Studio offers premium sewing, tailoring, dressmaking, alterations, and memory bears.\n\nBorn from a lifelong passion for fabric, form, and the art of creating garments that truly fit, our work ranges from intricate wedding dress alterations to full bespoke commissions and deeply personal memory bears, always with a quiet dedication to quality.\n\nEvery piece is created with care, attention to detail, and a refined personal touch.").split("\n\n").map(p=><p key={p}>{p}</p>)}
               </div>
             </div>
           </div>

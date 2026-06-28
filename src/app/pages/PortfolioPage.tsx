@@ -4,6 +4,8 @@ import { SectionLabel } from "../components/SectionLabel";
 import { usePageNavigation } from "../routing/usePageNavigation";
 import type { PortfolioFilter } from "../types";
 import { usePortfolio } from "../portfolio/PortfolioContext";
+import { usePageContent } from "../content/PageContentContext";
+import { CmsHeading } from "../components/CmsHeading";
 
 export function PortfolioPage() {
   const navigate = usePageNavigation();
@@ -11,17 +13,14 @@ export function PortfolioPage() {
   const [filter, setFilter] = useState<PortfolioFilter>("all");
   const categories: ReadonlyArray<PortfolioFilter> = ["all", ...portfolioCategories.map((category) => category.slug)];
   const filtered = filter === "all" ? items : items.filter((item) => item.category.slug === filter);
+  const intro=usePageContent("portfolio").section("intro");
 
   return (
     <div className="pt-[72px]">
       <div className="bg-secondary py-20 px-6 lg:px-10">
         <div className="max-w-7xl mx-auto">
           <SectionLabel text="Portfolio" />
-          <h1 className="font-serif text-[3rem] lg:text-[5rem] font-light text-foreground mt-4 leading-tight">
-            Gallery of
-            <br />
-            <em className="italic text-accent">Our Work.</em>
-          </h1>
+          <CmsHeading title={intro?.title??"Gallery of\nOur Work."} className="font-serif text-[3rem] lg:text-[5rem] font-light text-foreground mt-4 leading-tight"/>
         </div>
       </div>
 

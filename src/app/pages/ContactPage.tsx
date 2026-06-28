@@ -3,10 +3,13 @@ import { CONTACT_PAGE_ITEMS } from "../appContent";
 import { SectionLabel } from "../components/SectionLabel";
 import { usePrototypeForm } from "../hooks/usePrototypeForm";
 import { useSiteSettings } from "../siteSettings/SiteSettingsContext";
+import { usePageContent } from "../content/PageContentContext";
+import { CmsHeading } from "../components/CmsHeading";
 
 export function ContactPage() {
   const { submitted: messageSent, handleSubmit } = usePrototypeForm("contact message");
   const { settings } = useSiteSettings();
+  const intro=usePageContent("contact").section("intro");
   const contactItems = CONTACT_PAGE_ITEMS.map((item) => ({
     ...item,
     text:
@@ -22,11 +25,7 @@ export function ContactPage() {
       <div className="bg-secondary py-20 px-6 lg:px-10">
         <div className="max-w-7xl mx-auto">
           <SectionLabel text="Contact" />
-          <h1 className="font-serif text-[3rem] lg:text-[5rem] font-light text-foreground mt-4 leading-tight">
-            Get in
-            <br />
-            <em className="italic text-accent">Touch.</em>
-          </h1>
+          <CmsHeading title={intro?.title??"Get in\nTouch."} className="font-serif text-[3rem] lg:text-[5rem] font-light text-foreground mt-4 leading-tight"/>
         </div>
       </div>
 

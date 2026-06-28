@@ -40,6 +40,19 @@ Security boundary: `/api/portfolio/images/{id}` never exposes arbitrary upload
 metadata or order attachments. Order attachments continue to be downloaded
 only through the Admin-protected `/api/uploads/{uploadedFileId}` endpoint.
 
+## Website Content API
+
+- `GET /api/content/pages/{pageKey}` returns active sections without JWT.
+- `GET /api/content/images/{id}` streams only SiteAsset images referenced by active content.
+- `GET|POST /api/admin/content`, `GET|PATCH|DELETE /api/admin/content/{id}` require Admin JWT.
+- `POST /api/admin/content/uploads` accepts one JPG, PNG or WebP up to the configured limit.
+- `GET /api/admin/content/images/{id}` provides authenticated previews for inactive/archived content.
+
+`PageKey` and `SectionKey` use lowercase safe keys and form a unique pair for
+non-archived rows. Content images use `UploadedFileMetadata` with `SiteAsset`;
+PostgreSQL never stores image bytes. Public content image routing cannot expose
+PortfolioImage or OrderAttachment uploads.
+
 ## Domain model draft
 
 `BespokeStudio.Domain` contains persistence-independent entities for clients,
