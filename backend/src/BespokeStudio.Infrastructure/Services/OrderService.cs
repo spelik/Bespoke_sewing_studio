@@ -16,6 +16,9 @@ public sealed class OrderService(BespokeStudioDbContext dbContext) : IOrderServi
         CancellationToken cancellationToken = default)
     {
         var now = DateTimeOffset.UtcNow;
+        var serviceOffering = await ResolveServiceOfferingAsync(request, cancellationToken);
+        var legacyServiceType = request.ServiceType ?? OrderServiceType.Other;
+        var serviceName = serviceOffering?.Name ?? FormatLegacyServiceName(legacyServiceType);
         var normalizedEmail = NormalizeEmail(request.Email);
         var normalizedPhone = NormalizeOptional(request.Phone);
         var attachmentIds = request.AttachmentIds?.ToArray() ?? [];
@@ -96,7 +99,9 @@ public sealed class OrderService(BespokeStudioDbContext dbContext) : IOrderServi
         var order = new Order
         {
             ClientId = client.Id,
-            ServiceType = request.ServiceType,
+            ServiceType = legacyServiceType,
+            ServiceOfferingId = serviceOffering?.Id,
+            ServiceNameSnapshot = serviceName,
             Status = OrderStatus.New,
             Description = request.Description.Trim(),
             PreferredDate = request.PreferredDate,
@@ -194,6 +199,8 @@ public sealed class OrderService(BespokeStudioDbContext dbContext) : IOrderServi
                 client.FullName,
                 client.Email,
                 client.Phone,
+                order.ServiceOfferingId,
+                order.ServiceNameSnapshot,
                 order.ServiceType,
                 order.Status,
                 order.Description,
@@ -269,6 +276,8 @@ public sealed class OrderService(BespokeStudioDbContext dbContext) : IOrderServi
                 client.Phone,
                 client.CreatedAt,
                 client.UpdatedAt),
+            order.ServiceOfferingId,
+            order.ServiceNameSnapshot,
             order.ServiceType,
             order.Status,
             order.Description,
@@ -282,6 +291,44 @@ public sealed class OrderService(BespokeStudioDbContext dbContext) : IOrderServi
             attachments,
             notes);
     }
+
+    private async Task<ServiceOffering?> ResolveServiceOfferingAsync(
+        CreateOrderRequest request,
+        CancellationToken cancellationToken)
+    {
+        ServiceOffering? service = null;
+        if (request.ServiceOfferingId.HasValue)
+        {
+            service = await dbContext.ServiceOfferings.AsNoTracking().SingleOrDefaultAsync(
+                candidate =>
+                    candidate.Id == request.ServiceOfferingId.Value &&
+                    candidate.IsActive &&
+                    candidate.ArchivedAt == null,
+                cancellationToken);
+        }
+        else if (!string.IsNullOrWhiteSpace(request.ServiceSlug))
+        {
+            var slug = request.ServiceSlug.Trim();
+            service = await dbContext.ServiceOfferings.AsNoTracking().SingleOrDefaultAsync(
+                candidate =>
+                    candidate.Slug == slug &&
+                    candidate.IsActive &&
+                    candidate.ArchivedAt == null,
+                cancellationToken);
+        }
+
+        if ((request.ServiceOfferingId.HasValue || !string.IsNullOrWhiteSpace(request.ServiceSlug)) && service is null)
+        {
+            throw new OrderServiceSelectionException(
+                request.ServiceOfferingId.HasValue ? "ServiceOfferingId" : "ServiceSlug",
+                "The selected service is unavailable. Refresh the service list and choose an active service.");
+        }
+
+        return service;
+    }
+
+    private static string FormatLegacyServiceName(OrderServiceType serviceType) =>
+        serviceType == OrderServiceType.MemoryBear ? "Memory Bears" : serviceType.ToString();
 
     private static string? NormalizeEmail(string? email)
     {

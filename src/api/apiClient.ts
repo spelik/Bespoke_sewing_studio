@@ -10,6 +10,7 @@ export interface ApiClient {
   post<TRequest, TResponse>(path: string, body: TRequest): Promise<TResponse>;
   postForm<TResponse>(path: string, body: FormData): Promise<TResponse>;
   patch<TRequest, TResponse>(path: string, body: TRequest): Promise<TResponse>;
+  delete<TResponse>(path: string): Promise<TResponse>;
 }
 
 interface ApiProblemDetails {
@@ -29,7 +30,7 @@ export class ApiError extends Error {
   }
 }
 
-type ApiMethod = "GET" | "POST" | "PATCH";
+type ApiMethod = "GET" | "POST" | "PATCH" | "DELETE";
 
 function buildUrl(path: string): string {
   return `${appConfig.apiBaseUrl.replace(/\/$/, "")}/${path.replace(/^\//, "")}`;
@@ -160,5 +161,8 @@ export const apiClient: ApiClient = {
   },
   patch<TRequest, TResponse>(path: string, body: TRequest) {
     return request<TResponse>("PATCH", path, body);
+  },
+  delete<TResponse>(path: string) {
+    return request<TResponse>("DELETE", path);
   },
 };

@@ -1,10 +1,13 @@
 import { ChevronRight } from "lucide-react";
-import { SERVICES } from "../appContent";
 import { ServiceCard } from "../components/ServiceCard";
 import { SectionLabel } from "../components/SectionLabel";
 import type { NavigableSectionProps } from "./sectionTypes";
+import { useServices } from "../services/ServicesContext";
 
 export function ServicesPreview({ navigate }: NavigableSectionProps) {
+  const { services } = useServices();
+  const featuredServices = services.filter((service) => service.isFeatured);
+  const displayedServices = featuredServices.length > 0 ? featuredServices : services;
   return (
       <section className="py-24 lg:py-32 bg-background">
         <div className="max-w-7xl mx-auto px-6 lg:px-10">
@@ -29,8 +32,8 @@ export function ServicesPreview({ navigate }: NavigableSectionProps) {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-px bg-border">
-            {SERVICES.map((service) => (
-              <ServiceCard key={service.title} service={service} />
+            {displayedServices.map((service) => (
+              <ServiceCard key={service.id ?? service.slug} service={service} />
             ))}
           </div>
         </div>

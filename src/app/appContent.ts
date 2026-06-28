@@ -6,7 +6,6 @@ import {
   getNavigationItems,
   getPrivacySections,
   getProcessSteps,
-  getServices,
   getSiteAssets,
   getSiteSettings,
   getStudioValues,
@@ -22,7 +21,6 @@ import {
 import {
   ADMIN_STAT_ICONS,
   CONTACT_ICONS,
-  SERVICE_ICONS,
   VALUE_ICONS,
 } from "./iconRegistry";
 
@@ -30,10 +28,6 @@ export const SITE_SETTINGS = getSiteSettings();
 export const SITE_ASSETS = getSiteAssets();
 export const CONTACT_DETAILS = getContactInfo();
 export const NAV_LINKS = getNavigationItems();
-export const SERVICES = getServices().map((service) => ({
-  ...service,
-  icon: SERVICE_ICONS[service.icon],
-}));
 export const TESTIMONIALS = getTestimonials();
 export const PORTFOLIO_ITEMS = getPortfolioItems();
 export const PORTFOLIO_CATEGORIES = getPortfolioCategories();

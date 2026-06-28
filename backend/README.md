@@ -164,8 +164,38 @@ the detail, status, and note examples.
 New-order email notifications use the logging provider by default and can use SMTP.
 The public frontend Order form calls
 anonymous `POST /api/orders`. The admin frontend uses
-login, current-user, Orders list/detail, status, and note endpoints; the other
-admin dashboard sections remain prototypes.
+login, current-user, Orders list/detail, status, note, Services and Settings
+endpoints; the other admin dashboard sections remain prototypes.
+
+## Services and Prices API
+
+Migration `AddDynamicServicesAndPrices` expands `ServiceOffering`, adds
+`ServicePriceOption`, and adds nullable `ServiceOfferingId` plus a required
+`ServiceNameSnapshot` to orders. Existing order snapshots are backfilled from
+the legacy enum. Default Tailoring, Dressmaking, Alterations and Memory Bears
+services are inserted only when the services table is empty.
+
+Public endpoint:
+
+- `GET /api/services` — active, non-archived services with active price options
+
+Admin JWT endpoints:
+
+- `GET /api/admin/services`
+- `GET /api/admin/services/{id}`
+- `POST /api/admin/services`
+- `PATCH /api/admin/services/{id}`
+- `DELETE /api/admin/services/{id}`
+
+Slugs are lowercase kebab-case and unique among non-archived services. Price
+values are stored as `PriceText`, allowing values such as `from £45`, `+£15`,
+or `Quote on request`. Deleting an unused service performs a hard delete. If
+orders reference it, the service is archived and deactivated instead.
+
+New orders accept `serviceOfferingId` or `serviceSlug`; the legacy `serviceType`
+enum remains as a compatibility fallback. Each new order stores the selected
+service name snapshot, so admin views and email notifications remain readable
+after a service is renamed or archived.
 
 ## Order attachments
 
@@ -395,8 +425,9 @@ execute database queries, so they also remain available when PostgreSQL is
 offline. Database connectivity is verified separately by `database update` and
 the `__EFMigrationsHistory` query above.
 
-Portfolio, services, and general upload-management CRUD endpoints are not implemented yet. The
-public Order form uses this backend, while site content and the admin frontend
-sections outside Orders remain in mock/prototype mode. Refresh tokens, password
+Portfolio and general upload-management CRUD endpoints are not implemented yet.
+The public Order form, Services, Settings and Orders admin modules use this
+backend, while the remaining site/admin content stays in mock/prototype mode.
+Refresh tokens, password
 reset, email confirmation, MFA, and production secret rotation are not
 implemented.

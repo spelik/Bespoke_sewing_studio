@@ -5,7 +5,6 @@ import type {
   OrderServiceType,
   OrderSubmissionResponse,
 } from "../app/types";
-import { ORDER_SERVICE_TYPES } from "../data/servicesData";
 import { ApiError, apiClient } from "./apiClient";
 
 const API_SERVICE_TYPES: Readonly<Record<OrderServiceType, OrderApiServiceType>> = {
@@ -60,6 +59,8 @@ export interface AdminOrderListItem {
   clientName: string;
   clientEmail: string | null;
   clientPhone: string | null;
+  serviceOfferingId: string | null;
+  serviceName: string;
   serviceType: OrderApiServiceType;
   status: AdminOrderStatus;
   description: string;
@@ -96,6 +97,8 @@ export interface AdminOrderDetail {
   id: string;
   clientId: string;
   client: AdminClient;
+  serviceOfferingId: string | null;
+  serviceName: string;
   serviceType: OrderApiServiceType;
   status: AdminOrderStatus;
   description: string;
@@ -110,16 +113,6 @@ export interface AdminOrderDetail {
   notes: AdminOrderNote[];
 }
 
-export function parseOrderServiceType(value: FormDataEntryValue | null): OrderServiceType {
-  const service = String(value ?? "");
-
-  if (!ORDER_SERVICE_TYPES.includes(service as OrderServiceType)) {
-    throw new Error("Unknown order service type.");
-  }
-
-  return service as OrderServiceType;
-}
-
 export async function createOrder(
   order: OrderRequest,
 ): Promise<OrderSubmissionResponse> {
@@ -131,7 +124,11 @@ export async function createOrder(
     fullName: order.fullName.trim(),
     email: order.email.trim() || null,
     phone: order.phone?.trim() || null,
-    serviceType: API_SERVICE_TYPES[order.service],
+    serviceType: order.legacyServiceType
+      ? API_SERVICE_TYPES[order.legacyServiceType]
+      : null,
+    serviceOfferingId: order.serviceOfferingId ?? null,
+    serviceSlug: order.serviceSlug ?? null,
     description: order.description.trim(),
     preferredDate: order.preferredDate || null,
     consent: order.consent,

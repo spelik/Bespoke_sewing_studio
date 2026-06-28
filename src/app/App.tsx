@@ -12,6 +12,7 @@ import { RouteLoader } from "./components/RouteLoader";
 import { Footer } from "./layout/Footer";
 import { Header } from "./layout/Header";
 import { SiteSettingsProvider } from "./siteSettings/SiteSettingsContext";
+import { ServicesProvider } from "./services/ServicesContext";
 import type { Language } from "./types";
 
 const HomePage = lazy(() =>
@@ -92,7 +93,9 @@ export default function App() {
     <BrowserRouter>
       <AuthProvider>
         <SiteSettingsProvider>
-          <SiteShell />
+          <ServicesProvider>
+            <SiteShell />
+          </ServicesProvider>
         </SiteSettingsProvider>
       </AuthProvider>
     </BrowserRouter>

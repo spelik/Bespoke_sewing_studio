@@ -4,7 +4,6 @@ import {
   ADMIN_STATUS_COLORS,
   ADMIN_STATUS_LABELS,
   formatAdminDate,
-  formatServiceType,
 } from "./adminOrderFormatting";
 
 interface AdminOrdersTableProps {
@@ -75,7 +74,7 @@ export function AdminOrdersTable({
                     <div className="truncate mt-0.5">{order.clientPhone ?? "No phone"}</div>
                   </td>
                   <td className="px-5 py-3.5 text-[11px] text-muted-foreground font-sans">
-                    {formatServiceType(order.serviceType)}
+                    {order.serviceName}
                   </td>
                   <td className="px-5 py-3.5 text-[10px] text-muted-foreground font-sans max-w-[220px]">
                     <p className="line-clamp-2">{order.description}</p>

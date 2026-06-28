@@ -41,6 +41,9 @@
 - Site Settings содержат один email и один phone: email используется публичным сайтом и как email notification destination, phone остаётся только публичным контактом. Legacy-колонки удаляются migrations `NormalizeSiteSettingsContacts` и `RemoveWhatsAppNotifications`.
 - Admin Settings page сохраняет единые contact settings и notification toggles; Footer, Home contact section и Contact page используют backend settings с typed fallback при недоступном API.
 - Добавлены `INotificationService`, `IEmailNotificationSender`, Logging и SMTP email providers. Новая заявка запускает email владельцу, а ошибки SMTP логируются, переходят на logging fallback и не отменяют создание order. WhatsApp/SMS notifications убраны и сейчас не планируются.
+- Добавлен Services & Prices CMS: dynamic `ServiceOffering`, дочерние `ServicePriceOption`, CRUD API, Admin Services editor и public `GET /api/services` с typed frontend fallback.
+- Public Home/Services и Order form используют active services из PostgreSQL; новые orders сохраняют nullable `ServiceOfferingId` и `ServiceNameSnapshot`, а legacy enum остаётся fallback для старых клиентов и заказов.
+- Delete-or-archive закрыт: неиспользованная услуга удаляется, использованная архивируется и исчезает из новых заявок без потери истории order/email notification.
 
 ## Оптимизация изображений
 
@@ -64,9 +67,9 @@
 - Две самые тяжёлые portfolio карточки (`portfolio-1a`, `portfolio-2`) всё ещё заметно крупнее остальных даже после downscale. Следующий шаг по изображениям - отдельные crop-aware thumbnails или AVIF pipeline.
 - Admin bundle остаётся крупным из-за `recharts`: `439.21 KB` в текущей production-сборке.
 - SPA fallback всё ещё должен быть настроен на production-сервере. В репозитории добавлена только документация, не серверная конфигурация.
-- Marketing content, Contact form и admin-разделы Overview metrics, Clients, Campaigns и Analytics остаются в `mock/prototype mode`; реальный HTTP используется public Order submission, admin Orders flow и Site Settings.
+- Marketing content, Contact form и admin-разделы Overview metrics, Clients, Campaigns и Analytics остаются в `mock/prototype mode`; реальный HTTP используется public Order submission, Services CMS, admin Orders flow и Site Settings.
 - PostgreSQL и EF migrations проверены напрямую через connection string на `127.0.0.1:5433`; Docker CLI доступен, но sandbox не разрешил доступ к Docker daemon/pipe для отдельной проверки container health.
-- CRUD/API endpoints для `Portfolio`, `Categories`, `Services` и общего upload management пока не реализованы.
+- CRUD/API endpoints для `Portfolio`, `Categories` и общего upload management пока не реализованы.
 - Application services для остальных модулей и отдельные repository abstractions пока не реализованы.
 - Value objects и правила нормализации/валидации для email, телефона и денежных значений пока не определены.
 - Client matching пока не защищён уникальным normalized email/phone constraint; при конкурентных запросах возможны дубликаты.
@@ -76,7 +79,7 @@
 - Автоматический background orphan cleanup пока не реализован; доступен защищённый ручной endpoint. Для production нужны distributed rate limiting/abuse protection и trusted forwarded-header configuration за reverse proxy.
 - SMTP provider реализован; production credentials должны задаваться через user-secrets/env/secret store. До production остаются настройка deliverability (SPF/DKIM/DMARC), мониторинг bounce/rejection и операционная ротация credentials.
 - Background notification queue и retry policy пока не реализованы: отправка выполняется inline после сохранения заявки. Customer confirmation email также не реализован.
-- Services/prices, portfolio/gallery и общий text CMS пока не реализованы.
+- Service image upload пока не реализован; advanced money/currency model и drag-and-drop reorder можно добавить позже. Portfolio/gallery и общий text CMS пока не реализованы.
 - Production secret management для admin seed и JWT signing key ещё требует внешнего secret store и operational rotation process.
 
 ## Рекомендации на следующие задачи

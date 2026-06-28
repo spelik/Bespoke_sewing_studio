@@ -3,15 +3,15 @@ import { Check, ChevronDown, Send, Upload } from "lucide-react";
 import {
   createOrder,
   getOrderSubmissionErrorMessage,
-  parseOrderServiceType,
   validateOrderAttachments,
 } from "../../api/ordersApi";
-import { SERVICES } from "../appContent";
 import { SectionLabel } from "../components/SectionLabel";
 import { useAsyncForm } from "../hooks/useAsyncForm";
 import type { OrderRequest, OrderSubmissionResponse } from "../types";
+import { useServices } from "../services/ServicesContext";
 
 export function OrderPage() {
+  const { services } = useServices();
   const [service, setService] = useState("");
   const [consent, setConsent] = useState(false);
   const [attachments, setAttachments] = useState<File[]>([]);
@@ -21,16 +21,33 @@ export function OrderPage() {
     OrderSubmissionResponse
   >(
     createOrder,
-    (formData) => ({
-      fullName: String(formData.get("fullName") ?? ""),
-      email: String(formData.get("email") ?? ""),
-      phone: String(formData.get("phone") ?? "") || undefined,
-      service: parseOrderServiceType(formData.get("service")),
-      description: String(formData.get("description") ?? ""),
-      preferredDate: String(formData.get("preferredDate") ?? "") || undefined,
-      consent,
-      attachments,
-    }),
+    (formData) => {
+      const selectedValue = String(formData.get("service") ?? "");
+      const selectedService = services.find(
+        (item) => (item.id ?? `legacy:${item.slug}`) === selectedValue,
+      );
+      if (!selectedService) {
+        throw new Error("Please select an available service.");
+      }
+
+      return {
+        fullName: String(formData.get("fullName") ?? ""),
+        email: String(formData.get("email") ?? ""),
+        phone: String(formData.get("phone") ?? "") || undefined,
+        serviceOfferingId: selectedService.id ?? undefined,
+        serviceSlug:
+          selectedService.id || selectedService.legacyServiceType
+            ? undefined
+            : selectedService.slug,
+        legacyServiceType: selectedService.id
+          ? undefined
+          : selectedService.legacyServiceType,
+        description: String(formData.get("description") ?? ""),
+        preferredDate: String(formData.get("preferredDate") ?? "") || undefined,
+        consent,
+        attachments,
+      };
+    },
     getOrderSubmissionErrorMessage,
   );
 
@@ -166,9 +183,12 @@ export function OrderPage() {
                       className="w-full border border-border bg-background px-4 py-3 text-[13px] focus:outline-none focus:border-accent transition-colors appearance-none cursor-pointer font-sans"
                     >
                       <option value="">Select a service...</option>
-                      {SERVICES.map((s) => (
-                        <option key={s.title} value={s.title}>
-                          {s.title}
+                      {services.map((item) => (
+                        <option
+                          key={item.id ?? item.slug}
+                          value={item.id ?? `legacy:${item.slug}`}
+                        >
+                          {item.name}
                         </option>
                       ))}
                     </select>

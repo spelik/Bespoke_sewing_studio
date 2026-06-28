@@ -6,8 +6,8 @@ React, Vite and TypeScript frontend for the Bespoke Sewing Studio website. The c
 ## Frontend data mode
 
 Most marketing content and the remaining prototype features still use typed
-mock data from `src/api/`. Public contact/site settings now load from the
-backend with a typed frontend fallback. The public Order form sends real requests to
+mock data from `src/api/`. Public contact/site settings and services/prices load
+from the backend with typed frontend fallbacks. The public Order form sends real requests to
 `POST /api/orders`, which persists enquiries in PostgreSQL through the ASP.NET
 Core backend. The admin login and Orders screens also use the backend API; the
 remaining admin dashboard sections are still prototype data. Optional order
@@ -38,6 +38,9 @@ Current backend status:
 - administrators can manually remove expired orphan uploads through a protected cleanup endpoint
 - public contact, social and footer settings load from `GET /api/site-settings/public`
 - the Admin **Settings** section edits public contact and notification settings
+- public services/prices load from `GET /api/services`
+- the Admin **Services** section creates, edits, hides, features, deletes or archives services and price options
+- the public Order form submits a dynamic `serviceOfferingId` while preserving legacy enum compatibility
 - admin login and Orders list/detail/status/notes use protected backend endpoints
 - site content and the remaining admin dashboard sections use mock/prototype data
 
@@ -100,6 +103,20 @@ An upload that is not linked to an order and is older than the configured
 removed by an administrator through `POST /api/uploads/cleanup-orphans` using
 an Admin JWT. Cleanup is manual at this stage. Production object storage and
 antivirus/deep-content scanning are not implemented.
+
+## Services and prices
+
+Sign in at `http://127.0.0.1:5173/admin`, then select **Services**. The owner can
+create and edit services, add text-based price options, control display order,
+mark services Featured for the Home preview, and hide inactive services. Public
+Home/Services pages and the Order form read the active list from PostgreSQL via
+`GET /api/services`; typed fallback services keep the public UI available if the
+API is offline.
+
+Deleting an unused service removes it. A service referenced by an existing
+order is archived and hidden from new enquiries instead, while the order keeps
+its stored service-name snapshot. Service image upload and drag-and-drop order
+editing are not implemented.
 
 ## Site settings
 

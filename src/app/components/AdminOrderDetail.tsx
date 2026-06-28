@@ -10,7 +10,6 @@ import {
 import {
   ADMIN_STATUS_LABELS,
   formatAdminDate,
-  formatServiceType,
 } from "./adminOrderFormatting";
 
 interface AdminOrderDetailProps {
@@ -106,7 +105,7 @@ export function AdminOrderDetail({
             <section className="bg-card border border-border p-5 grid grid-cols-1 sm:grid-cols-2 gap-4 text-[11px]">
               <Detail label="Email" value={order.client.email ?? "Not provided"} />
               <Detail label="Phone" value={order.client.phone ?? "Not provided"} />
-              <Detail label="Service" value={formatServiceType(order.serviceType)} />
+              <Detail label="Service" value={order.serviceName} />
               <Detail label="Created" value={formatAdminDate(order.createdAt)} />
               <Detail label="Updated" value={formatAdminDate(order.updatedAt)} />
               <Detail label="Preferred date" value={order.preferredDate ?? "Not specified"} />

@@ -82,6 +82,13 @@ public static class OrderEndpoints
                 ["attachmentIds"] = [exception.Message]
             });
         }
+        catch (OrderServiceSelectionException exception)
+        {
+            return TypedResults.ValidationProblem(new Dictionary<string, string[]>
+            {
+                [JsonNamingPolicy.CamelCase.ConvertName(exception.Field)] = [exception.Message]
+            });
+        }
     }
 
     private static async Task<IResult> GetOrdersAsync(

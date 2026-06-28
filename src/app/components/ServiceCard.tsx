@@ -1,15 +1,18 @@
-import { SERVICES } from "../appContent";
-
-type ServiceViewModel = (typeof SERVICES)[number];
+import type { PublicServiceOffering } from "../types";
+import {
+  getServiceIcon,
+  getServicePriceSummary,
+} from "../services/servicePresentation";
 
 interface ServiceCardProps {
-  service: ServiceViewModel;
+  service: PublicServiceOffering;
   variant?: "preview" | "detail";
   onRequest?: () => void;
 }
 
 export function ServiceCard({ service, variant = "preview", onRequest }: ServiceCardProps) {
-  const Icon = service.icon;
+  const Icon = getServiceIcon(service);
+  const priceSummary = getServicePriceSummary(service);
 
   if (variant === "detail") {
     return (
@@ -19,11 +22,23 @@ export function ServiceCard({ service, variant = "preview", onRequest }: Service
             <Icon size={16} className="text-accent" />
           </div>
         </div>
-        <div className="flex-1">
-          <h3 className="font-serif text-[1.15rem] font-light text-foreground mb-2">{service.title}</h3>
-          <p className="text-[13px] text-muted-foreground leading-relaxed mb-3 font-sans">{service.detail}</p>
-          <div className="flex items-center justify-between pt-3 border-t border-border/50">
-            <span className="text-[11px] font-medium text-accent tracking-wide font-sans">{service.price}</span>
+        <div className="flex-1 min-w-0">
+          <h3 className="font-serif text-[1.15rem] font-light text-foreground mb-2">{service.name}</h3>
+          <p className="text-[13px] text-muted-foreground leading-relaxed mb-3 font-sans">
+            {service.description ?? service.shortDescription}
+          </p>
+          {service.priceOptions.length > 0 ? (
+            <ul className="space-y-1.5 mb-4 text-[11px] text-muted-foreground font-sans">
+              {service.priceOptions.map((option) => (
+                <li key={option.id ?? `${service.slug}-${option.displayOrder}`} className="flex justify-between gap-4">
+                  <span>{option.label}</span>
+                  <span className="text-accent whitespace-nowrap">{option.priceText}</span>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+          <div className="flex items-center justify-between gap-4 pt-3 border-t border-border/50">
+            <span className="text-[11px] font-medium text-accent tracking-wide font-sans">{priceSummary}</span>
             <button
               onClick={onRequest}
               className="text-[11px] tracking-wide text-muted-foreground hover:text-foreground transition-colors border-b border-muted-foreground/30 hover:border-foreground pb-0.5 font-sans"
@@ -39,9 +54,9 @@ export function ServiceCard({ service, variant = "preview", onRequest }: Service
   return (
     <div className="bg-background p-8 hover:bg-secondary transition-colors duration-300 group cursor-default">
       <Icon size={18} className="text-accent mb-5 group-hover:scale-110 transition-transform duration-300" />
-      <h3 className="font-serif text-[1.1rem] font-light text-foreground mb-3">{service.title}</h3>
-      <p className="text-[13px] text-muted-foreground leading-relaxed mb-5 font-sans">{service.desc}</p>
-      <span className="text-[11px] tracking-wider text-accent font-sans font-medium">{service.price}</span>
+      <h3 className="font-serif text-[1.1rem] font-light text-foreground mb-3">{service.name}</h3>
+      <p className="text-[13px] text-muted-foreground leading-relaxed mb-5 font-sans">{service.shortDescription}</p>
+      <span className="text-[11px] tracking-wider text-accent font-sans font-medium">{priceSummary}</span>
     </div>
   );
 }

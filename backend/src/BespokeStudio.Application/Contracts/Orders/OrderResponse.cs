@@ -7,6 +7,8 @@ public sealed record OrderResponse(
     Guid Id,
     Guid ClientId,
     ClientResponse Client,
+    Guid? ServiceOfferingId,
+    string ServiceName,
     OrderServiceType ServiceType,
     OrderStatus Status,
     string Description,

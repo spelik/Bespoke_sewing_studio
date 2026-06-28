@@ -8,6 +8,8 @@ public sealed record OrderListItemResponse(
     string ClientName,
     string? ClientEmail,
     string? ClientPhone,
+    Guid? ServiceOfferingId,
+    string ServiceName,
     OrderServiceType ServiceType,
     OrderStatus Status,
     string Description,

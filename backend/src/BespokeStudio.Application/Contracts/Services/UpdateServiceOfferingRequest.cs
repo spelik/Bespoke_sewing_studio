@@ -1,13 +1,13 @@
-using BespokeStudio.Domain.Enums;
-
 namespace BespokeStudio.Application.Contracts.Services;
 
 public sealed record UpdateServiceOfferingRequest(
-    OrderServiceType ServiceType,
+    string? Slug,
     string Name,
     string ShortDescription,
-    string? DetailedDescription,
-    decimal? StartingPrice,
-    string Currency,
+    string? Description,
+    string? Category,
     bool IsActive,
-    int DisplayOrder);
+    bool IsFeatured,
+    int DisplayOrder,
+    IReadOnlyCollection<ServicePriceOptionRequest>? PriceOptions,
+    string? ImageUrl);

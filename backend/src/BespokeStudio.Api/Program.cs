@@ -197,6 +197,7 @@ app.MapOrderEndpoints();
 app.MapAuthEndpoints();
 app.MapSiteSettingsEndpoints();
 app.MapNotificationEndpoints();
+app.MapServiceOfferingEndpoints();
 app.MapUploadEndpoints(uploadStorageSettings.PublicBasePath);
 
 app.Run();

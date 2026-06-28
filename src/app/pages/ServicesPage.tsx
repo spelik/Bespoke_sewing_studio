@@ -1,11 +1,12 @@
 import { Scissors } from "lucide-react";
-import { SERVICES } from "../appContent";
 import { ServiceCard } from "../components/ServiceCard";
 import { SectionLabel } from "../components/SectionLabel";
 import { usePageNavigation } from "../routing/usePageNavigation";
+import { useServices } from "../services/ServicesContext";
 
 export function ServicesPage() {
   const navigate = usePageNavigation();
+  const { services } = useServices();
 
   return (
     <div className="pt-[72px]">
@@ -26,9 +27,9 @@ export function ServicesPage() {
       <div className="bg-background py-20">
         <div className="max-w-7xl mx-auto px-6 lg:px-10">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {SERVICES.map((service) => (
+            {services.map((service) => (
               <ServiceCard
-                key={service.title}
+                key={service.id ?? service.slug}
                 service={service}
                 variant="detail"
                 onRequest={() => navigate("order")}

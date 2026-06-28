@@ -8,22 +8,24 @@ public sealed class ServiceOfferingConfiguration : IEntityTypeConfiguration<Serv
 {
     public void Configure(EntityTypeBuilder<ServiceOffering> builder)
     {
-        builder.ToTable("ServiceOfferings", table =>
-            table.HasCheckConstraint("CK_ServiceOfferings_StartingPrice", "\"StartingPrice\" IS NULL OR \"StartingPrice\" >= 0"));
+        builder.ToTable("ServiceOfferings");
 
         builder.HasKey(service => service.Id);
 
         builder.Property(service => service.Id).ValueGeneratedNever();
-        builder.Property(service => service.ServiceType).HasConversion<string>().HasMaxLength(32).IsRequired();
+        builder.Property(service => service.Slug).HasMaxLength(160).IsRequired();
         builder.Property(service => service.Name).HasMaxLength(150).IsRequired();
         builder.Property(service => service.ShortDescription).HasMaxLength(500).IsRequired();
-        builder.Property(service => service.DetailedDescription).HasMaxLength(4000);
-        builder.Property(service => service.StartingPrice).HasPrecision(12, 2);
-        builder.Property(service => service.Currency).HasMaxLength(3).IsRequired();
+        builder.Property(service => service.Description).HasMaxLength(4000);
+        builder.Property(service => service.Category).HasMaxLength(100);
+        builder.Property(service => service.ImageUrl).HasMaxLength(2048);
         builder.Property(service => service.CreatedAt).IsRequired();
         builder.Property(service => service.UpdatedAt).IsRequired();
 
-        builder.HasIndex(service => service.ServiceType).IsUnique();
+        builder.HasIndex(service => service.Slug)
+            .IsUnique()
+            .HasFilter("\"ArchivedAt\" IS NULL");
         builder.HasIndex(service => new { service.IsActive, service.DisplayOrder });
+        builder.HasIndex(service => service.ArchivedAt);
     }
 }

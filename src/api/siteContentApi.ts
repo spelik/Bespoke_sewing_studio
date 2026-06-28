@@ -1,5 +1,4 @@
 import { apiClient } from "./apiClient";
-import { SERVICES } from "../data/servicesData";
 import {
   CONTACT_DETAILS,
   CONTACT_PAGE_ITEMS,
@@ -18,7 +17,6 @@ export const getSiteAssets = () => apiClient.resolve(SITE_ASSETS);
 export const getContactInfo = () => apiClient.resolve(CONTACT_DETAILS);
 export const getContactPageItems = () => apiClient.resolve(CONTACT_PAGE_ITEMS);
 export const getNavigationItems = () => apiClient.resolve(NAV_LINKS);
-export const getServices = () => apiClient.resolve(SERVICES);
 export const getTestimonials = () => apiClient.resolve(TESTIMONIALS);
 export const getProcessSteps = () => apiClient.resolve(HOW_IT_WORKS);
 export const getStudioValues = () => apiClient.resolve(STUDIO_VALUES);

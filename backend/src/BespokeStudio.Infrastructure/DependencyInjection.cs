@@ -50,6 +50,7 @@ public static class DependencyInjection
             .AddEntityFrameworkStores<BespokeStudioDbContext>();
 
         services.AddScoped<IOrderService, OrderService>();
+        services.AddScoped<IServiceOfferingService, ServiceOfferingService>();
         services.AddScoped<ISiteSettingsService, SiteSettingsService>();
         services.AddScoped<INotificationService, NotificationService>();
         services.AddScoped<LoggingEmailNotificationSender>();

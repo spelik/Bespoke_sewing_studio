@@ -32,7 +32,7 @@ public sealed class NotificationService(
                 {
                     var result = await emailSender.SendAsync(
                         settings.Email,
-                        $"New enquiry: {order.ServiceType} from {order.Client.FullName}",
+                        $"New enquiry: {order.ServiceName} from {order.Client.FullName}",
                         BuildEmailBody(order),
                         cancellationToken);
 
@@ -64,7 +64,7 @@ public sealed class NotificationService(
             .AppendLine($"Client name: {order.Client.FullName}")
             .AppendLine($"Email: {order.Client.Email ?? "Not provided"}")
             .AppendLine($"Phone: {order.Client.Phone ?? "Not provided"}")
-            .AppendLine($"Service type: {order.ServiceType}")
+            .AppendLine($"Service: {order.ServiceName}")
             .AppendLine($"Preferred date: {order.PreferredDate?.ToString("yyyy-MM-dd") ?? "Not provided"}")
             .AppendLine($"Description: {order.Description}")
             .AppendLine($"Attachment count: {order.Attachments.Count}")

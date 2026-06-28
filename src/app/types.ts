@@ -97,11 +97,66 @@ export interface SiteAssets {
 }
 
 export interface ServiceItem {
-  icon: ServiceIconKey;
-  title: OrderServiceType;
-  desc: string;
-  price: string;
-  detail: string;
+  id: string | null;
+  slug: string;
+  name: string;
+  shortDescription: string;
+  description: string | null;
+  category: string | null;
+  isFeatured: boolean;
+  displayOrder: number;
+  priceOptions: ServicePriceOption[];
+  imageUrl: string | null;
+  legacyServiceType?: OrderServiceType;
+}
+
+export interface ServicePriceOption {
+  id: string | null;
+  label: string;
+  description: string | null;
+  priceText: string;
+  displayOrder: number;
+  isActive: boolean;
+}
+
+export type PublicServiceOffering = ServiceItem;
+
+export interface AdminServiceOffering extends Omit<ServiceItem, "legacyServiceType"> {
+  id: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+  archivedAt: string | null;
+  usageCount: number;
+  canDelete: boolean;
+}
+
+export interface ServicePriceOptionRequest {
+  label: string;
+  description: string | null;
+  priceText: string;
+  displayOrder: number;
+  isActive: boolean;
+}
+
+export interface SaveServiceOfferingRequest {
+  slug: string | null;
+  name: string;
+  shortDescription: string;
+  description: string | null;
+  category: string | null;
+  isActive: boolean;
+  isFeatured: boolean;
+  displayOrder: number;
+  priceOptions: ServicePriceOptionRequest[];
+  imageUrl: string | null;
+}
+
+export interface DeleteServiceOfferingResult {
+  id: string;
+  deleted: boolean;
+  archived: boolean;
+  message: string;
 }
 
 export interface PortfolioItem {
@@ -142,16 +197,13 @@ export interface PrivacySection {
   body: string;
 }
 
-export interface MemoryBearPrice {
-  label: string;
-  price: string;
-}
-
 export interface OrderRequest {
   fullName: string;
   email: string;
   phone?: string;
-  service: OrderServiceType;
+  serviceOfferingId?: string;
+  serviceSlug?: string;
+  legacyServiceType?: OrderServiceType;
   description: string;
   preferredDate?: string;
   consent: boolean;
@@ -162,7 +214,9 @@ export interface CreateOrderApiRequest {
   fullName: string;
   email: string | null;
   phone: string | null;
-  serviceType: OrderApiServiceType;
+  serviceType: OrderApiServiceType | null;
+  serviceOfferingId: string | null;
+  serviceSlug: string | null;
   description: string;
   preferredDate: string | null;
   consent: boolean;

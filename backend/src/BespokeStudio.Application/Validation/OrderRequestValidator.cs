@@ -25,9 +25,22 @@ public static class OrderRequestValidator
             errors[nameof(request.Email)] = ["Email has an invalid format."];
         }
 
-        if (!Enum.IsDefined(request.ServiceType))
+        if (request.ServiceOfferingId.HasValue && !string.IsNullOrWhiteSpace(request.ServiceSlug))
         {
-            errors[nameof(request.ServiceType)] = ["Service type is invalid."];
+            errors[nameof(request.ServiceOfferingId)] =
+                ["Provide either serviceOfferingId or serviceSlug, not both."];
+        }
+        else if (!request.ServiceOfferingId.HasValue && string.IsNullOrWhiteSpace(request.ServiceSlug))
+        {
+            if (!request.ServiceType.HasValue || !Enum.IsDefined(request.ServiceType.Value))
+            {
+                errors[nameof(request.ServiceType)] = ["A valid service selection is required."];
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.ServiceSlug) && request.ServiceSlug.Trim().Length > 160)
+        {
+            errors[nameof(request.ServiceSlug)] = ["Service slug must not exceed 160 characters."];
         }
 
         if (!request.Consent)
