@@ -43,7 +43,6 @@ public sealed class SiteSettingsConfiguration : IEntityTypeConfiguration<SiteSet
             ContactIntroText = "Consultations and orders are arranged individually.",
             ServiceAreaText = "Appointments arranged individually.",
             EmailNotificationsEnabled = false,
-            WhatsAppNotificationsEnabled = false,
             FooterText = "Bespoke Sewing Studio. All rights reserved.",
             UpdatedAt = InitialUpdatedAt
         });

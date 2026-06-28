@@ -66,9 +66,15 @@ export interface PublicSiteSettings {
 export interface AdminSiteSettings extends PublicSiteSettings {
   id: string;
   emailNotificationsEnabled: boolean;
-  whatsAppNotificationsEnabled: boolean;
   businessLegalName: string | null;
   updatedAt: string;
+}
+
+export interface EmailNotificationResult {
+  success: boolean;
+  provider: "Logging" | "Smtp" | "LoggingFallback" | string;
+  sentExternally: boolean;
+  message: string;
 }
 
 export type UpdateSiteSettingsRequest = Omit<

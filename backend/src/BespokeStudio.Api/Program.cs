@@ -196,6 +196,7 @@ api.MapGet("/version", () =>
 app.MapOrderEndpoints();
 app.MapAuthEndpoints();
 app.MapSiteSettingsEndpoints();
+app.MapNotificationEndpoints();
 app.MapUploadEndpoints(uploadStorageSettings.PublicBasePath);
 
 app.Run();

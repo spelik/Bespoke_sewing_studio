@@ -8,7 +8,6 @@ public sealed record UpdateSiteSettingsRequest(
     string? ContactButtonLabel,
     string? ContactIntroText,
     bool EmailNotificationsEnabled,
-    bool WhatsAppNotificationsEnabled,
     string? FacebookUrl,
     string? InstagramUrl,
     string? TikTokUrl,

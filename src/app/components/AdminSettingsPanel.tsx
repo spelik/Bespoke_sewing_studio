@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { ApiError } from "../../api/apiClient";
 import {
   getAdminSiteSettings,
+  sendTestEmailNotification,
   updateAdminSiteSettings,
 } from "../../api/siteSettingsApi";
 import type {
@@ -16,7 +17,7 @@ interface AdminSettingsPanelProps {
 
 type TextFieldName = Exclude<
   keyof UpdateSiteSettingsRequest,
-  "emailNotificationsEnabled" | "whatsAppNotificationsEnabled"
+  "emailNotificationsEnabled"
 >;
 
 const inputClassName =
@@ -28,8 +29,13 @@ export function AdminSettingsPanel({ onUnauthorized }: AdminSettingsPanelProps) 
   const [updatedAt, setUpdatedAt] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isTestingEmail, setIsTestingEmail] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [testEmailResult, setTestEmailResult] = useState<{
+    success: boolean;
+    message: string;
+  } | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -71,12 +77,38 @@ export function AdminSettingsPanel({ onUnauthorized }: AdminSettingsPanelProps) 
     setSuccess(null);
   };
 
-  const setBooleanField = (
-    field: "emailNotificationsEnabled" | "whatsAppNotificationsEnabled",
-    value: boolean,
-  ) => {
-    setForm((current) => (current ? { ...current, [field]: value } : current));
+  const setEmailNotificationsEnabled = (value: boolean) => {
+    setForm((current) =>
+      current ? { ...current, emailNotificationsEnabled: value } : current,
+    );
     setSuccess(null);
+    setTestEmailResult(null);
+  };
+
+  const handleTestEmail = async () => {
+    if (isTestingEmail) {
+      return;
+    }
+
+    setIsTestingEmail(true);
+    setTestEmailResult(null);
+
+    try {
+      const result = await sendTestEmailNotification();
+      setTestEmailResult({
+        success: result.success,
+        message: `${result.message} Provider: ${result.provider}.`,
+      });
+    } catch (reason: unknown) {
+      if (reason instanceof ApiError && reason.status === 401) {
+        onUnauthorized();
+        return;
+      }
+
+      setTestEmailResult({ success: false, message: getErrorMessage(reason) });
+    } finally {
+      setIsTestingEmail(false);
+    }
   };
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -163,7 +195,7 @@ export function AdminSettingsPanel({ onUnauthorized }: AdminSettingsPanelProps) 
           onChange={(value) => setTextField("email", value)}
         />
         <SettingsField
-          label="Phone / WhatsApp number"
+          label="Phone"
           type="tel"
           value={form.phone}
           onChange={(value) => setTextField("phone", value)}
@@ -192,18 +224,31 @@ export function AdminSettingsPanel({ onUnauthorized }: AdminSettingsPanelProps) 
 
       <SettingsGroup title="Notifications">
         <p className="md:col-span-2 text-[11px] text-muted-foreground font-sans leading-relaxed">
-          Notifications will be sent to the email and phone shown above. Development providers currently log messages without sending them externally.
+          New enquiry notifications will be sent to the email above. Save settings before sending a test email.
         </p>
         <SettingsCheckbox
           label="Enable email notifications"
           checked={form.emailNotificationsEnabled}
-          onChange={(checked) => setBooleanField("emailNotificationsEnabled", checked)}
+          onChange={setEmailNotificationsEnabled}
         />
-        <SettingsCheckbox
-          label="Enable WhatsApp notifications"
-          checked={form.whatsAppNotificationsEnabled}
-          onChange={(checked) => setBooleanField("whatsAppNotificationsEnabled", checked)}
-        />
+        <button
+          type="button"
+          disabled={isTestingEmail}
+          onClick={handleTestEmail}
+          className="border border-border bg-background px-4 py-3 text-[11px] text-foreground hover:border-accent disabled:opacity-50 transition-colors font-sans"
+        >
+          {isTestingEmail ? "Sending test..." : "Send test email"}
+        </button>
+        {testEmailResult ? (
+          <p
+            role={testEmailResult.success ? "status" : "alert"}
+            className={`md:col-span-2 text-[11px] font-sans ${
+              testEmailResult.success ? "text-emerald-700" : "text-destructive"
+            }`}
+          >
+            {testEmailResult.message}
+          </p>
+        ) : null}
       </SettingsGroup>
 
       <SettingsGroup title="Social links">
@@ -318,7 +363,6 @@ function toUpdateRequest(settings: AdminSiteSettings): UpdateSiteSettingsRequest
     contactButtonLabel: settings.contactButtonLabel,
     contactIntroText: settings.contactIntroText,
     emailNotificationsEnabled: settings.emailNotificationsEnabled,
-    whatsAppNotificationsEnabled: settings.whatsAppNotificationsEnabled,
     facebookUrl: settings.facebookUrl,
     instagramUrl: settings.instagramUrl,
     tikTokUrl: settings.tikTokUrl,

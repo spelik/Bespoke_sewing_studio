@@ -161,7 +161,7 @@ Start the API and use `/swagger` for interactive testing, or open
 the id returned by `POST /api/orders` into the `OrderId` variable before running
 the detail, status, and note examples.
 
-New-order email and WhatsApp notifications use development logging providers.
+New-order email notifications use the logging provider by default and can use SMTP.
 The public frontend Order form calls
 anonymous `POST /api/orders`. The admin frontend uses
 login, current-user, Orders list/detail, status, and note endpoints; the other
@@ -260,24 +260,44 @@ notification enabled flags, business legal name, and other admin-only metadata. 
 `400 ValidationProblem` for an empty studio name, invalid email/phone values,
 invalid non-HTTP(S) URLs, or configured values exceeding their limits.
 
-The notification enabled flags use the same email and phone shown on the public
-site. Migration `NormalizeSiteSettingsContacts` removes the former duplicate
-notification and WhatsApp columns.
+The email notification enabled flag uses the same email shown on the public
+site. The phone remains public contact information and is not a notification
+destination. Migrations `NormalizeSiteSettingsContacts` and
+`RemoveWhatsAppNotifications` remove the former duplicate and WhatsApp fields.
 
 ## Notification foundation
 
 After `POST /api/orders` persists an enquiry, `INotificationService` loads the
-order and current Site Settings. Enabled channels call
-`IEmailNotificationSender` or `IWhatsAppNotificationSender`. The default
-`LoggingEmailNotificationSender` and `LoggingWhatsAppNotificationSender` write
-development messages to the application log and do not contact external
-services. Sender errors are logged and do not change the successful order
-response.
+order and current Site Settings. When email notifications are enabled it calls
+`IEmailNotificationSender` with the Site Settings email. `Provider=Logging`
+uses `LoggingEmailNotificationSender`; `Provider=Smtp` uses
+`SmtpEmailNotificationSender`. Missing/invalid SMTP configuration and SMTP
+delivery errors are logged and fall back to the logging provider without
+changing the successful order response.
 
-Real SMTP or WhatsApp Business Platform providers are not configured. Future
-provider credentials must come from environment variables, `dotnet user-secrets`,
+`POST /api/admin/notifications/test-email` is protected by the `AdminOnly`
+policy. It requires enabled email notifications and a Site Settings email, then
+uses the currently configured provider and returns a summary containing only
+provider/result metadata—never SMTP credentials.
+
+SMTP credentials must come from environment variables, `dotnet user-secrets`,
 or an external secret store; they must not be stored in `SiteSettings`, source
-control, or committed appsettings files.
+control, or committed appsettings files. Configure local SMTP with:
+
+```powershell
+dotnet user-secrets set "Notifications:Email:Provider" "Smtp" --project backend/src/BespokeStudio.Api
+dotnet user-secrets set "Notifications:Email:Smtp:Host" "smtp.example.com" --project backend/src/BespokeStudio.Api
+dotnet user-secrets set "Notifications:Email:Smtp:Port" "587" --project backend/src/BespokeStudio.Api
+dotnet user-secrets set "Notifications:Email:Smtp:Username" "your-user" --project backend/src/BespokeStudio.Api
+dotnet user-secrets set "Notifications:Email:Smtp:Password" "your-password" --project backend/src/BespokeStudio.Api
+dotnet user-secrets set "Notifications:Email:Smtp:FromEmail" "no-reply@example.com" --project backend/src/BespokeStudio.Api
+dotnet user-secrets set "Notifications:Email:Smtp:FromName" "Bespoke Sewing Studio" --project backend/src/BespokeStudio.Api
+dotnet user-secrets set "Notifications:Email:Smtp:UseSsl" "true" --project backend/src/BespokeStudio.Api
+```
+
+Equivalent environment variables use double underscores, for example
+`Notifications__Email__Smtp__Password`. WhatsApp and SMS notification channels
+are intentionally not implemented.
 
 ## Administrator authentication
 

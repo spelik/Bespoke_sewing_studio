@@ -12,7 +12,6 @@ public sealed class SiteSettings
     public string? ContactButtonLabel { get; set; }
     public string? ContactIntroText { get; set; }
     public bool EmailNotificationsEnabled { get; set; }
-    public bool WhatsAppNotificationsEnabled { get; set; }
     public string? FacebookUrl { get; set; }
     public string? InstagramUrl { get; set; }
     public string? TikTokUrl { get; set; }

@@ -104,15 +104,16 @@ antivirus/deep-content scanning are not implemented.
 ## Site settings
 
 Sign in at `http://127.0.0.1:5173/admin`, then select **Settings** in the
-sidebar. The administrator edits one email and one Phone / WhatsApp number,
-plus contact/footer text, service area, social URLs, and notification toggles.
-The same email and phone are shown on the public site and used as notification
-destinations, so there are no separate notification contact fields.
+sidebar. The administrator edits one email and one contact phone, plus
+contact/footer text, service area, social URLs, and the email notification
+toggle. The email is shown on the public site and is also the owner notification
+destination. The phone is public contact information only.
 
-Enable email or WhatsApp notifications with the corresponding toggle in Admin
-Settings. In development, both channels use safe logging providers: notification
-content is written to the backend log and is not sent externally. Public pages
-keep their typed fallback content if the API cannot be reached.
+Enable new-enquiry email notifications with the toggle in Admin Settings. The
+default development provider writes email content to the backend log; SMTP can
+be configured through user-secrets or environment variables. WhatsApp and SMS
+notifications are not implemented or planned for the current product scope.
+Public pages keep their typed fallback content if the API cannot be reached.
 
 Commands:
 

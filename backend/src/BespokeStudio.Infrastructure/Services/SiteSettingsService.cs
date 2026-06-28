@@ -28,9 +28,7 @@ public sealed class SiteSettingsService(BespokeStudioDbContext dbContext) : ISit
         var settings = await GetOrCreateAsync(cancellationToken);
         return new NotificationSettingsResponse(
             settings.PublicEmail,
-            settings.PublicPhone,
-            settings.EmailNotificationsEnabled,
-            settings.WhatsAppNotificationsEnabled);
+            settings.EmailNotificationsEnabled);
     }
 
     public async Task<AdminSiteSettingsResponse> UpdateSettingsAsync(
@@ -46,7 +44,6 @@ public sealed class SiteSettingsService(BespokeStudioDbContext dbContext) : ISit
         settings.ContactButtonLabel = Normalize(request.ContactButtonLabel);
         settings.ContactIntroText = Normalize(request.ContactIntroText);
         settings.EmailNotificationsEnabled = request.EmailNotificationsEnabled;
-        settings.WhatsAppNotificationsEnabled = request.WhatsAppNotificationsEnabled;
         settings.FacebookUrl = Normalize(request.FacebookUrl);
         settings.InstagramUrl = Normalize(request.InstagramUrl);
         settings.TikTokUrl = Normalize(request.TikTokUrl);
@@ -88,7 +85,6 @@ public sealed class SiteSettingsService(BespokeStudioDbContext dbContext) : ISit
         ServiceAreaText = "Appointments arranged individually.",
         FooterText = "Bespoke Sewing Studio. All rights reserved.",
         EmailNotificationsEnabled = false,
-        WhatsAppNotificationsEnabled = false,
         UpdatedAt = DateTimeOffset.UtcNow
     };
 
@@ -117,7 +113,6 @@ public sealed class SiteSettingsService(BespokeStudioDbContext dbContext) : ISit
             settings.ContactButtonLabel,
             settings.ContactIntroText,
             settings.EmailNotificationsEnabled,
-            settings.WhatsAppNotificationsEnabled,
             settings.FacebookUrl,
             settings.InstagramUrl,
             settings.TikTokUrl,

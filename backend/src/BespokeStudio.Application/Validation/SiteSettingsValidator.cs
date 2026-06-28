@@ -30,12 +30,6 @@ public static partial class SiteSettingsValidator
                 ["Email is required when email notifications are enabled."];
         }
 
-        if (request.WhatsAppNotificationsEnabled && string.IsNullOrWhiteSpace(request.Phone))
-        {
-            errors[nameof(request.Phone)] =
-                ["Phone is required when WhatsApp notifications are enabled."];
-        }
-
         return errors;
     }
 

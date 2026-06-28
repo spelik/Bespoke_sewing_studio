@@ -35,6 +35,10 @@ public static class DependencyInjection
             .ValidateOnStart();
 
         services
+            .AddOptions<EmailNotificationOptions>()
+            .Bind(configuration.GetSection(EmailNotificationOptions.SectionName));
+
+        services
             .AddIdentityCore<AdminUser>(options =>
             {
                 options.User.RequireUniqueEmail = true;
@@ -48,8 +52,9 @@ public static class DependencyInjection
         services.AddScoped<IOrderService, OrderService>();
         services.AddScoped<ISiteSettingsService, SiteSettingsService>();
         services.AddScoped<INotificationService, NotificationService>();
-        services.AddScoped<IEmailNotificationSender, LoggingEmailNotificationSender>();
-        services.AddScoped<IWhatsAppNotificationSender, LoggingWhatsAppNotificationSender>();
+        services.AddScoped<LoggingEmailNotificationSender>();
+        services.AddScoped<SmtpEmailNotificationSender>();
+        services.AddScoped<IEmailNotificationSender, ConfiguredEmailNotificationSender>();
         services.AddScoped<IUploadService, LocalUploadService>();
         services.AddScoped<IUploadCleanupService, UploadCleanupService>();
 

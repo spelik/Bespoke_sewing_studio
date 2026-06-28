@@ -9,7 +9,6 @@ public sealed class NotificationService(
     IOrderService orderService,
     ISiteSettingsService siteSettingsService,
     IEmailNotificationSender emailSender,
-    IWhatsAppNotificationSender whatsAppSender,
     ILogger<NotificationService> logger) : INotificationService
 {
     public async Task NotifyNewOrderCreatedAsync(
@@ -31,11 +30,20 @@ public sealed class NotificationService(
             {
                 try
                 {
-                    await emailSender.SendAsync(
+                    var result = await emailSender.SendAsync(
                         settings.Email,
                         $"New enquiry: {order.ServiceType} from {order.Client.FullName}",
                         BuildEmailBody(order),
                         cancellationToken);
+
+                    if (!result.Success)
+                    {
+                        logger.LogWarning(
+                            "Email notification for order {OrderId} used {Provider}: {Message}",
+                            orderId,
+                            result.Provider,
+                            result.Message);
+                    }
                 }
                 catch (Exception exception)
                 {
@@ -43,20 +51,6 @@ public sealed class NotificationService(
                 }
             }
 
-            if (settings.WhatsAppNotificationsEnabled && !string.IsNullOrWhiteSpace(settings.Phone))
-            {
-                try
-                {
-                    await whatsAppSender.SendAsync(
-                        settings.Phone,
-                        BuildWhatsAppMessage(order),
-                        cancellationToken);
-                }
-                catch (Exception exception)
-                {
-                    logger.LogError(exception, "WhatsApp notification failed for order {OrderId}.", orderId);
-                }
-            }
         }
         catch (Exception exception)
         {
@@ -74,18 +68,10 @@ public sealed class NotificationService(
             .AppendLine($"Preferred date: {order.PreferredDate?.ToString("yyyy-MM-dd") ?? "Not provided"}")
             .AppendLine($"Description: {order.Description}")
             .AppendLine($"Attachment count: {order.Attachments.Count}")
-            .AppendLine($"Admin order: /admin (order {order.Id})");
+            .AppendLine($"Order reference: {order.Id}")
+            .AppendLine($"Created: {order.CreatedAt:O}")
+            .AppendLine("Admin: /admin");
 
         return body.ToString();
     }
-
-    private static string BuildWhatsAppMessage(OrderResponse order) =>
-        $"New enquiry from {order.Client.FullName}{Environment.NewLine}" +
-        $"Service: {order.ServiceType}{Environment.NewLine}" +
-        $"Phone: {order.Client.Phone ?? "Not provided"}{Environment.NewLine}" +
-        $"Email: {order.Client.Email ?? "Not provided"}{Environment.NewLine}" +
-        $"Message: {Shorten(order.Description, 240)}";
-
-    private static string Shorten(string value, int maxLength) =>
-        value.Length <= maxLength ? value : $"{value[..(maxLength - 3)]}...";
 }

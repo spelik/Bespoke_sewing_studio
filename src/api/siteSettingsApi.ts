@@ -1,5 +1,6 @@
 import type {
   AdminSiteSettings,
+  EmailNotificationResult,
   PublicSiteSettings,
   UpdateSiteSettingsRequest,
 } from "../app/types";
@@ -19,5 +20,12 @@ export function updateAdminSiteSettings(
   return apiClient.patch<UpdateSiteSettingsRequest, AdminSiteSettings>(
     "admin/site-settings",
     request,
+  );
+}
+
+export function sendTestEmailNotification(): Promise<EmailNotificationResult> {
+  return apiClient.post<Record<string, never>, EmailNotificationResult>(
+    "admin/notifications/test-email",
+    {},
   );
 }
