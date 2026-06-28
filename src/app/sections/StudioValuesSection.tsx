@@ -1,7 +1,10 @@
-import { WHY_US } from "../appContent";
+import { VALUE_ICONS } from "../iconRegistry";
 import { SectionLabel } from "../components/SectionLabel";
+import { useRepeatableContent } from "../repeatableContent/RepeatableContentContext";
 
 export function StudioValuesSection() {
+  const { studioValues } = useRepeatableContent();
+
   return (
       <section className="py-24 bg-foreground text-primary-foreground">
         <div className="max-w-7xl mx-auto px-6 lg:px-10">
@@ -20,15 +23,19 @@ export function StudioValuesSection() {
               </p>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 lg:gap-10">
-              {WHY_US.map((item) => (
-                <div key={item.title}>
-                  <div className="w-9 h-9 border border-primary-foreground/15 flex items-center justify-center mb-4">
-                    <item.icon size={15} className="text-accent" />
+              {studioValues.map((item) => {
+                const Icon = VALUE_ICONS[item.icon];
+
+                return (
+                  <div key={item.title}>
+                    <div className="w-9 h-9 border border-primary-foreground/15 flex items-center justify-center mb-4">
+                      <Icon size={15} className="text-accent" />
+                    </div>
+                    <h3 className="font-serif text-[0.95rem] font-light text-primary-foreground mb-2">{item.title}</h3>
+                    <p className="text-[13px] text-primary-foreground/55 leading-relaxed font-sans">{item.desc}</p>
                   </div>
-                  <h3 className="font-serif text-[0.95rem] font-light text-primary-foreground mb-2">{item.title}</h3>
-                  <p className="text-[13px] text-primary-foreground/55 leading-relaxed font-sans">{item.desc}</p>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         </div>

@@ -1,9 +1,11 @@
-import { PRIVACY_SECTIONS } from "../appContent";
 import { SectionLabel } from "../components/SectionLabel";
 import { usePageContent } from "../content/PageContentContext";
+import { useRepeatableContent } from "../repeatableContent/RepeatableContentContext";
 
 export function PrivacyPage() {
   const main=usePageContent("privacy").section("main-content");
+  const { privacySections } = useRepeatableContent();
+
   return (
     <div className="pt-[72px]">
       <div className="bg-secondary py-20 px-6 lg:px-10">
@@ -17,7 +19,7 @@ export function PrivacyPage() {
         <div className="max-w-2xl mx-auto px-6 lg:px-10">
           {main?.body ? <p className="text-[13px] text-muted-foreground leading-relaxed mb-12 font-sans">{main.body}</p> : null}
           <div className="space-y-10">
-            {PRIVACY_SECTIONS.map((s) => (
+            {privacySections.map((s) => (
               <div key={s.title} className="border-t border-border pt-8">
                 <h2 className="font-serif text-[1.1rem] font-light text-foreground mb-4">{s.title}</h2>
                 <p className="text-[13px] text-muted-foreground leading-relaxed font-sans">{s.body}</p>
@@ -29,4 +31,3 @@ export function PrivacyPage() {
     </div>
   );
 }
-

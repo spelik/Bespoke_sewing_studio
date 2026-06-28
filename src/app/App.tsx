@@ -14,6 +14,7 @@ import { SiteSettingsProvider } from "./siteSettings/SiteSettingsContext";
 import { ServicesProvider } from "./services/ServicesContext";
 import { PortfolioProvider } from "./portfolio/PortfolioContext";
 import { PageContentProvider } from "./content/PageContentContext";
+import { RepeatableContentProvider } from "./repeatableContent/RepeatableContentContext";
 
 const HomePage = lazy(() =>
   import("./pages/HomePage").then((module) => ({ default: module.HomePage })),
@@ -94,7 +95,7 @@ export default function App() {
         <SiteSettingsProvider>
           <ServicesProvider>
             <PortfolioProvider>
-              <PageContentProvider><SiteShell /></PageContentProvider>
+              <PageContentProvider><RepeatableContentProvider><SiteShell /></RepeatableContentProvider></PageContentProvider>
             </PortfolioProvider>
           </ServicesProvider>
         </SiteSettingsProvider>

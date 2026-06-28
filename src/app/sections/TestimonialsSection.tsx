@@ -1,8 +1,10 @@
 import { Star } from "lucide-react";
-import { TESTIMONIALS } from "../appContent";
 import { SectionLabel } from "../components/SectionLabel";
+import { useRepeatableContent } from "../repeatableContent/RepeatableContentContext";
 
 export function TestimonialsSection() {
+  const { testimonials } = useRepeatableContent();
+
   return (
       <section className="py-24 bg-background">
         <div className="max-w-7xl mx-auto px-6 lg:px-10">
@@ -11,7 +13,7 @@ export function TestimonialsSection() {
             What Our Clients Say
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {TESTIMONIALS.map((t) => (
+            {testimonials.map((t) => (
               <div
                 key={t.name}
                 className="p-8 border border-border hover:border-accent/30 transition-colors duration-300 bg-card group"

@@ -274,6 +274,58 @@ export interface SavePageContentRequest {
 export interface UploadedContentImage { id: string; originalFileName: string; contentType: string; sizeBytes: number; purpose: "SiteAsset"; createdAt: string; }
 export interface DeletePageContentResult { id: string; archived: boolean; message: string; }
 
+
+export interface PublicRepeatableContentItem {
+  id: string;
+  itemKey: string;
+  title: string | null;
+  subtitle: string | null;
+  body: string | null;
+  label: string | null;
+  value: string | null;
+  iconKey: string | null;
+  url: string | null;
+  rating: number | null;
+  location: string | null;
+  service: string | null;
+  displayOrder: number;
+}
+
+export interface PublicRepeatableContentGroup {
+  groupKey: string;
+  items: PublicRepeatableContentItem[];
+}
+
+export interface AdminRepeatableContentItem extends PublicRepeatableContentItem {
+  groupKey: string;
+  isActive: boolean;
+  updatedAt: string;
+  archivedAt: string | null;
+}
+
+export interface SaveRepeatableContentItemRequest {
+  groupKey: string;
+  itemKey: string;
+  title: string | null;
+  subtitle: string | null;
+  body: string | null;
+  label: string | null;
+  value: string | null;
+  iconKey: string | null;
+  url: string | null;
+  rating: number | null;
+  location: string | null;
+  service: string | null;
+  displayOrder: number;
+  isActive: boolean;
+}
+
+export interface DeleteRepeatableContentItemResult {
+  id: string;
+  archived: boolean;
+  message: string;
+}
+
 export interface Testimonial {
   name: string;
   location: string;

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { FileText, Images, LogOut, Menu, Package, Palette, Scissors, Settings } from "lucide-react";
+import { FileText, Images, ListOrdered, LogOut, Menu, Package, Palette, Scissors, Settings } from "lucide-react";
 import { ORDER_STATUSES, type AdminOrderStatus } from "../../api/ordersApi";
 import { useAuth } from "../auth/AuthContext";
 import { AdminBrandSettingsPanel } from "../components/AdminBrandSettingsPanel";
@@ -7,19 +7,21 @@ import { AdminContentPanel } from "../components/AdminContentPanel";
 import { AdminOrderDetail } from "../components/AdminOrderDetail";
 import { AdminOrdersTable } from "../components/AdminOrdersTable";
 import { AdminPortfolioPanel } from "../components/AdminPortfolioPanel";
+import { AdminRepeatableContentPanel } from "../components/AdminRepeatableContentPanel";
 import { AdminServicesPanel } from "../components/AdminServicesPanel";
 import { AdminSettingsPanel } from "../components/AdminSettingsPanel";
 import { ADMIN_STATUS_LABELS } from "../components/adminOrderFormatting";
 import { useAdminOrders } from "../hooks/useAdminOrders";
 import { usePageNavigation } from "../routing/usePageNavigation";
 
-type AdminSection = "orders" | "services" | "portfolio" | "content" | "brand" | "settings";
+type AdminSection = "orders" | "services" | "portfolio" | "content" | "repeatable" | "brand" | "settings";
 
 const NAV_ITEMS: ReadonlyArray<{ id: AdminSection; label: string; icon: typeof Package }> = [
   { id: "orders", label: "Orders", icon: Package },
   { id: "services", label: "Services", icon: Scissors },
   { id: "portfolio", label: "Portfolio", icon: Images },
   { id: "content", label: "Content", icon: FileText },
+  { id: "repeatable", label: "Repeatable Content", icon: ListOrdered },
   { id: "brand", label: "Brand / SEO", icon: Palette },
   { id: "settings", label: "Settings", icon: Settings },
 ];
@@ -56,7 +58,7 @@ export function AdminPage() {
       <button type="button" className="lg:hidden fixed top-20 left-3 z-50 bg-foreground text-primary-foreground p-2.5" onClick={() => setSidebarOpen((value) => !value)} aria-label="Toggle sidebar"><Menu size={14} /></button>
 
       <main className="flex-1 overflow-auto">
-        <div className="p-6 lg:p-10 max-w-5xl">
+        <div className="w-full max-w-7xl mx-auto p-6 lg:p-10">
           <div className="mb-8">
             <h1 className="font-serif text-[1.6rem] font-light text-foreground">{NAV_ITEMS.find((item) => item.id === section)?.label}</h1>
             <p className="text-[11px] text-muted-foreground mt-1 font-sans">Backend-backed studio management</p>
@@ -77,6 +79,7 @@ export function AdminPage() {
           {section === "services" ? <AdminServicesPanel onUnauthorized={logout} /> : null}
           {section === "portfolio" ? <AdminPortfolioPanel onUnauthorized={logout} /> : null}
           {section === "content" ? <AdminContentPanel onUnauthorized={logout} /> : null}
+          {section === "repeatable" ? <AdminRepeatableContentPanel onUnauthorized={logout} /> : null}
           {section === "brand" ? <AdminBrandSettingsPanel onUnauthorized={logout} /> : null}
           {section === "settings" ? <AdminSettingsPanel onUnauthorized={logout} /> : null}
         </div>

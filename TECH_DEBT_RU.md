@@ -45,6 +45,8 @@
 - Public Home/Services и Order form используют active services из PostgreSQL; новые orders сохраняют nullable `ServiceOfferingId` и `ServiceNameSnapshot`, а legacy enum остаётся fallback для старых клиентов и заказов.
 - Delete-or-archive закрыт: неиспользованная услуга удаляется, использованная архивируется и исчезает из новых заявок без потери истории order/email notification.
 - English-only cleanup выполнен: переключатели EN/UA удалены из Header/MobileMenu flow, `Language`/`defaultLanguage` state удалён из frontend types/data, UI и fallback/default content остаются английскими.
+- Repeatable Content CMS реализован: process steps, studio values, testimonials и privacy subsections перенесены в backend-backed модель `RepeatableContentItem` с public API, protected admin CRUD, EF migration и frontend fallback.
+- Public Home/About/Privacy sections подключены к `GET /api/repeatable-content`; Admin sidebar получил раздел **Repeatable Content** для add/edit/hide/show/archive, карточки админки выровнены и расширены после visual polish.
 
 ## Оптимизация изображений
 
@@ -68,10 +70,11 @@
 - Две самые тяжёлые portfolio карточки (`portfolio-1a`, `portfolio-2`) всё ещё заметно крупнее остальных даже после downscale. Следующий шаг по изображениям - отдельные crop-aware thumbnails или AVIF pipeline.
 - Старые mock-графики и `recharts` imports удалены из AdminPage; Admin chunk уменьшился примерно с `496.57 KB` до `63.69 KB`. Зависимость `recharts` пока остаётся в package.json и может быть удалена отдельной dependency-cleanup задачей.
 - SPA fallback всё ещё должен быть настроен на production-сервере. В репозитории добавлена только документация, не серверная конфигурация.
-- Contact form остаётся prototype-only: отдельного Contact Messages API нет. Public Order form и шесть видимых admin-разделов используют реальные backend endpoints.
+- Contact form остаётся prototype-only: отдельного Contact Messages API нет. Public Order form и семь видимых admin-разделов используют реальные backend endpoints.
 - PostgreSQL и EF migrations проверены напрямую через connection string на `127.0.0.1:5433`; Docker CLI доступен, но sandbox не разрешил доступ к Docker daemon/pipe для отдельной проверки container health.
 - Portfolio/Gallery CMS реализован: категории, items, active/featured/order, Admin image upload и backend-first public gallery работают через PostgreSQL. Локальные frontend assets остаются typed fallback при недоступном API.
 - Website Content CMS реализован для основных текстов и page images Home/About/Services/Portfolio/Order/Contact/Privacy; public frontend использует backend-first данные с typed fallback.
+- Repeatable Content CMS реализован для повторяемых блоков Home/About/Privacy: process steps, studio values, testimonials и privacy sections больше не являются только статическим typed data.
 - Application services для остальных модулей и отдельные repository abstractions пока не реализованы.
 - Value objects и правила нормализации/валидации для email, телефона и денежных значений пока не определены.
 - Client matching пока не защищён уникальным normalized email/phone constraint; при конкурентных запросах возможны дубликаты.
@@ -83,7 +86,7 @@
 - SMTP provider реализован; production credentials должны задаваться через user-secrets/env/secret store. До production остаются настройка deliverability (SPF/DKIM/DMARC), мониторинг bounce/rejection и операционная ротация credentials.
 - Background notification queue и retry policy пока не реализованы: отправка выполняется inline после сохранения заявки. Customer confirmation email также не реализован.
 - Service image upload пока не реализован; advanced money/currency model и drag-and-drop reorder для Services/Portfolio можно добавить позже. Rich text page CMS ещё не реализован.
-- Полноценный rich-text editor/page builder не реализован: Content CMS использует безопасные plain-text поля. Version history/drafts остаются будущими задачами. Multilingual CMS не планируется: проект принят как English-only.
+- Полноценный rich-text editor/page builder не реализован: Content CMS и Repeatable Content CMS используют безопасные plain-text поля. Version history/drafts остаются будущими задачами. Multilingual CMS не планируется: проект принят как English-only.
 - Production secret management для admin seed и JWT signing key ещё требует внешнего secret store и operational rotation process.
 
 ## Рекомендации на следующие задачи
@@ -108,8 +111,8 @@
 - Удалены устаревшие inline public values (`Logosha Studio`, старый телефон, часы работы, старые email) и hardcoded footer services. Typed fallback email теперь `null`, пока владелец не задаст его через Site Settings.
 - Inline PageContent copy больше не подменяет скрытую backend-секцию. Fallback сосредоточен в `src/data/pageContentData.ts` и используется только при недоступности Content API.
 - Admin sidebar очищен от mock Overview/Clients/Campaigns/Analytics; видимы только работающие Orders, Services, Portfolio, Content, Brand/SEO и Settings.
-- Осознанно остаются статическими typed data: process steps, studio values, testimonials и подробные privacy subsections — для них нет отдельной repeatable-content модели. Contact form остаётся prototype-only.
-- Fallback не является основным источником при доступном backend. Multilingual CMS не планируется: сайт и админка English-only. Rich text editor/page builder и repeatable-section CMS остаются future work.
+- На момент Task 24 process steps, studio values, testimonials и подробные privacy subsections ещё оставались статическими typed data; это закрыто в Task 26 через Repeatable Content CMS. Contact form остаётся prototype-only.
+- Fallback не является основным источником при доступном backend. Multilingual CMS не планируется: сайт и админка English-only. Rich text editor/page builder остаётся future work.
 
 ## Task 25 — English-only cleanup
 
@@ -120,3 +123,14 @@
 - Multilingual CMS больше не является будущей задачей; при необходимости локализация может быть переоценена отдельным продуктовым решением, но сейчас не планируется.
 - Проверки: `npm.cmd run typecheck`, `npm.cmd run build`, `dotnet build backend/BespokeStudio.sln` прошли. Backend build предварительно требовал остановить запущенный `BespokeStudio.Api`, который блокировал DLL-файлы.
 
+
+## Task 26 — Repeatable Content CMS
+
+- Добавлена backend-модель `RepeatableContentItem`, EF configuration, `DbSet`, migration `AddRepeatableContentCms`, application contracts, validation и `IRepeatableContentService`/`RepeatableContentService`.
+- Добавлены public endpoints `GET /api/repeatable-content` и `GET /api/repeatable-content/groups/{groupKey}`.
+- Добавлены Admin JWT endpoints `/api/admin/repeatable-content` для просмотра, создания, изменения, hide/show и archive элементов.
+- Seed data создан для групп `process-steps`, `studio-values`, `testimonials` и `privacy-sections` на основе текущих English-only fallback данных.
+- Frontend public sections подключены backend-first: `ProcessSection`, `StudioValuesSection`, `TestimonialsSection`, About values block и Privacy subsections используют Repeatable Content API с typed fallback при недоступном backend.
+- Admin sidebar получил раздел **Repeatable Content**. UI поддерживает фильтр групп, add/edit item, hide/show, archive и refresh публичного repeatable content после сохранения.
+- Выполнен visual polish админки: рабочая область справа от sidebar центрирована, карточки шире, actions `Edit / Hide / Archive` отображаются в одну строку.
+- Проверено вручную: `/api/health`, `/api/repeatable-content/groups/process-steps`, `/api/repeatable-content` возвращают `200`; frontend Network показывает успешные `200` для `process-steps`, `studio-values`, `testimonials`, `privacy-sections`.

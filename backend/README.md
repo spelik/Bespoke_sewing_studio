@@ -12,6 +12,7 @@ Current status:
 - Services & Prices CMS manages dynamic services and text-based price options
 - Portfolio/Gallery CMS manages categories, work items, images, publication state and ordering
 - Website Content CMS manages page sections, copy, CTA data and page images
+- Repeatable Content CMS manages process steps, studio values, testimonials and privacy subsections
 - Site Settings and Brand/Logo/SEO settings provide public contact, navigation, logo, CTA and metadata configuration
 - email notification foundation supports Logging and SMTP providers; WhatsApp/SMS channels are intentionally not implemented
 - the product is English-only; multilingual CMS, language fields and EN/UA switching are not part of the current scope
@@ -63,6 +64,32 @@ non-archived rows. Content images use `UploadedFileMetadata` with `SiteAsset`;
 PostgreSQL never stores image bytes. Public content image routing cannot expose
 PortfolioImage or OrderAttachment uploads.
 
+## Repeatable Content API
+
+Repeatable Content stores ordered CMS records for repeated public sections that
+are not single page content rows. It currently backs process steps, studio
+values, testimonials and privacy subsections.
+
+Public endpoints:
+
+- `GET /api/repeatable-content` returns all active non-archived groups.
+- `GET /api/repeatable-content/groups/{groupKey}` returns one active group.
+
+Admin JWT endpoints:
+
+- `GET /api/admin/repeatable-content`
+- `GET /api/admin/repeatable-content/{id}`
+- `POST /api/admin/repeatable-content`
+- `PATCH /api/admin/repeatable-content/{id}`
+- `DELETE /api/admin/repeatable-content/{id}`
+
+`GroupKey` and `ItemKey` use lowercase safe keys and are unique for
+non-archived rows. Admin delete archives an item instead of physically deleting
+it, so historical content can be preserved while hidden from public responses.
+The frontend Admin panel exposes **Repeatable Content** for adding, editing,
+hiding/showing and archiving items. Public pages keep typed fallback data if the
+API is unavailable.
+
 ## Brand / Logo / SEO API
 
 Public endpoints:
@@ -101,7 +128,7 @@ interfaces. These contracts are separate from domain entities so future HTTP
 payloads do not expose persistence models directly.
 
 Infrastructure implementations are registered for Orders, Services, Portfolio,
-Page Content, Site/Brand Settings, uploads and notification delivery.
+Page Content, Repeatable Content, Site/Brand Settings, uploads and notification delivery.
 
 ## Implemented modules
 
@@ -113,6 +140,7 @@ Page Content, Site/Brand Settings, uploads and notification delivery.
 - Services and Prices CMS
 - Portfolio and Gallery CMS
 - Website Content CMS
+- Repeatable Content CMS
 - Email notification foundation
 
 ## PostgreSQL and EF Core
@@ -172,8 +200,8 @@ dotnet ef database update --project backend/src/BespokeStudio.Infrastructure --s
 The repository currently contains migrations for the initial schema, phone-only
 orders, Identity/JWT, Site Settings, contact normalisation, removal of WhatsApp
 notification fields, dynamic services/prices, Portfolio/Gallery CMS, Website
-Content CMS and Brand/SEO settings. They have been applied to the local
-development database during the corresponding tasks. Installing the matching
+Content CMS, Brand/SEO settings and Repeatable Content CMS. They have been
+applied to the local development database during the corresponding tasks. Installing the matching
 CLI tool, if it is missing locally:
 
 ```powershell
@@ -241,7 +269,7 @@ New-order email notifications use the logging provider by default and can use SM
 The public frontend Order form calls
 anonymous `POST /api/orders`. The admin frontend uses
 login, current-user, Orders list/detail/status/notes, Services, Portfolio,
-Content, Site Settings and Brand/SEO endpoints.
+Content, Repeatable Content, Site Settings and Brand/SEO endpoints.
 
 ## Services and Prices API
 
@@ -489,6 +517,8 @@ Available core endpoints after startup include:
 - `/api/services`
 - `/api/portfolio`
 - `/api/content/pages/{pageKey}`
+- `/api/repeatable-content`
+- `/api/repeatable-content/groups/{groupKey}`
 - `/api/site-settings/public`
 - `/api/brand-settings/public`
 
@@ -508,7 +538,7 @@ the `__EFMigrationsHistory` query above.
 
 Portfolio/Gallery CRUD and its dedicated image upload are implemented. General
 upload-library management is not implemented. Public pages are backend-first for
-Site/Brand Settings, Services, Portfolio, Page Content and Brand/SEO settings;
+Site/Brand Settings, Services, Portfolio, Page Content, Repeatable Content and Brand/SEO settings;
 centralised typed frontend fallbacks are used only when a public API is
 unavailable. The backend does not implement multilingual content variants; the
 current product scope is English-only. Refresh tokens, password reset, email

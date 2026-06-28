@@ -1,14 +1,17 @@
-import { SITE_ASSETS, WHY_US } from "../appContent";
+import { SITE_ASSETS } from "../appContent";
+import { VALUE_ICONS } from "../iconRegistry";
 import { ResponsiveImage } from "../components/ResponsiveImage";
 import { SectionLabel } from "../components/SectionLabel";
 import { usePageContent } from "../content/PageContentContext";
 import { CmsHeading } from "../components/CmsHeading";
 import { useSiteSettings } from "../siteSettings/SiteSettingsContext";
 import { AppLink } from "../components/AppLink";
+import { useRepeatableContent } from "../repeatableContent/RepeatableContentContext";
 
 export function AboutPage() {
   const { section }=usePageContent("about");const hero=section("hero");const main=section("main-content");
   const {settings,brand}=useSiteSettings();
+  const { studioValues } = useRepeatableContent();
   return (
     <div className="pt-[72px]">
       <div className="bg-secondary py-20 px-6 lg:px-10">
@@ -52,15 +55,19 @@ export function AboutPage() {
             What We Stand For
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10">
-            {WHY_US.map((v) => (
-              <div key={v.title} className="text-center">
-                <div className="w-11 h-11 border border-border flex items-center justify-center mx-auto mb-5">
-                  <v.icon size={16} className="text-accent" />
+            {studioValues.map((v) => {
+              const Icon = VALUE_ICONS[v.icon];
+
+              return (
+                <div key={v.title} className="text-center">
+                  <div className="w-11 h-11 border border-border flex items-center justify-center mx-auto mb-5">
+                    <Icon size={16} className="text-accent" />
+                  </div>
+                  <h3 className="font-serif text-[0.95rem] font-light text-foreground mb-3">{v.title}</h3>
+                  <p className="text-[13px] text-muted-foreground leading-relaxed font-sans">{v.desc}</p>
                 </div>
-                <h3 className="font-serif text-[0.95rem] font-light text-foreground mb-3">{v.title}</h3>
-                <p className="text-[13px] text-muted-foreground leading-relaxed font-sans">{v.desc}</p>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </section>

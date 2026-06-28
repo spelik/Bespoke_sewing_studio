@@ -1,7 +1,9 @@
-import { HOW_IT_WORKS } from "../appContent";
 import { SectionLabel } from "../components/SectionLabel";
+import { useRepeatableContent } from "../repeatableContent/RepeatableContentContext";
 
 export function ProcessSection() {
+  const { processSteps } = useRepeatableContent();
+
   return (
       <section className="py-24 bg-secondary">
         <div className="max-w-7xl mx-auto px-6 lg:px-10">
@@ -10,9 +12,9 @@ export function ProcessSection() {
             How It Works
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10">
-            {HOW_IT_WORKS.map((step, i) => (
-              <div key={step.step} className="relative">
-                {i < HOW_IT_WORKS.length - 1 && (
+            {processSteps.map((step, i) => (
+              <div key={`${step.step}-${step.title}`} className="relative">
+                {i < processSteps.length - 1 && (
                   <div className="hidden lg:block absolute top-7 left-[65%] right-0 border-t border-dashed border-border" />
                 )}
                 <div className="font-serif text-[3.5rem] font-light text-accent/25 leading-none mb-4">{step.step}</div>

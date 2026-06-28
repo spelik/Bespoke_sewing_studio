@@ -6,12 +6,12 @@ React, Vite and TypeScript frontend for the Bespoke Sewing Studio website. The c
 ## Frontend data mode
 
 The public site is backend-first and CMS-driven: contact settings, brand/navigation/SEO,
-page content, services/prices and portfolio data load from the ASP.NET Core API.
+page content, repeatable content, services/prices and portfolio data load from the ASP.NET Core API.
 Centralised typed frontend defaults are used only when the corresponding public API
 cannot be reached. The public Order form sends real requests to
 `POST /api/orders`, which persists enquiries in PostgreSQL through the ASP.NET
 Core backend. The admin login and Orders screens also use the backend API; the
-admin Services, Portfolio, Content, Settings and Brand/SEO sections use protected backend APIs. Optional order
+admin Services, Portfolio, Content, Repeatable Content, Settings and Brand/SEO sections use protected backend APIs. Optional order
 attachments are uploaded first and linked to the created enquiry by ID.
 
 The UI is English-only. Header and mobile language switchers have been removed, and typed fallback/default content should remain English-only.
@@ -47,10 +47,11 @@ Current backend status:
 - the Admin **Portfolio** section manages categories, work items, publication state, order and featured items
 - portfolio images are uploaded to local development storage and served publicly only while linked to an active portfolio item
 - page headings, body text, CTAs and key page images load from the Website Content CMS
+- repeatable public blocks such as process steps, studio values, testimonials and privacy subsections load from the Repeatable Content CMS
 - logo, favicon, default SEO metadata, header CTA and navigation labels/visibility are managed in Admin **Brand / SEO**
 - the public Order form submits a dynamic `serviceOfferingId` while preserving legacy enum compatibility
 - admin login and Orders list/detail/status/notes use protected backend endpoints
-- the admin sidebar exposes only backend-backed Orders, Services, Portfolio, Content, Brand/SEO and Settings modules
+- the admin sidebar exposes only backend-backed Orders, Services, Portfolio, Content, Repeatable Content, Brand/SEO and Settings modules
 
 Local PostgreSQL and backend setup:
 
@@ -168,6 +169,22 @@ Typed frontend defaults remain available when the backend cannot be reached. The
 Content images are stored locally under `backend/storage/uploads/content-images`
 in development. The existing logo remains a bundled frontend fallback; logo
 upload is not part of this module.
+
+## Repeatable content
+
+Sign in to Admin and select **Repeatable Content** to manage repeated public
+content blocks that are not single page sections. The current groups are:
+
+- `process-steps` for the Home process section
+- `studio-values` for values shown on Home/About
+- `testimonials` for public testimonials
+- `privacy-sections` for detailed Privacy page subsections
+
+The public site loads these records from `GET /api/repeatable-content` and can
+also read an individual group through `GET /api/repeatable-content/groups/{groupKey}`.
+The Admin panel can add, edit, hide/show and archive items through protected
+`/api/admin/repeatable-content` endpoints. Typed frontend defaults in
+`src/data/siteData.ts` remain available only as an offline fallback.
 
 ## Brand and SEO settings
 

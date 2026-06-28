@@ -200,6 +200,7 @@ app.MapNotificationEndpoints();
 app.MapServiceOfferingEndpoints();
 app.MapPortfolioEndpoints();
 app.MapContentEndpoints();
+app.MapRepeatableContentEndpoints();
 app.MapBrandSettingsEndpoints();
 app.MapUploadEndpoints(uploadStorageSettings.PublicBasePath);
 
