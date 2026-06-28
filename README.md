@@ -1,7 +1,7 @@
 
 # Bespoke Sewing Studio frontend
 
-React, Vite and TypeScript frontend for the Bespoke Sewing Studio website. The current UI was exported from Figma Make and is being stabilised incrementally with an ASP.NET Core backend.
+React, Vite and TypeScript frontend for the Bespoke Sewing Studio website. The current UI was exported from Figma Make and is being stabilised incrementally with an ASP.NET Core backend. The product is English-only; EN/UA language switching and multilingual CMS are not part of the current scope.
 
 ## Frontend data mode
 
@@ -13,6 +13,8 @@ cannot be reached. The public Order form sends real requests to
 Core backend. The admin login and Orders screens also use the backend API; the
 admin Services, Portfolio, Content, Settings and Brand/SEO sections use protected backend APIs. Optional order
 attachments are uploaded first and linked to the created enquiry by ID.
+
+The UI is English-only. Header and mobile language switchers have been removed, and typed fallback/default content should remain English-only.
 
 API configuration lives in `src/config/appConfig.ts`. `VITE_API_BASE_URL`
 defaults to `http://localhost:5099/api` for local development. Copy
@@ -138,6 +140,10 @@ be configured through user-secrets or environment variables. WhatsApp and SMS
 notifications are not implemented or planned for the current product scope.
 Public pages keep their typed fallback content if the API cannot be reached.
 
+## Language
+
+The site and admin panel are English-only. There is no public language switcher, no `defaultLanguage` setting and no planned multilingual CMS. New CMS records, seed data and typed fallback data should be authored in English.
+
 ## Portfolio and gallery
 
 Sign in at `http://127.0.0.1:5173/admin`, then select **Portfolio**. The Items
@@ -158,7 +164,7 @@ Sign in to Admin and select **Content** to filter sections by page, edit titles,
 subtitles, body text, CTA labels/URLs, ordering and visibility, or upload a
 JPG/PNG/WebP page image. Home, About, Services, Portfolio, Order, Contact and
 Privacy use backend-first content from `GET /api/content/pages/{pageKey}`.
-Typed frontend defaults remain available when the backend cannot be reached.
+Typed frontend defaults remain available when the backend cannot be reached. These defaults are English-only and should not introduce language-specific branches.
 Content images are stored locally under `backend/storage/uploads/content-images`
 in development. The existing logo remains a bundled frontend fallback; logo
 upload is not part of this module.

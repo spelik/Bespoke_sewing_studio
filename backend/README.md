@@ -1,17 +1,27 @@
 # Bespoke Sewing Studio backend
 
-ASP.NET Core Web API skeleton for the Bespoke Sewing Studio project.
+ASP.NET Core Web API for the Bespoke Sewing Studio project. The backend powers the public CMS-driven website, admin modules, uploads, authentication, PostgreSQL persistence and email notification foundation.
 
 Current status:
 
-- backend contains the persistence foundation and the first Orders module
-- domain model and application contract drafts are in place
-- EF Core persistence is configured for PostgreSQL
-- the database migrations are included and applied in local development
-- Orders/enquiries API persists clients, orders, statuses, and internal notes
+- EF Core persistence is configured for PostgreSQL and migrations are applied explicitly in local development
+- Orders/enquiries API persists clients, orders, selected services, statuses, internal notes and attachment links
 - ASP.NET Core Identity stores administrator accounts and roles
-- JWT Bearer authentication protects the Orders administration endpoints
-- Portfolio/Gallery categories, items and images are managed through protected admin endpoints
+- JWT Bearer authentication protects admin endpoints
+- uploads use local development storage plus PostgreSQL metadata; order attachments stay private
+- Services & Prices CMS manages dynamic services and text-based price options
+- Portfolio/Gallery CMS manages categories, work items, images, publication state and ordering
+- Website Content CMS manages page sections, copy, CTA data and page images
+- Site Settings and Brand/Logo/SEO settings provide public contact, navigation, logo, CTA and metadata configuration
+- email notification foundation supports Logging and SMTP providers; WhatsApp/SMS channels are intentionally not implemented
+- the product is English-only; multilingual CMS, language fields and EN/UA switching are not part of the current scope
+
+## Language and content scope
+
+Bespoke Sewing Studio is maintained as an English-only product. Backend models,
+seed/default content and CMS contracts should not add language or locale columns
+without a new product decision. Public/admin labels and fallback/default content
+should remain English-only. Multilingual CMS is not planned for the current scope.
 
 ## Portfolio/Gallery API
 
@@ -95,11 +105,15 @@ Page Content, Site/Brand Settings, uploads and notification delivery.
 
 ## Implemented modules
 
-- Orders
-- Client records through Orders
-- Portfolio and categories
-- Services
-- Uploads
+- Orders and client records
+- Order attachments and upload cleanup
+- Administrator authentication with Identity/JWT
+- Site Settings
+- Brand / Logo / SEO settings
+- Services and Prices CMS
+- Portfolio and Gallery CMS
+- Website Content CMS
+- Email notification foundation
 
 ## PostgreSQL and EF Core
 
@@ -155,10 +169,12 @@ Apply migrations to the configured development database:
 dotnet ef database update --project backend/src/BespokeStudio.Infrastructure --startup-project backend/src/BespokeStudio.Api
 ```
 
-The repository currently contains `InitialCreate`, `AllowClientsWithoutEmail`,
-`AddIdentityAuth`, and `AddSiteSettings`. All four migrations were applied to the local
-development database. Installing the matching CLI tool, if it is missing
-locally:
+The repository currently contains migrations for the initial schema, phone-only
+orders, Identity/JWT, Site Settings, contact normalisation, removal of WhatsApp
+notification fields, dynamic services/prices, Portfolio/Gallery CMS, Website
+Content CMS and Brand/SEO settings. They have been applied to the local
+development database during the corresponding tasks. Installing the matching
+CLI tool, if it is missing locally:
 
 ```powershell
 dotnet tool install --global dotnet-ef --version 10.0.9
@@ -462,7 +478,7 @@ If the local user-level `NuGet.Config` is inaccessible in your environment, the 
 dotnet restore backend/BespokeStudio.sln --configfile backend/NuGet.Config
 ```
 
-Available endpoints after startup:
+Available core endpoints after startup include:
 
 - `/swagger`
 - `/api/health`
@@ -470,8 +486,13 @@ Available endpoints after startup:
 - `/api/auth/login`
 - `/api/auth/me`
 - `/api/orders`
+- `/api/services`
+- `/api/portfolio`
+- `/api/content/pages/{pageKey}`
+- `/api/site-settings/public`
+- `/api/brand-settings/public`
 
-With the API running, verify the existing endpoints from another PowerShell
+With the API running, verify the system endpoints from another PowerShell
 window:
 
 ```powershell
@@ -487,8 +508,8 @@ the `__EFMigrationsHistory` query above.
 
 Portfolio/Gallery CRUD and its dedicated image upload are implemented. General
 upload-library management is not implemented. Public pages are backend-first for
-Site/Brand Settings, Services, Portfolio and Page Content; centralised typed
-frontend fallbacks are used only when a public API is unavailable.
-Refresh tokens, password
-reset, email confirmation, MFA, and production secret rotation are not
-implemented.
+Site/Brand Settings, Services, Portfolio, Page Content and Brand/SEO settings;
+centralised typed frontend fallbacks are used only when a public API is
+unavailable. The backend does not implement multilingual content variants; the
+current product scope is English-only. Refresh tokens, password reset, email
+confirmation, MFA, and production secret rotation are not implemented.

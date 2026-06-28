@@ -13,7 +13,6 @@ import { ABOUT_HERO_IMAGE, HEADER_LOGO, HOME_HERO_IMAGE } from "./imageAssets";
 
 export const SITE_SETTINGS: SiteSettings = {
   brandName: "Bespoke Sewing Studio",
-  defaultLanguage: "en",
 };
 
 export const PUBLIC_SITE_SETTINGS_FALLBACK: PublicSiteSettings = {

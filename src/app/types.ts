@@ -8,8 +8,6 @@ export type Page =
   | "privacy"
   | "admin";
 
-export type Language = "en" | "uk";
-
 export type OrderServiceType =
   | "Tailoring"
   | "Dressmaking"
@@ -35,7 +33,6 @@ export interface NavigationItem {
 
 export interface SiteSettings {
   brandName: string;
-  defaultLanguage: Language;
 }
 
 export interface PublicSiteSettings {

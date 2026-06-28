@@ -1,11 +1,10 @@
-import { lazy, Suspense, useEffect, useState } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import {
   BrowserRouter,
   Route,
   Routes,
   useLocation,
 } from "react-router-dom";
-import { SITE_SETTINGS } from "./appContent";
 import { AuthProvider } from "./auth/AuthContext";
 import { ProtectedAdminRoute } from "./auth/ProtectedAdminRoute";
 import { RouteLoader } from "./components/RouteLoader";
@@ -15,7 +14,6 @@ import { SiteSettingsProvider } from "./siteSettings/SiteSettingsContext";
 import { ServicesProvider } from "./services/ServicesContext";
 import { PortfolioProvider } from "./portfolio/PortfolioContext";
 import { PageContentProvider } from "./content/PageContentContext";
-import type { Language } from "./types";
 
 const HomePage = lazy(() =>
   import("./pages/HomePage").then((module) => ({ default: module.HomePage })),
@@ -59,14 +57,13 @@ function RouteScrollReset() {
 }
 
 function SiteShell() {
-  const [lang, setLang] = useState<Language>(SITE_SETTINGS.defaultLanguage);
   const { pathname } = useLocation();
   const isAdminRoute = pathname.startsWith("/admin");
 
   return (
     <div className="min-h-screen bg-background text-foreground">
       <RouteScrollReset />
-      <Header lang={lang} setLang={setLang} />
+      <Header />
       <main>
         <Suspense fallback={<RouteLoader />}>
           <Routes>

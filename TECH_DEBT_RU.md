@@ -44,6 +44,7 @@
 - Добавлен Services & Prices CMS: dynamic `ServiceOffering`, дочерние `ServicePriceOption`, CRUD API, Admin Services editor и public `GET /api/services` с typed frontend fallback.
 - Public Home/Services и Order form используют active services из PostgreSQL; новые orders сохраняют nullable `ServiceOfferingId` и `ServiceNameSnapshot`, а legacy enum остаётся fallback для старых клиентов и заказов.
 - Delete-or-archive закрыт: неиспользованная услуга удаляется, использованная архивируется и исчезает из новых заявок без потери истории order/email notification.
+- English-only cleanup выполнен: переключатели EN/UA удалены из Header/MobileMenu flow, `Language`/`defaultLanguage` state удалён из frontend types/data, UI и fallback/default content остаются английскими.
 
 ## Оптимизация изображений
 
@@ -82,7 +83,7 @@
 - SMTP provider реализован; production credentials должны задаваться через user-secrets/env/secret store. До production остаются настройка deliverability (SPF/DKIM/DMARC), мониторинг bounce/rejection и операционная ротация credentials.
 - Background notification queue и retry policy пока не реализованы: отправка выполняется inline после сохранения заявки. Customer confirmation email также не реализован.
 - Service image upload пока не реализован; advanced money/currency model и drag-and-drop reorder для Services/Portfolio можно добавить позже. Rich text page CMS ещё не реализован.
-- Полноценный rich-text editor/page builder не реализован: Content CMS использует безопасные plain-text поля. Version history/drafts и multilingual CMS остаются будущими задачами.
+- Полноценный rich-text editor/page builder не реализован: Content CMS использует безопасные plain-text поля. Version history/drafts остаются будущими задачами. Multilingual CMS не планируется: проект принят как English-only.
 - Production secret management для admin seed и JWT signing key ещё требует внешнего secret store и operational rotation process.
 
 ## Рекомендации на следующие задачи
@@ -108,4 +109,14 @@
 - Inline PageContent copy больше не подменяет скрытую backend-секцию. Fallback сосредоточен в `src/data/pageContentData.ts` и используется только при недоступности Content API.
 - Admin sidebar очищен от mock Overview/Clients/Campaigns/Analytics; видимы только работающие Orders, Services, Portfolio, Content, Brand/SEO и Settings.
 - Осознанно остаются статическими typed data: process steps, studio values, testimonials и подробные privacy subsections — для них нет отдельной repeatable-content модели. Contact form остаётся prototype-only.
-- Fallback не является основным источником при доступном backend. Multilingual CMS, rich text editor/page builder и repeatable-section CMS остаются future work.
+- Fallback не является основным источником при доступном backend. Multilingual CMS не планируется: сайт и админка English-only. Rich text editor/page builder и repeatable-section CMS остаются future work.
+
+## Task 25 — English-only cleanup
+
+- Продуктовое решение зафиксировано: сайт и админка работают только на английском языке.
+- Переключатели EN/UA удалены из публичного header/mobile navigation.
+- Frontend `Language` type, `lang/setLang` state и `defaultLanguage` fallback удалены как неиспользуемые.
+- Новые seed/default/fallback данные должны добавляться только на английском языке.
+- Multilingual CMS больше не является будущей задачей; при необходимости локализация может быть переоценена отдельным продуктовым решением, но сейчас не планируется.
+- Проверки: `npm.cmd run typecheck`, `npm.cmd run build`, `dotnet build backend/BespokeStudio.sln` прошли. Backend build предварительно требовал остановить запущенный `BespokeStudio.Api`, который блокировал DLL-файлы.
+

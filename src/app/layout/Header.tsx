@@ -3,17 +3,11 @@ import { Menu, X } from "lucide-react";
 import { Link, NavLink, useLocation } from "react-router-dom";
 import { SITE_ASSETS } from "../appContent";
 import { PAGE_PATHS } from "../routing/routes";
-import type { Language } from "../types";
 import { MobileMenu } from "./MobileMenu";
 import { useSiteSettings } from "../siteSettings/SiteSettingsContext";
 import { getBrandNavigation } from "../siteSettings/brandNavigation";
 
-interface HeaderProps {
-  lang: Language;
-  setLang: (language: Language) => void;
-}
-
-export function Header({ lang, setLang }: HeaderProps) {
+export function Header() {
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const { pathname } = useLocation();
@@ -32,6 +26,7 @@ export function Header({ lang, setLang }: HeaderProps) {
 
   const isHero = pathname === "/" && !scrolled;
   const closeMenu = () => setOpen(false);
+  const ctaIsInternal = brand.headerCtaUrl.startsWith("/");
 
   return (
     <header
@@ -78,31 +73,21 @@ export function Header({ lang, setLang }: HeaderProps) {
           </nav>
 
           <div className="flex items-center gap-3">
-            <div className="flex items-center gap-0.5 text-[11px] tracking-widest border border-border">
-              <button
-                onClick={() => setLang("en")}
-                className={`px-2.5 py-1.5 transition-colors ${
-                  lang === "en"
-                    ? "bg-foreground text-primary-foreground"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
+            {ctaIsInternal ? (
+              <Link
+                to={brand.headerCtaUrl}
+                className="hidden lg:flex items-center gap-2 bg-foreground text-primary-foreground px-5 py-2.5 text-[13px] tracking-wide hover:bg-accent transition-colors"
               >
-                EN
-              </button>
-              <button
-                onClick={() => setLang("uk")}
-                className={`px-2.5 py-1.5 transition-colors ${
-                  lang === "uk"
-                    ? "bg-foreground text-primary-foreground"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
+                {brand.headerCtaLabel}
+              </Link>
+            ) : (
+              <a
+                href={brand.headerCtaUrl}
+                className="hidden lg:flex items-center gap-2 bg-foreground text-primary-foreground px-5 py-2.5 text-[13px] tracking-wide hover:bg-accent transition-colors"
               >
-                UA
-              </button>
-            </div>
-
-            {brand.headerCtaUrl.startsWith("/") ? <Link to={brand.headerCtaUrl} className="hidden lg:flex items-center gap-2 bg-foreground text-primary-foreground px-5 py-2.5 text-[13px] tracking-wide hover:bg-accent transition-colors">{brand.headerCtaLabel}</Link> :
-              <a href={brand.headerCtaUrl} className="hidden lg:flex items-center gap-2 bg-foreground text-primary-foreground px-5 py-2.5 text-[13px] tracking-wide hover:bg-accent transition-colors">{brand.headerCtaLabel}</a>}
+                {brand.headerCtaLabel}
+              </a>
+            )}
 
             <button
               className="lg:hidden p-1.5 text-foreground"
