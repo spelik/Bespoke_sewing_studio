@@ -1,9 +1,8 @@
 namespace BespokeStudio.Application.Contracts.Portfolio;
 
-public sealed record PortfolioCategoryResponse(
+public sealed record PublicPortfolioCategoryResponse(
     Guid Id,
-    string Name,
     string Slug,
+    string Name,
     string? Description,
-    int DisplayOrder,
-    bool IsActive);
+    int DisplayOrder);

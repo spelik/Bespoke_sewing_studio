@@ -1,20 +1,36 @@
-import type { PortfolioCategory, PortfolioItem } from "../app/types";
+import type { PortfolioItem, PublicPortfolioCategory, ResponsiveImageAsset } from "../app/types";
 import { PORTFOLIO_IMAGES } from "./imageAssets";
 
-export const PORTFOLIO_CATEGORIES: ReadonlyArray<PortfolioCategory> = [
-  "Tailoring",
-  "Dressmaking",
-  "Alterations",
-  "Memory Bears",
+export const PORTFOLIO_CATEGORIES: ReadonlyArray<PublicPortfolioCategory> = [
+  { id: "fallback-tailoring", slug: "tailoring", name: "Tailoring", description: null, displayOrder: 0 },
+  { id: "fallback-dressmaking", slug: "dressmaking", name: "Dressmaking", description: null, displayOrder: 1 },
+  { id: "fallback-alterations", slug: "alterations", name: "Alterations", description: null, displayOrder: 2 },
+  { id: "fallback-memory-bears", slug: "memory-bears", name: "Memory Bears", description: null, displayOrder: 3 },
 ];
 
-export const PORTFOLIO_ITEMS: ReadonlyArray<PortfolioItem> = [
-  { id: 1, title: "Custom Dressmaking", category: "Dressmaking", image: PORTFOLIO_IMAGES.img1a, size: "tall" },
-  { id: 2, title: "Memory Bear Keepsake", category: "Memory Bears", image: PORTFOLIO_IMAGES.imgA1, size: "normal" },
-  { id: 3, title: "Tailored Outfit", category: "Tailoring", image: PORTFOLIO_IMAGES.img1b, size: "normal" },
-  { id: 4, title: "Bespoke Memory Bear", category: "Memory Bears", image: PORTFOLIO_IMAGES.imgA2, size: "tall" },
-  { id: 5, title: "Bridal Alterations", category: "Alterations", image: PORTFOLIO_IMAGES.img2, size: "normal" },
-  { id: 6, title: "Handcrafted Bear", category: "Memory Bears", image: PORTFOLIO_IMAGES.imgA4, size: "normal" },
-  { id: 7, title: "Evening Wear", category: "Dressmaking", image: PORTFOLIO_IMAGES.img4, size: "tall" },
-  { id: 8, title: "Elegant Dress", category: "Dressmaking", image: PORTFOLIO_IMAGES.img5, size: "normal" },
+const category = (name: string) => PORTFOLIO_CATEGORIES.find((item) => item.name === name)!;
+
+const portfolioEntries: ReadonlyArray<readonly [string, string, string, ResponsiveImageAsset]> = [
+  ["1", "Custom Dressmaking", "Dressmaking", PORTFOLIO_IMAGES.img1a],
+  ["2", "Memory Bear Keepsake", "Memory Bears", PORTFOLIO_IMAGES.imgA1],
+  ["3", "Tailored Outfit", "Tailoring", PORTFOLIO_IMAGES.img1b],
+  ["4", "Bespoke Memory Bear", "Memory Bears", PORTFOLIO_IMAGES.imgA2],
+  ["5", "Bridal Alterations", "Alterations", PORTFOLIO_IMAGES.img2],
+  ["6", "Handcrafted Bear", "Memory Bears", PORTFOLIO_IMAGES.imgA4],
+  ["7", "Evening Wear", "Dressmaking", PORTFOLIO_IMAGES.img4],
+  ["8", "Elegant Dress", "Dressmaking", PORTFOLIO_IMAGES.img5],
 ];
+
+export const PORTFOLIO_ITEMS: ReadonlyArray<PortfolioItem> = portfolioEntries.map(([id, title, categoryName, imageAsset], index) => ({
+  id: `fallback-${id}`,
+  slug: null,
+  title,
+  shortDescription: null,
+  description: null,
+  category: category(categoryName),
+  imageUrl: "",
+  imageAsset,
+  altText: title,
+  isFeatured: index < 3,
+  displayOrder: index,
+}));

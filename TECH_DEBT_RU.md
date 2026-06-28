@@ -69,17 +69,18 @@
 - SPA fallback всё ещё должен быть настроен на production-сервере. В репозитории добавлена только документация, не серверная конфигурация.
 - Marketing content, Contact form и admin-разделы Overview metrics, Clients, Campaigns и Analytics остаются в `mock/prototype mode`; реальный HTTP используется public Order submission, Services CMS, admin Orders flow и Site Settings.
 - PostgreSQL и EF migrations проверены напрямую через connection string на `127.0.0.1:5433`; Docker CLI доступен, но sandbox не разрешил доступ к Docker daemon/pipe для отдельной проверки container health.
-- CRUD/API endpoints для `Portfolio`, `Categories` и общего upload management пока не реализованы.
+- Portfolio/Gallery CMS реализован: категории, items, active/featured/order, Admin image upload и backend-first public gallery работают через PostgreSQL. Локальные frontend assets остаются typed fallback при недоступном API.
 - Application services для остальных модулей и отдельные repository abstractions пока не реализованы.
 - Value objects и правила нормализации/валидации для email, телефона и денежных значений пока не определены.
 - Client matching пока не защищён уникальным normalized email/phone constraint; при конкурентных запросах возможны дубликаты.
 - Ручную validation можно позже заменить или дополнить FluentValidation при росте числа команд и правил.
 - Для production auth остаются refresh-token/session strategy, password reset, email confirmation/MFA, rate limiting login и ротация JWT signing key через внешний secret store.
-- Production storage provider (S3/Azure Blob/R2), antivirus/deep content scanning и thumbnail/image processing пока не реализованы.
+- Production storage provider (S3/Azure Blob/R2), antivirus/deep content scanning, thumbnail/AVIF generation и image cropper пока не реализованы. Portfolio upload использует локальное dev storage.
+- Автоматическая очистка orphan `PortfolioImage` пока не реализована; существующий cleanup обрабатывает только orphan order attachments. Архивирование portfolio item намеренно сохраняет физический файл.
 - Автоматический background orphan cleanup пока не реализован; доступен защищённый ручной endpoint. Для production нужны distributed rate limiting/abuse protection и trusted forwarded-header configuration за reverse proxy.
 - SMTP provider реализован; production credentials должны задаваться через user-secrets/env/secret store. До production остаются настройка deliverability (SPF/DKIM/DMARC), мониторинг bounce/rejection и операционная ротация credentials.
 - Background notification queue и retry policy пока не реализованы: отправка выполняется inline после сохранения заявки. Customer confirmation email также не реализован.
-- Service image upload пока не реализован; advanced money/currency model и drag-and-drop reorder можно добавить позже. Portfolio/gallery и общий text CMS пока не реализованы.
+- Service image upload пока не реализован; advanced money/currency model и drag-and-drop reorder для Services/Portfolio можно добавить позже. Rich text page CMS ещё не реализован.
 - Production secret management для admin seed и JWT signing key ещё требует внешнего secret store и operational rotation process.
 
 ## Рекомендации на следующие задачи

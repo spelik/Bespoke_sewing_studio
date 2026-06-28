@@ -11,6 +11,34 @@ Current status:
 - Orders/enquiries API persists clients, orders, statuses, and internal notes
 - ASP.NET Core Identity stores administrator accounts and roles
 - JWT Bearer authentication protects the Orders administration endpoints
+- Portfolio/Gallery categories, items and images are managed through protected admin endpoints
+
+## Portfolio/Gallery API
+
+Public endpoints do not require JWT:
+
+- `GET /api/portfolio` returns active items in active categories
+- `GET /api/portfolio/categories` returns active categories
+- `GET /api/portfolio/images/{id}` streams an image only when it is linked to an active, non-archived portfolio item in an active category
+
+Admin JWT with the `Admin` role is required for:
+
+- `GET|POST /api/admin/portfolio/items`
+- `GET|PATCH|DELETE /api/admin/portfolio/items/{id}`
+- `GET|POST /api/admin/portfolio/categories`
+- `PATCH|DELETE /api/admin/portfolio/categories/{id}`
+- `POST /api/admin/portfolio/uploads`
+- `GET /api/admin/portfolio/images/{id}` for authenticated previews of inactive or archived items
+
+Portfolio uploads accept one JPG, PNG or WebP file and use the configured
+`UploadStorage:MaxFileSizeBytes` limit. Files are stored under
+`backend/storage/uploads/portfolio-images` in local development; PostgreSQL
+stores metadata and references, not image bytes. Archived items retain their
+physical files for later cleanup or restoration.
+
+Security boundary: `/api/portfolio/images/{id}` never exposes arbitrary upload
+metadata or order attachments. Order attachments continue to be downloaded
+only through the Admin-protected `/api/uploads/{uploadedFileId}` endpoint.
 
 ## Domain model draft
 
@@ -425,9 +453,10 @@ execute database queries, so they also remain available when PostgreSQL is
 offline. Database connectivity is verified separately by `database update` and
 the `__EFMigrationsHistory` query above.
 
-Portfolio and general upload-management CRUD endpoints are not implemented yet.
-The public Order form, Services, Settings and Orders admin modules use this
-backend, while the remaining site/admin content stays in mock/prototype mode.
+Portfolio/Gallery CRUD and its dedicated image upload are implemented. General
+upload-library management is not implemented. The public Order form, Portfolio,
+Services, Settings and Orders admin modules use this backend, while the
+remaining site/admin content stays in mock/prototype mode.
 Refresh tokens, password
 reset, email confirmation, MFA, and production secret rotation are not
 implemented.

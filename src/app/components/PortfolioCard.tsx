@@ -10,27 +10,18 @@ export function PortfolioCard({ item, variant = "preview" }: PortfolioCardProps)
   const isPreview = variant === "preview";
 
   return (
-    <div className={`group relative overflow-hidden bg-muted ${isPreview ? "aspect-[3/4]" : ""}`}>
-      {isPreview ? (
+    <div className="group relative overflow-hidden bg-muted aspect-[3/4]">
+      {item.imageAsset ? (
         <ResponsiveImage
-          asset={item.image}
-          alt={item.title}
+          asset={item.imageAsset}
+          alt={item.altText}
           pictureClassName="block w-full h-full"
           imgClassName="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
           loading="lazy"
           decoding="async"
         />
       ) : (
-        <div className="aspect-[3/4]">
-          <ResponsiveImage
-            asset={item.image}
-            alt={item.title}
-            pictureClassName="block w-full h-full"
-            imgClassName="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-            loading="lazy"
-            decoding="async"
-          />
-        </div>
+        <img src={item.imageUrl} alt={item.altText} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" loading="lazy" decoding="async" />
       )}
       <div
         className={`absolute inset-0 bg-foreground/0 transition-colors duration-300 flex items-end ${
@@ -42,7 +33,7 @@ export function PortfolioCard({ item, variant = "preview" }: PortfolioCardProps)
             {item.title}
           </p>
           <p className={`text-[11px] mt-0.5 capitalize font-sans ${isPreview ? "text-primary-foreground/60" : "text-primary-foreground/65"}`}>
-            {item.category}
+            {item.category.name}
           </p>
         </div>
       </div>

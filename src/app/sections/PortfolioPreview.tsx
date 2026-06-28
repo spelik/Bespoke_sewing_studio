@@ -1,10 +1,12 @@
 import { ArrowRight } from "lucide-react";
-import { PORTFOLIO_ITEMS } from "../appContent";
 import { PortfolioCard } from "../components/PortfolioCard";
 import { SectionLabel } from "../components/SectionLabel";
 import type { NavigableSectionProps } from "./sectionTypes";
+import { usePortfolio } from "../portfolio/PortfolioContext";
 
 export function PortfolioPreview({ navigate }: NavigableSectionProps) {
+  const { items } = usePortfolio();
+  const featured = items.filter((item) => item.isFeatured);
   return (
       <section className="py-24 bg-background">
         <div className="max-w-7xl mx-auto px-6 lg:px-10">
@@ -21,7 +23,7 @@ export function PortfolioPreview({ navigate }: NavigableSectionProps) {
             </button>
           </div>
           <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 lg:gap-4">
-            {PORTFOLIO_ITEMS.slice(0, 3).map((item) => (
+            {(featured.length > 0 ? featured : items).slice(0, 3).map((item) => (
               <PortfolioCard key={item.id} item={item} />
             ))}
           </div>

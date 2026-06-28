@@ -1,4 +1,3 @@
-import { getPortfolioCategories, getPortfolioItems } from "../api/portfolioApi";
 import {
   getContactInfo,
   getContactPageItems,
@@ -29,8 +28,6 @@ export const SITE_ASSETS = getSiteAssets();
 export const CONTACT_DETAILS = getContactInfo();
 export const NAV_LINKS = getNavigationItems();
 export const TESTIMONIALS = getTestimonials();
-export const PORTFOLIO_ITEMS = getPortfolioItems();
-export const PORTFOLIO_CATEGORIES = getPortfolioCategories();
 export const HOW_IT_WORKS = getProcessSteps();
 export const WHY_US = getStudioValues().map((value) => ({
   ...value,

@@ -9,6 +9,18 @@ public interface IUploadService
         IReadOnlyCollection<UploadFileRequest> files,
         CancellationToken cancellationToken = default);
 
+    Task<UploadedFileResponse> UploadPortfolioImageAsync(
+        UploadFileRequest file,
+        CancellationToken cancellationToken = default);
+
+    Task<UploadDownloadResponse?> OpenPublicPortfolioImageAsync(
+        Guid uploadedFileId,
+        CancellationToken cancellationToken = default);
+
+    Task<UploadDownloadResponse?> OpenPortfolioImageForAdminAsync(
+        Guid uploadedFileId,
+        CancellationToken cancellationToken = default);
+
     Task<UploadDownloadResponse?> OpenOrderAttachmentAsync(
         Guid uploadedFileId,
         CancellationToken cancellationToken = default);

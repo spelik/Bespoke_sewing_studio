@@ -13,6 +13,7 @@ import { Footer } from "./layout/Footer";
 import { Header } from "./layout/Header";
 import { SiteSettingsProvider } from "./siteSettings/SiteSettingsContext";
 import { ServicesProvider } from "./services/ServicesContext";
+import { PortfolioProvider } from "./portfolio/PortfolioContext";
 import type { Language } from "./types";
 
 const HomePage = lazy(() =>
@@ -94,7 +95,9 @@ export default function App() {
       <AuthProvider>
         <SiteSettingsProvider>
           <ServicesProvider>
-            <SiteShell />
+            <PortfolioProvider>
+              <SiteShell />
+            </PortfolioProvider>
           </ServicesProvider>
         </SiteSettingsProvider>
       </AuthProvider>

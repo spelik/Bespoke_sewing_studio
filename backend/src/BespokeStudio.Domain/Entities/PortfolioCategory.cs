@@ -10,4 +10,6 @@ public sealed class PortfolioCategory
     public bool IsActive { get; set; } = true;
     public DateTimeOffset CreatedAt { get; init; } = DateTimeOffset.UtcNow;
     public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
+    public DateTimeOffset? ArchivedAt { get; set; }
+    public ICollection<PortfolioItem> Items { get; } = new List<PortfolioItem>();
 }

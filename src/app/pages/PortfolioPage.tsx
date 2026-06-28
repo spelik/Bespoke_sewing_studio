@@ -1,15 +1,16 @@
 import { useState } from "react";
-import { PORTFOLIO_CATEGORIES, PORTFOLIO_ITEMS } from "../appContent";
 import { PortfolioCard } from "../components/PortfolioCard";
 import { SectionLabel } from "../components/SectionLabel";
 import { usePageNavigation } from "../routing/usePageNavigation";
 import type { PortfolioFilter } from "../types";
+import { usePortfolio } from "../portfolio/PortfolioContext";
 
 export function PortfolioPage() {
   const navigate = usePageNavigation();
+  const { items, categories: portfolioCategories } = usePortfolio();
   const [filter, setFilter] = useState<PortfolioFilter>("all");
-  const categories: ReadonlyArray<PortfolioFilter> = ["all", ...PORTFOLIO_CATEGORIES];
-  const filtered = filter === "all" ? PORTFOLIO_ITEMS : PORTFOLIO_ITEMS.filter((i) => i.category === filter);
+  const categories: ReadonlyArray<PortfolioFilter> = ["all", ...portfolioCategories.map((category) => category.slug)];
+  const filtered = filter === "all" ? items : items.filter((item) => item.category.slug === filter);
 
   return (
     <div className="pt-[72px]">
@@ -37,7 +38,7 @@ export function PortfolioPage() {
                     : "border border-border text-muted-foreground hover:border-foreground hover:text-foreground"
                 }`}
               >
-                {cat}
+                {cat === "all" ? "All" : portfolioCategories.find((category) => category.slug === cat)?.name ?? cat}
               </button>
             ))}
           </div>

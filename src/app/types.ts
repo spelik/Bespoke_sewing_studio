@@ -28,8 +28,7 @@ export type ValueIconKey = "award" | "heart" | "shield" | "check";
 export type ContactIconKey = "location" | "phone" | "email" | "hours";
 export type AdminStatIconKey = "orders" | "active" | "clients" | "revenue";
 
-export type PortfolioCategory = OrderServiceType;
-export type PortfolioFilter = "all" | PortfolioCategory;
+export type PortfolioFilter = "all" | string;
 
 export interface NavigationItem {
   label: string;
@@ -159,12 +158,82 @@ export interface DeleteServiceOfferingResult {
   message: string;
 }
 
+export interface PublicPortfolioCategory {
+  id: string;
+  slug: string;
+  name: string;
+  description: string | null;
+  displayOrder: number;
+}
+
 export interface PortfolioItem {
-  id: number;
+  id: string;
+  slug: string | null;
   title: string;
-  category: PortfolioCategory;
-  image: ResponsiveImageAsset;
-  size: "normal" | "tall";
+  shortDescription: string | null;
+  description: string | null;
+  category: PublicPortfolioCategory;
+  imageUrl: string;
+  imageAsset?: ResponsiveImageAsset;
+  altText: string;
+  isFeatured: boolean;
+  displayOrder: number;
+}
+
+export interface AdminPortfolioCategory extends PublicPortfolioCategory {
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+  archivedAt: string | null;
+  itemCount: number;
+}
+
+export interface AdminPortfolioItem extends Omit<PortfolioItem, "category" | "imageAsset" | "imageUrl"> {
+  categoryId: string;
+  categoryName: string;
+  imageFileId: string | null;
+  imageUrl: string | null;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+  archivedAt: string | null;
+}
+
+export interface SavePortfolioCategoryRequest {
+  slug: string | null;
+  name: string;
+  description: string | null;
+  isActive: boolean;
+  displayOrder: number;
+}
+
+export interface SavePortfolioItemRequest {
+  categoryId: string;
+  slug: string | null;
+  title: string;
+  shortDescription: string | null;
+  description: string | null;
+  imageFileId: string | null;
+  altText: string | null;
+  isActive: boolean;
+  isFeatured: boolean;
+  displayOrder: number;
+}
+
+export interface DeletePortfolioResult {
+  id: string;
+  deleted: boolean;
+  archived: boolean;
+  message: string;
+}
+
+export interface UploadedPortfolioImage {
+  id: string;
+  originalFileName: string;
+  contentType: string;
+  sizeBytes: number;
+  purpose: "PortfolioImage";
+  createdAt: string;
 }
 
 export interface Testimonial {

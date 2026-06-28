@@ -18,7 +18,10 @@ public sealed class PortfolioCategoryConfiguration : IEntityTypeConfiguration<Po
         builder.Property(category => category.CreatedAt).IsRequired();
         builder.Property(category => category.UpdatedAt).IsRequired();
 
-        builder.HasIndex(category => category.Slug).IsUnique();
+        builder.HasIndex(category => category.Slug)
+            .IsUnique()
+            .HasFilter("\"ArchivedAt\" IS NULL");
         builder.HasIndex(category => new { category.IsActive, category.DisplayOrder });
+        builder.HasIndex(category => category.ArchivedAt);
     }
 }

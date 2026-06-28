@@ -1,13 +1,51 @@
-import type { PortfolioCategory } from "../app/types";
-import { PORTFOLIO_CATEGORIES, PORTFOLIO_ITEMS } from "../data/portfolioData";
+import type {
+  AdminPortfolioCategory,
+  AdminPortfolioItem,
+  DeletePortfolioResult,
+  PortfolioItem,
+  PublicPortfolioCategory,
+  SavePortfolioCategoryRequest,
+  SavePortfolioItemRequest,
+  UploadedPortfolioImage,
+} from "../app/types";
 import { apiClient } from "./apiClient";
 
-export const getPortfolioItems = (category?: PortfolioCategory) => {
-  const items = category
-    ? PORTFOLIO_ITEMS.filter((item) => item.category === category)
-    : PORTFOLIO_ITEMS;
+const resolveImageUrl = (url: string | null): string | null =>
+  url ? new URL(url, `${apiClient.baseUrl.replace(/\/api\/?$/, "")}/`).toString() : null;
 
-  return apiClient.resolve(items);
-};
+export async function getPublicPortfolioItems(): Promise<PortfolioItem[]> {
+  const items = await apiClient.get<PortfolioItem[]>("portfolio");
+  return items.map((item) => ({ ...item, imageUrl: resolveImageUrl(item.imageUrl) ?? "" }));
+}
+export const getPublicPortfolioCategories = () => apiClient.get<PublicPortfolioCategory[]>("portfolio/categories");
+export async function getAdminPortfolioItems(): Promise<AdminPortfolioItem[]> {
+  const items = await apiClient.get<AdminPortfolioItem[]>("admin/portfolio/items");
+  return items.map((item) => ({ ...item, imageUrl: resolveImageUrl(item.imageUrl) }));
+}
+export const getAdminPortfolioCategories = () => apiClient.get<AdminPortfolioCategory[]>("admin/portfolio/categories");
+export async function createPortfolioItem(request: SavePortfolioItemRequest): Promise<AdminPortfolioItem> {
+  return normalizeAdminItem(await apiClient.post<SavePortfolioItemRequest, AdminPortfolioItem>("admin/portfolio/items", request));
+}
+export async function updatePortfolioItem(id: string, request: SavePortfolioItemRequest): Promise<AdminPortfolioItem> {
+  return normalizeAdminItem(await apiClient.patch<SavePortfolioItemRequest, AdminPortfolioItem>(`admin/portfolio/items/${id}`, request));
+}
+export const deletePortfolioItem = (id: string) =>
+  apiClient.delete<DeletePortfolioResult>(`admin/portfolio/items/${id}`);
+export const createPortfolioCategory = (request: SavePortfolioCategoryRequest) =>
+  apiClient.post<SavePortfolioCategoryRequest, AdminPortfolioCategory>("admin/portfolio/categories", request);
+export const updatePortfolioCategory = (id: string, request: SavePortfolioCategoryRequest) =>
+  apiClient.patch<SavePortfolioCategoryRequest, AdminPortfolioCategory>(`admin/portfolio/categories/${id}`, request);
+export const deletePortfolioCategory = (id: string) =>
+  apiClient.delete<DeletePortfolioResult>(`admin/portfolio/categories/${id}`);
+export function uploadPortfolioImage(file: File): Promise<UploadedPortfolioImage> {
+  const form = new FormData();
+  form.append("file", file);
+  return apiClient.postForm<UploadedPortfolioImage>("admin/portfolio/uploads", form);
+}
+export const getAdminPortfolioImage = (id: string): Promise<Blob> =>
+  apiClient.getBlob(`admin/portfolio/images/${id}`);
 
-export const getPortfolioCategories = () => apiClient.resolve(PORTFOLIO_CATEGORIES);
+const normalizeAdminItem = (item: AdminPortfolioItem): AdminPortfolioItem => ({
+  ...item,
+  imageUrl: resolveImageUrl(item.imageUrl),
+});

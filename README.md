@@ -40,6 +40,9 @@ Current backend status:
 - the Admin **Settings** section edits public contact and notification settings
 - public services/prices load from `GET /api/services`
 - the Admin **Services** section creates, edits, hides, features, deletes or archives services and price options
+- public portfolio/gallery data loads from `GET /api/portfolio`
+- the Admin **Portfolio** section manages categories, work items, publication state, order and featured items
+- portfolio images are uploaded to local development storage and served publicly only while linked to an active portfolio item
 - the public Order form submits a dynamic `serviceOfferingId` while preserving legacy enum compatibility
 - admin login and Orders list/detail/status/notes use protected backend endpoints
 - site content and the remaining admin dashboard sections use mock/prototype data
@@ -131,6 +134,20 @@ default development provider writes email content to the backend log; SMTP can
 be configured through user-secrets or environment variables. WhatsApp and SMS
 notifications are not implemented or planned for the current product scope.
 Public pages keep their typed fallback content if the API cannot be reached.
+
+## Portfolio and gallery
+
+Sign in at `http://127.0.0.1:5173/admin`, then select **Portfolio**. The Items
+tab creates and edits gallery entries, uploads JPG/PNG/WebP images, controls the
+category, alt text, display order, Featured state and public visibility. The
+Categories tab manages category names, descriptions, ordering and visibility.
+
+The Portfolio page and Home preview load active entries from PostgreSQL through
+the backend. Existing optimized frontend images remain a typed fallback when
+the API is unavailable. In development, newly uploaded portfolio images are
+stored under `backend/storage/uploads/portfolio-images`; `backend/storage/` is
+ignored by Git. Production object storage and generated thumbnails are future
+work.
 
 Commands:
 
