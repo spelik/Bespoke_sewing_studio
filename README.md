@@ -163,6 +163,49 @@ content to the backend log; SMTP can be configured through user-secrets or
 environment variables.
 
 
+
+## Production email / SMTP checklist
+
+Owner notifications for Orders and Contact Messages are already implemented, but
+local development uses `Provider=Logging` by default. Real email delivery is a
+mandatory production setup item and must be configured outside source control.
+
+Before production release:
+
+- switch `Notifications:Email:Provider` from `Logging` to `Smtp`
+- keep SMTP credentials out of Git, committed `appsettings*.json`, docs and
+  `SiteSettings`
+- use `dotnet user-secrets` only for local development and environment
+  variables or a secret store for production
+- configure `Host`, `Port`, `Username`, `Password`, `FromEmail`, `FromName` and
+  `UseSsl`
+- if Gmail is used, enable Google 2-Step Verification and use a Google App
+  Password rather than the normal Gmail password
+- verify **Admin > Settings > Email notifications enabled** and the owner/public
+  email address
+- test real delivery through **Admin > Settings > Send test email**
+- test real delivery from the public Contact form and Order form
+- keep owner notifications separate from future customer confirmation emails
+- before production, configure deliverability records and operations:
+  SPF, DKIM, DMARC, bounce/rejection monitoring, background retry/queueing and
+  credential rotation
+
+Example local Gmail SMTP setup uses user-secrets only:
+
+```powershell
+dotnet user-secrets set "Notifications:Email:Provider" "Smtp" --project backend/src/BespokeStudio.Api
+dotnet user-secrets set "Notifications:Email:Smtp:Host" "smtp.gmail.com" --project backend/src/BespokeStudio.Api
+dotnet user-secrets set "Notifications:Email:Smtp:Port" "587" --project backend/src/BespokeStudio.Api
+dotnet user-secrets set "Notifications:Email:Smtp:Username" "your-gmail-address@gmail.com" --project backend/src/BespokeStudio.Api
+dotnet user-secrets set "Notifications:Email:Smtp:Password" "replace-with-google-app-password" --project backend/src/BespokeStudio.Api
+dotnet user-secrets set "Notifications:Email:Smtp:FromEmail" "your-gmail-address@gmail.com" --project backend/src/BespokeStudio.Api
+dotnet user-secrets set "Notifications:Email:Smtp:FromName" "Bespoke Sewing Studio" --project backend/src/BespokeStudio.Api
+dotnet user-secrets set "Notifications:Email:Smtp:UseSsl" "true" --project backend/src/BespokeStudio.Api
+```
+
+Production equivalents must use environment variables such as
+`Notifications__Email__Smtp__Password` or a managed secret store.
+
 ## Language
 
 The site and admin panel are English-only. There is no public language switcher, no `defaultLanguage` setting and no planned multilingual CMS. New CMS records, seed data and typed fallback data should be authored in English.

@@ -456,7 +456,29 @@ provider/result metadata—never SMTP credentials.
 
 SMTP credentials must come from environment variables, `dotnet user-secrets`,
 or an external secret store; they must not be stored in `SiteSettings`, source
-control, or committed appsettings files. Configure local SMTP with:
+control, committed appsettings files, screenshots or project documentation.
+`Provider=Logging` is only the local development fallback; real owner email
+delivery requires `Provider=Smtp`.
+
+Mandatory production email checklist:
+
+- configure `Notifications:Email:Provider=Smtp`
+- configure SMTP `Host`, `Port`, `Username`, `Password`, `FromEmail`, `FromName`
+  and `UseSsl`
+- use `dotnet user-secrets` only for local development
+- use environment variables or a managed secret store in production
+- never commit SMTP usernames/passwords or Google App Passwords
+- if Gmail is used, enable Google 2-Step Verification and create a Google App
+  Password; do not use the normal Gmail account password for SMTP
+- verify **Admin > Settings > Email notifications enabled** and the owner/public
+  email address
+- verify real delivery with `POST /api/admin/notifications/test-email`, then by
+  submitting the public Contact form and Order form
+- configure SPF, DKIM and DMARC before production use
+- add operational monitoring for SMTP failures, bounce/rejection handling,
+  credential rotation and a later background queue/retry policy
+
+Generic local SMTP setup:
 
 ```powershell
 dotnet user-secrets set "Notifications:Email:Provider" "Smtp" --project backend/src/BespokeStudio.Api
@@ -469,9 +491,24 @@ dotnet user-secrets set "Notifications:Email:Smtp:FromName" "Bespoke Sewing Stud
 dotnet user-secrets set "Notifications:Email:Smtp:UseSsl" "true" --project backend/src/BespokeStudio.Api
 ```
 
+Gmail local SMTP example:
+
+```powershell
+dotnet user-secrets set "Notifications:Email:Provider" "Smtp" --project backend/src/BespokeStudio.Api
+dotnet user-secrets set "Notifications:Email:Smtp:Host" "smtp.gmail.com" --project backend/src/BespokeStudio.Api
+dotnet user-secrets set "Notifications:Email:Smtp:Port" "587" --project backend/src/BespokeStudio.Api
+dotnet user-secrets set "Notifications:Email:Smtp:Username" "your-gmail-address@gmail.com" --project backend/src/BespokeStudio.Api
+dotnet user-secrets set "Notifications:Email:Smtp:Password" "replace-with-google-app-password" --project backend/src/BespokeStudio.Api
+dotnet user-secrets set "Notifications:Email:Smtp:FromEmail" "your-gmail-address@gmail.com" --project backend/src/BespokeStudio.Api
+dotnet user-secrets set "Notifications:Email:Smtp:FromName" "Bespoke Sewing Studio" --project backend/src/BespokeStudio.Api
+dotnet user-secrets set "Notifications:Email:Smtp:UseSsl" "true" --project backend/src/BespokeStudio.Api
+```
+
 Equivalent environment variables use double underscores, for example
-`Notifications__Email__Smtp__Password`. WhatsApp and SMS notification channels
-are intentionally not implemented.
+`Notifications__Email__Smtp__Password`. Customer confirmation emails are a
+separate future feature and must use their own product setting instead of being
+mixed with owner notifications. WhatsApp and SMS notification channels are
+intentionally not implemented.
 
 ## Administrator authentication
 

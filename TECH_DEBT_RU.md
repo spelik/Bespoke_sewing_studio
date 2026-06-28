@@ -2,6 +2,8 @@
 
 ## Закрыто
 
+- Production Email/SMTP checklist зафиксирован как обязательный pre-production блок: реальная SMTP-отправка, секреты вне Git, Gmail App Password, проверки test email/contact/order delivery, SPF/DKIM/DMARC, мониторинг, retry/background queue и ротация credentials.
+
 - Contact Messages API реализован: public `POST /api/contact-messages` сохраняет сообщения Contact form в PostgreSQL, admin JWT endpoints позволяют просматривать сообщения и менять статусы `New` / `Read` / `Replied` / `Archived`.
 
 - Public Contact page подключена к backend: добавлены loading/success/error states, backend validation handling, optional phone/subject и обязательное consent-подтверждение.
@@ -98,8 +100,24 @@
 - Полноценный rich-text editor/page builder не реализован: Content CMS и Repeatable Content CMS используют безопасные plain-text поля. Version history/drafts остаются будущими задачами. Multilingual CMS не планируется: проект принят как English-only.
 - Production secret management для admin seed и JWT signing key ещё требует внешнего secret store и operational rotation process.
 
+
+## Обязательный pre-production блок: Email / SMTP
+
+- Переключить owner notifications с development `Provider=Logging` на реальный `Provider=Smtp`.
+- Настроить SMTP `Host`, `Port`, `Username`, `Password`, `FromEmail`, `FromName`, `UseSsl`.
+- Для Gmail использовать Google App Password после включения 2-Step Verification; обычный пароль Gmail для SMTP не использовать.
+- Локально хранить SMTP credentials только в `dotnet user-secrets`; в production — только environment variables или внешний secret store.
+- Не хранить SMTP credentials, Gmail App Passwords и production отправителей в Git, `appsettings*.json`, screenshots или документации.
+- Проверить в Admin Settings включение email notifications и owner/public email.
+- Проверить реальную доставку через **Send test email**, затем через public Contact form и public Order form.
+- Разделять owner notifications и будущие customer confirmation emails; подтверждения клиенту делать отдельной задачей и отдельным toggle.
+- До production настроить SPF, DKIM, DMARC, мониторинг SMTP errors/bounce/rejection, operational credential rotation.
+- Позже заменить inline отправку на background queue + retry policy, чтобы временная SMTP-недоступность не влияла на user flow.
+
 ## Рекомендации на следующие задачи
 
+- Выполнить отдельную задачу Customer confirmation emails: подтверждения пользователю должны иметь отдельный toggle и не смешиваться с owner notifications.
+- Выполнить Task 29 — Production SMTP setup: настроить реальный SMTP provider, проверить доставку owner notifications и задокументировать operational secrets/deliverability process.
 - Подготовить фактическую production-конфигурацию хостинга с SPA fallback.
 - Добить image pipeline для самых тяжёлых portfolio assets: AVIF или отдельные thumbnails под card layout.
 - Спроектировать нормализованные уникальные ключи client matching и обработку конкурентного создания клиентов.
@@ -160,3 +178,13 @@
 - Contact messages подключены к существующей email notification foundation. При включённых email notifications и заданном Site Settings email logging/SMTP provider получает owner notification; ошибка отправки логируется и не отменяет созданное сообщение.
 - Runtime-проверки: прямой `POST /api/contact-messages` возвращает `201`, admin list возвращает сохранённые сообщения по Admin JWT, frontend Contact form создаёт сообщения, admin UI отображает их и меняет статус, logging email notification пишет письмо в backend log после clean rebuild/run.
 - Проверки: `npm.cmd run typecheck`, `npm.cmd run build`, `dotnet build backend\BespokeStudio.sln`.
+
+## Task 29.0 — Production SMTP checklist docs
+
+- Production Email/SMTP checklist добавлен в обязательные pre-production требования.
+- Зафиксировано, что `Provider=Logging` — только development fallback; реальная отправка owner notifications требует `Provider=Smtp`.
+- Для Gmail зафиксировано требование использовать Google App Password и включённую 2-Step Verification, а не обычный пароль аккаунта.
+- Зафиксировано правило хранения SMTP credentials: локально `dotnet user-secrets`, production environment variables/secret store, ничего не коммитить в Git/appsettings/docs.
+- Добавлены обязательные проверки: Admin Settings email toggle/owner email, Send test email, Contact form delivery, Order form delivery.
+- Customer confirmation emails вынесены в отдельную будущую задачу с отдельным toggle; owner notifications и клиентские подтверждения не смешивать.
+- До production остаются SPF/DKIM/DMARC, SMTP error/bounce monitoring, credential rotation и background queue/retry policy.
