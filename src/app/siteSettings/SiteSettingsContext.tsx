@@ -8,11 +8,13 @@ import {
   useState,
 } from "react";
 import { getPublicSiteSettings } from "../../api/siteSettingsApi";
-import { PUBLIC_SITE_SETTINGS_FALLBACK } from "../../data/siteData";
-import type { PublicSiteSettings } from "../types";
+import { getPublicBrandSettings } from "../../api/brandSettingsApi";
+import { PUBLIC_BRAND_SETTINGS_FALLBACK, PUBLIC_SITE_SETTINGS_FALLBACK } from "../../data/siteData";
+import type { PublicBrandSettings, PublicSiteSettings } from "../types";
 
 interface SiteSettingsContextValue {
   settings: PublicSiteSettings;
+  brand: PublicBrandSettings;
   refresh(): Promise<void>;
 }
 
@@ -22,10 +24,11 @@ export function SiteSettingsProvider({ children }: { children: ReactNode }) {
   const [settings, setSettings] = useState<PublicSiteSettings>(
     PUBLIC_SITE_SETTINGS_FALLBACK,
   );
+  const [brand,setBrand]=useState<PublicBrandSettings>(PUBLIC_BRAND_SETTINGS_FALLBACK);
 
   const refresh = useCallback(async () => {
-    const response = await getPublicSiteSettings();
-    setSettings(response);
+    const [siteResponse,brandResponse] = await Promise.all([getPublicSiteSettings(),getPublicBrandSettings()]);
+    setSettings(siteResponse); setBrand(brandResponse);
   }, []);
 
   useEffect(() => {
@@ -46,7 +49,17 @@ export function SiteSettingsProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  const value = useMemo(() => ({ settings, refresh }), [refresh, settings]);
+  useEffect(()=>{let active=true;getPublicBrandSettings().then(value=>{if(active)setBrand(value);}).catch(()=>{});return()=>{active=false;};},[]);
+  useEffect(()=>{
+    document.title=brand.defaultMetaTitle;
+    const meta=document.querySelector<HTMLMetaElement>('meta[name="description"]')??Object.assign(document.createElement("meta"),{name:"description"});
+    meta.content=brand.defaultMetaDescription;if(!meta.parentNode)document.head.append(meta);
+    const setMeta=(property:string,content:string|null)=>{const existing=document.querySelector<HTMLMetaElement>(`meta[property="${property}"]`);if(!content){existing?.remove();return;}const node=existing??Object.assign(document.createElement("meta"),{property});node.content=content;if(!node.parentNode)document.head.append(node);};
+    setMeta("og:title",brand.defaultOgTitle??brand.defaultMetaTitle);setMeta("og:description",brand.defaultOgDescription??brand.defaultMetaDescription);setMeta("og:image",brand.defaultOgImageUrl);
+    if(brand.faviconUrl){const icon=document.querySelector<HTMLLinkElement>('link[rel~="icon"]')??Object.assign(document.createElement("link"),{rel:"icon"});icon.href=brand.faviconUrl;if(!icon.parentNode)document.head.append(icon);}
+  },[brand]);
+
+  const value = useMemo(() => ({ settings, brand, refresh }), [brand, refresh, settings]);
 
   return (
     <SiteSettingsContext.Provider value={value}>

@@ -16,4 +16,8 @@ public interface ISiteSettingsService
     Task<AdminSiteSettingsResponse> UpdateSettingsAsync(
         UpdateSiteSettingsRequest request,
         CancellationToken cancellationToken = default);
+
+    Task<PublicBrandSettingsResponse> GetPublicBrandSettingsAsync(CancellationToken cancellationToken = default);
+    Task<AdminBrandSettingsResponse> GetAdminBrandSettingsAsync(CancellationToken cancellationToken = default);
+    Task<AdminBrandSettingsResponse> UpdateBrandSettingsAsync(UpdateBrandSettingsRequest request, CancellationToken cancellationToken = default);
 }

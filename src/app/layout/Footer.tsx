@@ -1,12 +1,14 @@
 import { Mail, MapPin, Phone } from "lucide-react";
 import { Link } from "react-router-dom";
-import { NAV_LINKS, SITE_ASSETS } from "../appContent";
+import { SITE_ASSETS } from "../appContent";
 import { StitchDivider } from "../components/StitchDivider";
 import { PAGE_PATHS } from "../routing/routes";
 import { useSiteSettings } from "../siteSettings/SiteSettingsContext";
+import { getBrandNavigation } from "../siteSettings/brandNavigation";
 
 export function Footer() {
-  const { settings } = useSiteSettings();
+  const { settings, brand } = useSiteSettings();
+  const navigation=getBrandNavigation(brand.navigation);
   const socialLinks = [
     { label: "Instagram", shortLabel: "ig", url: settings.instagramUrl },
     { label: "Facebook", shortLabel: "fb", url: settings.facebookUrl },
@@ -22,8 +24,8 @@ export function Footer() {
           <div className="lg:col-span-1">
             <div className="mb-5">
               <img
-                src={SITE_ASSETS.headerLogo}
-                alt={`${settings.studioName} logo`}
+                src={brand.logoUrl ?? SITE_ASSETS.headerLogo}
+                alt={brand.logoAltText}
                 className="h-8 w-auto object-contain brightness-0 invert opacity-90"
               />
             </div>
@@ -65,7 +67,7 @@ export function Footer() {
           <div>
             <h3 className="text-[10px] tracking-[0.25em] uppercase text-primary-foreground/35 mb-5">Navigate</h3>
             <ul className="space-y-2.5">
-              {NAV_LINKS.map((link) => (
+              {navigation.map((link) => (
                 <li key={link.page}>
                   <Link
                     to={PAGE_PATHS[link.page]}
@@ -119,7 +121,7 @@ export function Footer() {
 
         <div className="mt-6 flex flex-col md:flex-row items-center justify-between gap-4 text-[11px] text-primary-foreground/30">
           <span>
-            &copy; 2024 {settings.footerText ?? settings.studioName}
+            &copy; 2024 {settings.footerText ?? brand.brandDisplayName}
           </span>
           <div className="flex items-center gap-6">
             <Link to="/privacy" className="hover:text-primary-foreground/60 transition-colors">

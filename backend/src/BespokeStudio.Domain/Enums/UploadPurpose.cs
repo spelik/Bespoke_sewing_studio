@@ -4,5 +4,6 @@ public enum UploadPurpose
 {
     OrderAttachment,
     PortfolioImage,
-    SiteAsset
+    SiteAsset,
+    BrandAsset
 }

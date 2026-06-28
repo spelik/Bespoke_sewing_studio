@@ -31,6 +31,22 @@ public sealed class SiteSettingsConfiguration : IEntityTypeConfiguration<SiteSet
         builder.Property(settings => settings.FooterText).HasMaxLength(500);
         builder.Property(settings => settings.ServiceAreaText).HasMaxLength(500);
         builder.Property(settings => settings.BusinessLegalName).HasMaxLength(200);
+        builder.Property(x => x.LogoAltText).HasMaxLength(200).IsRequired();
+        builder.Property(x => x.BrandDisplayName).HasMaxLength(150).IsRequired();
+        builder.Property(x => x.HeaderCtaLabel).HasMaxLength(100).IsRequired();
+        builder.Property(x => x.HeaderCtaUrl).HasMaxLength(2048).IsRequired();
+        builder.Property(x => x.DefaultMetaTitle).HasMaxLength(200).IsRequired();
+        builder.Property(x => x.DefaultMetaDescription).HasMaxLength(500).IsRequired();
+        builder.Property(x => x.DefaultOgTitle).HasMaxLength(200);
+        builder.Property(x => x.DefaultOgDescription).HasMaxLength(500);
+        builder.Property(x => x.ServicesLabel).HasMaxLength(50).IsRequired();
+        builder.Property(x => x.PortfolioLabel).HasMaxLength(50).IsRequired();
+        builder.Property(x => x.OrderLabel).HasMaxLength(50).IsRequired();
+        builder.Property(x => x.AboutLabel).HasMaxLength(50).IsRequired();
+        builder.Property(x => x.ContactLabel).HasMaxLength(50).IsRequired();
+        builder.HasOne<UploadedFileMetadata>().WithMany().HasForeignKey(x => x.LogoFileId).OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne<UploadedFileMetadata>().WithMany().HasForeignKey(x => x.FaviconFileId).OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne<UploadedFileMetadata>().WithMany().HasForeignKey(x => x.DefaultOgImageFileId).OnDelete(DeleteBehavior.Restrict);
         builder.Property(settings => settings.UpdatedAt).IsRequired();
 
         builder.HasData(new SiteSettings
@@ -44,6 +60,22 @@ public sealed class SiteSettingsConfiguration : IEntityTypeConfiguration<SiteSet
             ServiceAreaText = "Appointments arranged individually.",
             EmailNotificationsEnabled = false,
             FooterText = "Bespoke Sewing Studio. All rights reserved.",
+            LogoAltText = "Bespoke Sewing Studio logo",
+            BrandDisplayName = "Bespoke Sewing Studio",
+            HeaderCtaLabel = "Book Now",
+            HeaderCtaUrl = "/order",
+            DefaultMetaTitle = "Bespoke Sewing Studio",
+            DefaultMetaDescription = "Bespoke sewing, tailoring, dressmaking, alterations and memory bears.",
+            ServicesLabel = "Services",
+            PortfolioLabel = "Portfolio",
+            OrderLabel = "Order",
+            AboutLabel = "About",
+            ContactLabel = "Contact",
+            ShowServicesLink = true,
+            ShowPortfolioLink = true,
+            ShowOrderLink = true,
+            ShowAboutLink = true,
+            ShowContactLink = true,
             UpdatedAt = InitialUpdatedAt
         });
     }

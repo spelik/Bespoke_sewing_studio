@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
 import { Menu, X } from "lucide-react";
 import { Link, NavLink, useLocation } from "react-router-dom";
-import { NAV_LINKS, SITE_ASSETS } from "../appContent";
+import { SITE_ASSETS } from "../appContent";
 import { PAGE_PATHS } from "../routing/routes";
 import type { Language } from "../types";
 import { MobileMenu } from "./MobileMenu";
+import { useSiteSettings } from "../siteSettings/SiteSettingsContext";
+import { getBrandNavigation } from "../siteSettings/brandNavigation";
 
 interface HeaderProps {
   lang: Language;
@@ -15,6 +17,8 @@ export function Header({ lang, setLang }: HeaderProps) {
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const { pathname } = useLocation();
+  const { brand } = useSiteSettings();
+  const navigation = getBrandNavigation(brand.navigation);
 
   useEffect(() => {
     const handler = () => setScrolled(window.scrollY > 50);
@@ -43,14 +47,14 @@ export function Header({ lang, setLang }: HeaderProps) {
         <div className="flex items-center justify-between h-[72px]">
           <Link to="/" onClick={closeMenu} className="flex flex-col items-start group">
             <img
-              src={SITE_ASSETS.headerLogo}
-              alt="Logosha Studio Logo"
+              src={brand.logoUrl ?? SITE_ASSETS.headerLogo}
+              alt={brand.logoAltText}
               className="w-[130px] md:w-[160px] h-auto object-contain transition-opacity group-hover:opacity-80"
             />
           </Link>
 
           <nav className="hidden lg:flex items-center gap-7">
-            {NAV_LINKS.map((link) => (
+            {navigation.map((link) => (
               <NavLink
                 key={link.page}
                 to={PAGE_PATHS[link.page]}
@@ -97,12 +101,8 @@ export function Header({ lang, setLang }: HeaderProps) {
               </button>
             </div>
 
-            <Link
-              to="/order"
-              className="hidden lg:flex items-center gap-2 bg-foreground text-primary-foreground px-5 py-2.5 text-[13px] tracking-wide hover:bg-accent transition-colors"
-            >
-              Book Now
-            </Link>
+            {brand.headerCtaUrl.startsWith("/") ? <Link to={brand.headerCtaUrl} className="hidden lg:flex items-center gap-2 bg-foreground text-primary-foreground px-5 py-2.5 text-[13px] tracking-wide hover:bg-accent transition-colors">{brand.headerCtaLabel}</Link> :
+              <a href={brand.headerCtaUrl} className="hidden lg:flex items-center gap-2 bg-foreground text-primary-foreground px-5 py-2.5 text-[13px] tracking-wide hover:bg-accent transition-colors">{brand.headerCtaLabel}</a>}
 
             <button
               className="lg:hidden p-1.5 text-foreground"

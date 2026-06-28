@@ -81,6 +81,32 @@ export type UpdateSiteSettingsRequest = Omit<
   "id" | "updatedAt"
 >;
 
+export interface BrandNavigationSettings {
+  showServicesLink: boolean; servicesLabel: string;
+  showPortfolioLink: boolean; portfolioLabel: string;
+  showOrderLink: boolean; orderLabel: string;
+  showAboutLink: boolean; aboutLabel: string;
+  showContactLink: boolean; contactLabel: string;
+}
+export interface PublicBrandSettings {
+  brandDisplayName: string; logoUrl: string | null; logoAltText: string; faviconUrl: string | null;
+  headerCtaLabel: string; headerCtaUrl: string; defaultMetaTitle: string; defaultMetaDescription: string;
+  defaultOgTitle: string | null; defaultOgDescription: string | null; defaultOgImageUrl: string | null;
+  navigation: BrandNavigationSettings;
+}
+export interface AdminBrandSettings extends PublicBrandSettings {
+  logoFileId: string | null; faviconFileId: string | null; defaultOgImageFileId: string | null; updatedAt: string;
+}
+export interface UpdateBrandSettingsRequest {
+  brandDisplayName: string; logoFileId: string | null; logoAltText: string; faviconFileId: string | null;
+  headerCtaLabel: string; headerCtaUrl: string; defaultMetaTitle: string; defaultMetaDescription: string;
+  defaultOgTitle: string | null; defaultOgDescription: string | null; defaultOgImageFileId: string | null;
+  showServicesLink: boolean; servicesLabel: string; showPortfolioLink: boolean; portfolioLabel: string;
+  showOrderLink: boolean; orderLabel: string; showAboutLink: boolean; aboutLabel: string;
+  showContactLink: boolean; contactLabel: string;
+}
+export interface UploadedBrandImage { id: string; originalFileName: string; contentType: string; sizeBytes: number; purpose: "BrandAsset"; createdAt: string; }
+
 export interface ResponsiveImageAsset {
   src: string;
   srcSet?: string;

@@ -93,3 +93,11 @@
 - Заменять оставшиеся admin prototype sections реальными API постепенно, не смешивая их с уже подключённым Orders flow.
 - Спроектировать нормализованные уникальные ключи client matching и обработку конкурентного создания клиентов.
 - Подключать остальные frontend-модули к HTTP API постепенно; site content и admin сохранять в `mock/prototype mode` до появления соответствующих защищённых endpoints.
+
+## Task 23 — Brand / Logo / SEO
+
+- Brand/Logo/SEO settings добавлены в singleton `SiteSettings`; logo больше не является только hardcoded asset, но bundled logo сохранён как fallback.
+- Header/footer logo, CTA, базовые meta/OG данные и labels/visibility навигации теперь backend-first.
+- Brand images используют отдельный `BrandAsset` purpose и публичны только при ссылке из текущих settings; order attachments остаются private.
+- SVG upload намеренно не реализован из-за security-рисков. Разрешены JPG, PNG и WebP.
+- Future debt: advanced/per-page SEO, sitemap/robots generation, image cropper/thumbnails и production CDN/object storage.

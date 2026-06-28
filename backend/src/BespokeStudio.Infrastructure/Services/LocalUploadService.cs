@@ -185,6 +185,30 @@ public sealed class LocalUploadService : IUploadService
         return OpenFile(metadata);
     }
 
+    public async Task<UploadedFileResponse> UploadBrandImageAsync(UploadFileRequest file,CancellationToken cancellationToken=default)
+    {
+        var prepared=ValidateAndPrepare(file);
+        if(!prepared.ContentType.StartsWith("image/",StringComparison.Ordinal)) throw new UploadValidationException("Brand uploads must be JPG, PNG or WebP images.");
+        var relativeDirectory=Path.Combine("brand-images",DateTime.UtcNow.ToString("yyyy"),DateTime.UtcNow.ToString("MM"));
+        var storedFileName=$"{Guid.NewGuid():N}{prepared.Extension}"; var storageKey=Path.Combine(relativeDirectory,storedFileName).Replace(Path.DirectorySeparatorChar,'/');
+        var directoryPath=Path.Combine(_storageRoot,relativeDirectory); var physicalPath=Path.Combine(directoryPath,storedFileName); Directory.CreateDirectory(directoryPath);
+        try { await using(var destination=new FileStream(physicalPath,FileMode.CreateNew,FileAccess.Write,FileShare.None,81920,true)) await CopyWithLimitAsync(prepared.Request.Content,destination,_options.MaxFileSizeBytes,cancellationToken);
+            var metadata=new UploadedFileMetadata{Purpose=UploadPurpose.BrandAsset,OriginalFileName=prepared.OriginalFileName,StoredFileName=storedFileName,StorageKey=storageKey,ContentType=prepared.ContentType,SizeBytes=prepared.Request.SizeBytes};
+            _dbContext.UploadedFiles.Add(metadata); await _dbContext.SaveChangesAsync(cancellationToken); return ToResponse(metadata); }
+        catch { TryDelete(physicalPath); throw; }
+    }
+
+    public async Task<UploadDownloadResponse?> OpenPublicBrandImageAsync(Guid uploadedFileId,CancellationToken cancellationToken=default)
+    {
+        var metadata=await(from settings in _dbContext.SiteSettings.AsNoTracking() join file in _dbContext.UploadedFiles.AsNoTracking() on uploadedFileId equals file.Id
+            where settings.Id==SiteSettings.SingletonId && file.Purpose==UploadPurpose.BrandAsset && file.ContentType.StartsWith("image/") &&
+                (settings.LogoFileId==uploadedFileId||settings.FaviconFileId==uploadedFileId||settings.DefaultOgImageFileId==uploadedFileId) select file).SingleOrDefaultAsync(cancellationToken);
+        return OpenFile(metadata);
+    }
+
+    public async Task<UploadDownloadResponse?> OpenBrandImageForAdminAsync(Guid uploadedFileId,CancellationToken cancellationToken=default)
+        => OpenFile(await _dbContext.UploadedFiles.AsNoTracking().SingleOrDefaultAsync(x=>x.Id==uploadedFileId&&x.Purpose==UploadPurpose.BrandAsset&&x.ContentType.StartsWith("image/"),cancellationToken));
+
     public async Task<UploadDownloadResponse?> OpenPublicPortfolioImageAsync(
         Guid uploadedFileId,
         CancellationToken cancellationToken = default)

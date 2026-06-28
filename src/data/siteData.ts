@@ -5,6 +5,7 @@ import type {
   PrivacySection,
   ProcessStep,
   PublicSiteSettings,
+  PublicBrandSettings,
   SiteAssets,
   SiteSettings,
   StudioValue,
@@ -37,6 +38,20 @@ export const PUBLIC_SITE_SETTINGS_FALLBACK: PublicSiteSettings = {
   pinterestUrl: null,
   footerText: "Bespoke Sewing Studio. All rights reserved.",
   serviceAreaText: "Appointments arranged individually.",
+};
+
+export const PUBLIC_BRAND_SETTINGS_FALLBACK: PublicBrandSettings = {
+  brandDisplayName: SITE_SETTINGS.brandName,
+  logoUrl: null, logoAltText: "Bespoke Sewing Studio logo", faviconUrl: null,
+  headerCtaLabel: "Book Now", headerCtaUrl: "/order",
+  defaultMetaTitle: "Bespoke Sewing Studio",
+  defaultMetaDescription: "Bespoke sewing, tailoring, dressmaking, alterations and memory bears.",
+  defaultOgTitle: null, defaultOgDescription: null, defaultOgImageUrl: null,
+  navigation: {
+    showServicesLink: true, servicesLabel: "Services", showPortfolioLink: true, portfolioLabel: "Portfolio",
+    showOrderLink: true, orderLabel: "Order", showAboutLink: true, aboutLabel: "About",
+    showContactLink: true, contactLabel: "Contact",
+  },
 };
 
 export const SITE_ASSETS: SiteAssets = {

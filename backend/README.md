@@ -53,6 +53,26 @@ non-archived rows. Content images use `UploadedFileMetadata` with `SiteAsset`;
 PostgreSQL never stores image bytes. Public content image routing cannot expose
 PortfolioImage or OrderAttachment uploads.
 
+## Brand / Logo / SEO API
+
+Public endpoints:
+
+- `GET /api/brand-settings/public`
+- `GET /api/brand/images/{id}`
+
+Admin JWT endpoints:
+
+- `GET|PATCH /api/admin/brand-settings`
+- `POST /api/admin/brand/uploads`
+- `GET /api/admin/brand/images/{id}` for previews before a setting is saved
+
+Brand uploads accept one JPG, PNG or WebP file up to the configured
+`UploadStorage:MaxFileSizeBytes`; SVG and non-image files are rejected. Files
+use the dedicated `BrandAsset` purpose and local `brand-images` storage path.
+The public image endpoint streams a file only when its ID is currently used as
+the logo, favicon or default Open Graph image. It cannot expose order
+attachments, portfolio images, content images or an unlinked brand upload.
+
 ## Domain model draft
 
 `BespokeStudio.Domain` contains persistence-independent entities for clients,

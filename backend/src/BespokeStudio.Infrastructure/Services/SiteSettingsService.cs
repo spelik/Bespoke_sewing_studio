@@ -2,6 +2,8 @@ using BespokeStudio.Application.Abstractions;
 using BespokeStudio.Application.Contracts.SiteSettings;
 using BespokeStudio.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using BespokeStudio.Application.Validation;
+using BespokeStudio.Domain.Enums;
 using SiteSettingsEntity = BespokeStudio.Domain.Entities.SiteSettings;
 
 namespace BespokeStudio.Infrastructure.Services;
@@ -57,6 +59,31 @@ public sealed class SiteSettingsService(BespokeStudioDbContext dbContext) : ISit
         return ToAdminResponse(settings);
     }
 
+    public async Task<PublicBrandSettingsResponse> GetPublicBrandSettingsAsync(CancellationToken cancellationToken = default)
+        => ToPublicBrand(await GetOrCreateAsync(cancellationToken));
+
+    public async Task<AdminBrandSettingsResponse> GetAdminBrandSettingsAsync(CancellationToken cancellationToken = default)
+        => ToAdminBrand(await GetOrCreateAsync(cancellationToken));
+
+    public async Task<AdminBrandSettingsResponse> UpdateBrandSettingsAsync(UpdateBrandSettingsRequest request, CancellationToken cancellationToken = default)
+    {
+        await EnsureBrandImageAsync(request.LogoFileId, nameof(request.LogoFileId), cancellationToken);
+        await EnsureBrandImageAsync(request.FaviconFileId, nameof(request.FaviconFileId), cancellationToken);
+        await EnsureBrandImageAsync(request.DefaultOgImageFileId, nameof(request.DefaultOgImageFileId), cancellationToken);
+        var s=await GetOrCreateAsync(cancellationToken);
+        s.BrandDisplayName=request.BrandDisplayName.Trim(); s.LogoFileId=request.LogoFileId; s.LogoAltText=request.LogoAltText.Trim();
+        s.FaviconFileId=request.FaviconFileId; s.HeaderCtaLabel=request.HeaderCtaLabel.Trim(); s.HeaderCtaUrl=request.HeaderCtaUrl.Trim();
+        s.DefaultMetaTitle=request.DefaultMetaTitle.Trim(); s.DefaultMetaDescription=request.DefaultMetaDescription.Trim();
+        s.DefaultOgTitle=Normalize(request.DefaultOgTitle); s.DefaultOgDescription=Normalize(request.DefaultOgDescription); s.DefaultOgImageFileId=request.DefaultOgImageFileId;
+        s.ShowServicesLink=request.ShowServicesLink; s.ServicesLabel=request.ServicesLabel.Trim(); s.ShowPortfolioLink=request.ShowPortfolioLink; s.PortfolioLabel=request.PortfolioLabel.Trim();
+        s.ShowOrderLink=request.ShowOrderLink; s.OrderLabel=request.OrderLabel.Trim(); s.ShowAboutLink=request.ShowAboutLink; s.AboutLabel=request.AboutLabel.Trim();
+        s.ShowContactLink=request.ShowContactLink; s.ContactLabel=request.ContactLabel.Trim(); s.UpdatedAt=DateTimeOffset.UtcNow;
+        await dbContext.SaveChangesAsync(cancellationToken); return ToAdminBrand(s);
+    }
+
+    private async Task EnsureBrandImageAsync(Guid? id,string field,CancellationToken ct)
+    { if(id is not null && !await dbContext.UploadedFiles.AsNoTracking().AnyAsync(x=>x.Id==id&&x.Purpose==UploadPurpose.BrandAsset&&x.ContentType.StartsWith("image/"),ct)) throw new BrandSettingsConflictException(field,"Select a valid uploaded brand image."); }
+
     private async Task<SiteSettingsEntity> GetOrCreateAsync(CancellationToken cancellationToken)
     {
         var settings = await dbContext.SiteSettings.SingleOrDefaultAsync(
@@ -85,6 +112,11 @@ public sealed class SiteSettingsService(BespokeStudioDbContext dbContext) : ISit
         ServiceAreaText = "Appointments arranged individually.",
         FooterText = "Bespoke Sewing Studio. All rights reserved.",
         EmailNotificationsEnabled = false,
+        LogoAltText = "Bespoke Sewing Studio logo", BrandDisplayName = "Bespoke Sewing Studio",
+        HeaderCtaLabel = "Book Now", HeaderCtaUrl = "/order", DefaultMetaTitle = "Bespoke Sewing Studio",
+        DefaultMetaDescription = "Bespoke sewing, tailoring, dressmaking, alterations and memory bears.",
+        ServicesLabel = "Services", PortfolioLabel = "Portfolio", OrderLabel = "Order", AboutLabel = "About", ContactLabel = "Contact",
+        ShowServicesLink = true, ShowPortfolioLink = true, ShowOrderLink = true, ShowAboutLink = true, ShowContactLink = true,
         UpdatedAt = DateTimeOffset.UtcNow
     };
 
@@ -121,6 +153,11 @@ public sealed class SiteSettingsService(BespokeStudioDbContext dbContext) : ISit
             settings.ServiceAreaText,
             settings.BusinessLegalName,
             settings.UpdatedAt);
+
+    private static BrandNavigationResponse Navigation(SiteSettingsEntity s)=>new(s.ShowServicesLink,s.ServicesLabel,s.ShowPortfolioLink,s.PortfolioLabel,s.ShowOrderLink,s.OrderLabel,s.ShowAboutLink,s.AboutLabel,s.ShowContactLink,s.ContactLabel);
+    private static string? BrandUrl(Guid? id)=>id is null?null:$"/api/brand/images/{id}";
+    private static PublicBrandSettingsResponse ToPublicBrand(SiteSettingsEntity s)=>new(s.BrandDisplayName,BrandUrl(s.LogoFileId),s.LogoAltText,BrandUrl(s.FaviconFileId),s.HeaderCtaLabel,s.HeaderCtaUrl,s.DefaultMetaTitle,s.DefaultMetaDescription,s.DefaultOgTitle,s.DefaultOgDescription,BrandUrl(s.DefaultOgImageFileId),Navigation(s));
+    private static AdminBrandSettingsResponse ToAdminBrand(SiteSettingsEntity s)=>new(s.BrandDisplayName,BrandUrl(s.LogoFileId),s.LogoFileId,s.LogoAltText,BrandUrl(s.FaviconFileId),s.FaviconFileId,s.HeaderCtaLabel,s.HeaderCtaUrl,s.DefaultMetaTitle,s.DefaultMetaDescription,s.DefaultOgTitle,s.DefaultOgDescription,BrandUrl(s.DefaultOgImageFileId),s.DefaultOgImageFileId,Navigation(s),s.UpdatedAt);
 
     private static string? Normalize(string? value) =>
         string.IsNullOrWhiteSpace(value) ? null : value.Trim();

@@ -44,6 +44,7 @@ Current backend status:
 - the Admin **Portfolio** section manages categories, work items, publication state, order and featured items
 - portfolio images are uploaded to local development storage and served publicly only while linked to an active portfolio item
 - page headings, body text, CTAs and key page images load from the Website Content CMS
+- logo, favicon, default SEO metadata, header CTA and navigation labels/visibility are managed in Admin **Brand / SEO**
 - the public Order form submits a dynamic `serviceOfferingId` while preserving legacy enum compatibility
 - admin login and Orders list/detail/status/notes use protected backend endpoints
 - site content and the remaining admin dashboard sections use mock/prototype data
@@ -160,6 +161,15 @@ Typed frontend defaults remain available when the backend cannot be reached.
 Content images are stored locally under `backend/storage/uploads/content-images`
 in development. The existing logo remains a bundled frontend fallback; logo
 upload is not part of this module.
+
+## Brand and SEO settings
+
+Sign in to Admin and select **Brand / SEO** to upload a JPG, PNG or WebP logo,
+favicon or default Open Graph image and edit the brand name, logo alt text,
+header CTA, default title/description and navigation labels/visibility. The
+public header, footer and document metadata load these settings from the
+backend. If the backend is unavailable, the bundled logo and typed defaults
+keep the public site usable. SVG upload is intentionally disabled.
 
 Commands:
 
