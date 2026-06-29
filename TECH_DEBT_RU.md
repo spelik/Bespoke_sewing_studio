@@ -247,3 +247,15 @@
 - Admin sidebar показывает badges `N new` для Orders и Contact Messages, когда есть новые заявки/сообщения.
 - Admin Orders и Contact Messages получили summary cards `New ...` и `Total ...`, чтобы владелец сразу видел объём новых обращений.
 - Contact Messages при изменении статуса обновляют счётчики без перезагрузки страницы. Backend API и migrations не менялись.
+
+
+## Task 36 — Admin production-readiness overview
+
+Status: Done locally after ZIP preparation; requires local verification before commit.
+
+Scope:
+
+- Added a Dashboard production-readiness section using existing admin APIs.
+- Checks public contact details, owner notifications, customer confirmations, email delivery, upload security, admin data/API access and DNS email records.
+- The checklist is informational and does not display secrets. ClamAV and SPF/DKIM/DMARC still require manual production verification.
+- Backend and database schema were not changed.

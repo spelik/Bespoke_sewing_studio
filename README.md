@@ -56,6 +56,7 @@ Current backend status:
 - the public Order form submits a dynamic `serviceOfferingId` while preserving legacy enum compatibility
 - admin login, Orders list/detail/status/notes and Contact Messages list/detail/status use protected backend endpoints
 - the admin sidebar exposes only backend-backed Dashboard, Orders, Contact Messages, Services, Portfolio, Content, Repeatable Content, Brand/SEO and Settings modules
+- the Admin Dashboard includes production-readiness checks for contact details, notifications, email delivery, upload security, admin API access and DNS email records
 
 Local PostgreSQL and backend setup:
 
@@ -139,6 +140,12 @@ its stored service-name snapshot. Service image upload and drag-and-drop order
 editing are not implemented.
 
 ## Site settings
+
+Sign in at `http://127.0.0.1:5173/admin` to open the Admin **Dashboard**.
+The dashboard summarises new Orders, new Contact Messages, recent activity,
+email delivery status, upload-security status and production-readiness checks.
+The readiness section is informational only: it never displays secrets and still
+requires manual production verification for ClamAV and SPF/DKIM/DMARC.
 
 Sign in at `http://127.0.0.1:5173/admin`, then select **Settings** in the
 sidebar. The administrator edits one email and one contact phone, plus

@@ -13,11 +13,16 @@ import {
   ShieldCheck,
   Search,
   Settings,
+  CheckCircle2,
+  AlertTriangle,
   X,
 } from "lucide-react";
 import { ApiError } from "../../api/apiClient";
 import { getAdminContactMessages } from "../../api/contactMessagesApi";
-import { getAdminEmailDeliverySettings } from "../../api/siteSettingsApi";
+import {
+  getAdminEmailDeliverySettings,
+  getAdminSiteSettings,
+} from "../../api/siteSettingsApi";
 import {
   ORDER_STATUSES,
   type AdminOrderListItem,
@@ -39,7 +44,11 @@ import {
 } from "../components/adminOrderFormatting";
 import { useAdminOrders } from "../hooks/useAdminOrders";
 import { usePageNavigation } from "../routing/usePageNavigation";
-import type { AdminContactMessageListItem, AdminEmailDeliverySettings } from "../types";
+import type {
+  AdminContactMessageListItem,
+  AdminEmailDeliverySettings,
+  AdminSiteSettings,
+} from "../types";
 
 type AdminSection =
   | "dashboard"
@@ -55,6 +64,12 @@ type AdminSection =
 interface AttentionCounts {
   newCount: number;
   totalCount: number;
+}
+
+interface ProductionReadinessItem {
+  label: string;
+  status: "ready" | "warning" | "review";
+  detail: string;
 }
 
 const NAV_ITEMS: ReadonlyArray<{
@@ -88,6 +103,8 @@ export function AdminPage() {
   const [emailDeliverySettings, setEmailDeliverySettings] =
     useState<AdminEmailDeliverySettings | null>(null);
   const [emailDeliveryError, setEmailDeliveryError] = useState<string | null>(null);
+  const [siteSettings, setSiteSettings] = useState<AdminSiteSettings | null>(null);
+  const [siteSettingsError, setSiteSettingsError] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const orderAttentionCounts = useMemo(
@@ -116,6 +133,39 @@ export function AdminPage() {
     }
 
     void loadContactAttentionCounts();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [logout]);
+
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadSiteSettings() {
+      setSiteSettingsError(null);
+      try {
+        const settings = await getAdminSiteSettings();
+        if (!cancelled) {
+          setSiteSettings(settings);
+        }
+      } catch (reason: unknown) {
+        if (
+          reason instanceof ApiError &&
+          (reason.status === 401 || reason.status === 403)
+        ) {
+          logout();
+          return;
+        }
+
+        if (!cancelled) {
+          setSiteSettingsError("Site settings could not be loaded.");
+        }
+      }
+    }
+
+    void loadSiteSettings();
 
     return () => {
       cancelled = true;
@@ -263,7 +313,10 @@ export function AdminPage() {
               contactAttentionCounts={contactAttentionCounts}
               emailDeliverySettings={emailDeliverySettings}
               emailDeliveryError={emailDeliveryError}
+              siteSettings={siteSettings}
+              siteSettingsError={siteSettingsError}
               isOrdersLoading={adminOrders.isLoading}
+              ordersError={adminOrders.error}
               onOpenSection={(targetSection) => setSection(targetSection)}
               onSelectOrder={(id) => void adminOrders.selectOrder(id)}
             />
@@ -408,7 +461,10 @@ function AdminDashboardOverview({
   contactAttentionCounts,
   emailDeliverySettings,
   emailDeliveryError,
+  siteSettings,
+  siteSettingsError,
   isOrdersLoading,
+  ordersError,
   onOpenSection,
   onSelectOrder,
 }: {
@@ -418,7 +474,10 @@ function AdminDashboardOverview({
   contactAttentionCounts: AttentionCounts | null;
   emailDeliverySettings: AdminEmailDeliverySettings | null;
   emailDeliveryError: string | null;
+  siteSettings: AdminSiteSettings | null;
+  siteSettingsError: string | null;
   isOrdersLoading: boolean;
+  ordersError: string | null;
   onOpenSection(section: AdminSection): void;
   onSelectOrder(id: string): void;
 }) {
@@ -432,6 +491,25 @@ function AdminDashboardOverview({
     newCount: 0,
     totalCount: contactMessages.length,
   };
+  const productionReadinessItems = useMemo(
+    () =>
+      buildProductionReadinessItems(
+        siteSettings,
+        siteSettingsError,
+        emailDeliverySettings,
+        emailDeliveryError,
+        isOrdersLoading,
+        ordersError,
+      ),
+    [
+      siteSettings,
+      siteSettingsError,
+      emailDeliverySettings,
+      emailDeliveryError,
+      isOrdersLoading,
+      ordersError,
+    ],
+  );
 
   return (
     <div className="space-y-6">
@@ -467,6 +545,31 @@ function AdminDashboardOverview({
           onClick={() => onOpenSection("orders")}
         />
       </div>
+
+      <section className="bg-card border border-border">
+        <div className="px-5 py-4 border-b border-border flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="font-serif text-[1.15rem] font-light text-foreground">
+              Production readiness
+            </h2>
+            <p className="text-[10px] text-muted-foreground font-sans mt-0.5">
+              Quick checks before the site is deployed or handed over.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => onOpenSection("settings")}
+            className="text-[10px] border border-border bg-background px-3 py-2 hover:border-foreground font-sans"
+          >
+            Open settings
+          </button>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 p-5">
+          {productionReadinessItems.map((item) => (
+            <ProductionReadinessCard key={item.label} item={item} />
+          ))}
+        </div>
+      </section>
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
         <section className="bg-card border border-border">
@@ -666,6 +769,29 @@ function DashboardStatusCard({
   );
 }
 
+function ProductionReadinessCard({ item }: { item: ProductionReadinessItem }) {
+  const isReady = item.status === "ready";
+  const Icon = isReady ? CheckCircle2 : AlertTriangle;
+
+  return (
+    <div className="border border-border bg-background px-4 py-3">
+      <div className="flex items-start gap-3">
+        <span
+          className={`mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${isReady ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}
+        >
+          <Icon size={13} aria-hidden="true" />
+        </span>
+        <div className="min-w-0">
+          <p className="text-[11px] text-foreground font-sans">{item.label}</p>
+          <p className="text-[10px] text-muted-foreground font-sans leading-4 mt-1">
+            {item.detail}
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function DashboardEmptyState({ message }: { message: string }) {
   return (
     <p className="px-5 py-8 text-center text-[11px] text-muted-foreground font-sans">
@@ -694,6 +820,90 @@ function getRecentContactMessages(
         new Date(second.createdAt).getTime() - new Date(first.createdAt).getTime(),
     )
     .slice(0, 5);
+}
+
+function buildProductionReadinessItems(
+  siteSettings: AdminSiteSettings | null,
+  siteSettingsError: string | null,
+  emailDeliverySettings: AdminEmailDeliverySettings | null,
+  emailDeliveryError: string | null,
+  isOrdersLoading: boolean,
+  ordersError: string | null,
+): ProductionReadinessItem[] {
+  const settingsUnavailable = Boolean(siteSettingsError);
+  const emailUnavailable = Boolean(emailDeliveryError);
+  const emailConfigured = Boolean(siteSettings?.email?.trim());
+  const phoneConfigured = Boolean(siteSettings?.phone?.trim());
+  const ownerNotificationsReady = Boolean(
+    siteSettings?.emailNotificationsEnabled && emailConfigured,
+  );
+  const customerConfirmationsReady = Boolean(
+    siteSettings?.customerConfirmationEmailsEnabled,
+  );
+  const gmailReady = Boolean(
+    emailDeliverySettings?.provider === "GmailSmtp" &&
+      emailDeliverySettings.gmailAddress?.trim() &&
+      emailDeliverySettings.appPasswordConfigured,
+  );
+  const configurationReady = emailDeliverySettings?.provider === "Configuration";
+
+  return [
+    {
+      label: "Public contact details",
+      status: !settingsUnavailable && emailConfigured && phoneConfigured ? "ready" : "warning",
+      detail: settingsUnavailable
+        ? siteSettingsError ?? "Site settings could not be loaded."
+        : emailConfigured && phoneConfigured
+          ? "Public email and phone are configured."
+          : "Add the public email and phone in Settings → Contact.",
+    },
+    {
+      label: "Owner notifications",
+      status: ownerNotificationsReady ? "ready" : "warning",
+      detail: ownerNotificationsReady
+        ? "New orders and contact messages can notify the owner."
+        : "Enable new-request notifications and confirm the owner email.",
+    },
+    {
+      label: "Customer confirmations",
+      status: customerConfirmationsReady ? "ready" : "review",
+      detail: customerConfirmationsReady
+        ? "Automatic customer confirmation emails are enabled."
+        : "Review whether customers should receive automatic confirmations.",
+    },
+    {
+      label: "Email delivery",
+      status: !emailUnavailable && (gmailReady || configurationReady) ? "ready" : "warning",
+      detail: emailUnavailable
+        ? emailDeliveryError ?? "Email delivery status could not be loaded."
+        : gmailReady
+          ? "Gmail SMTP is configured with an App Password."
+          : configurationReady
+            ? "Delivery is controlled by server configuration or secrets."
+            : "Complete Gmail SMTP settings and send a test email.",
+    },
+    {
+      label: "Upload security",
+      status: "review",
+      detail:
+        "Quarantine validation is implemented. Confirm ClamAV is configured on the production server.",
+    },
+    {
+      label: "Admin data API",
+      status: ordersError || isOrdersLoading ? "review" : "ready",
+      detail: ordersError
+        ? "Admin data could not be loaded. Check the backend and database connection."
+        : isOrdersLoading
+          ? "Checking admin data access."
+          : "Orders and admin data are loading from the backend API.",
+    },
+    {
+      label: "DNS email records",
+      status: "review",
+      detail:
+        "Before production, verify SPF, DKIM and DMARC for the sender domain or Gmail account.",
+    },
+  ];
 }
 
 function getEmailDeliveryTitle(
