@@ -16,6 +16,7 @@ import { formatAdminDate } from "./adminOrderFormatting";
 
 interface AdminContactMessagesPanelProps {
   onUnauthorized(): void;
+  onCountsChange?(counts: { newCount: number; totalCount: number }): void;
 }
 
 type StatusFilter = "All" | ContactMessageStatus;
@@ -34,9 +35,13 @@ const STATUS_COLORS: Readonly<Record<ContactMessageStatus, string>> = {
   Archived: "bg-slate-100 text-slate-700",
 };
 
-export function AdminContactMessagesPanel({ onUnauthorized }: AdminContactMessagesPanelProps) {
+export function AdminContactMessagesPanel({
+  onUnauthorized,
+  onCountsChange,
+}: AdminContactMessagesPanelProps) {
   const [messages, setMessages] = useState<AdminContactMessageListItem[]>([]);
-  const [selectedMessage, setSelectedMessage] = useState<AdminContactMessageDetail | null>(null);
+  const [selectedMessage, setSelectedMessage] =
+    useState<AdminContactMessageDetail | null>(null);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("All");
   const [searchQuery, setSearchQuery] = useState("");
   const [isLoading, setIsLoading] = useState(true);
@@ -48,6 +53,11 @@ export function AdminContactMessagesPanel({ onUnauthorized }: AdminContactMessag
   useEffect(() => {
     void loadMessages();
   }, []);
+
+  const messageCounts = useMemo(
+    () => calculateMessageCounts(messages),
+    [messages],
+  );
 
   const filteredMessages = useMemo(() => {
     const normalizedQuery = normalizeSearchValue(searchQuery);
@@ -77,7 +87,9 @@ export function AdminContactMessagesPanel({ onUnauthorized }: AdminContactMessag
     setIsLoading(true);
     setError(null);
     try {
-      setMessages(await getAdminContactMessages());
+      const loadedMessages = await getAdminContactMessages();
+      setMessages(loadedMessages);
+      onCountsChange?.(calculateMessageCounts(loadedMessages));
     } catch (reason: unknown) {
       handleRequestError(reason);
     } finally {
@@ -107,10 +119,13 @@ export function AdminContactMessagesPanel({ onUnauthorized }: AdminContactMessag
     setError(null);
     setMessage(null);
     try {
-      const saved = await updateAdminContactMessageStatus(selectedMessage.id, status);
+      const saved = await updateAdminContactMessageStatus(
+        selectedMessage.id,
+        status,
+      );
       setSelectedMessage(saved);
-      setMessages((current) =>
-        current.map((item) =>
+      setMessages((current) => {
+        const updatedMessages = current.map((item) =>
           item.id === saved.id
             ? {
                 ...item,
@@ -124,8 +139,10 @@ export function AdminContactMessagesPanel({ onUnauthorized }: AdminContactMessag
                 updatedAt: saved.updatedAt,
               }
             : item,
-        ),
-      );
+        );
+        onCountsChange?.(calculateMessageCounts(updatedMessages));
+        return updatedMessages;
+      });
       setMessage(`Contact message marked as ${STATUS_LABELS[saved.status]}.`);
     } catch (reason: unknown) {
       handleRequestError(reason);
@@ -135,7 +152,10 @@ export function AdminContactMessagesPanel({ onUnauthorized }: AdminContactMessag
   }
 
   function handleRequestError(reason: unknown) {
-    if (reason instanceof ApiError && (reason.status === 401 || reason.status === 403)) {
+    if (
+      reason instanceof ApiError &&
+      (reason.status === 401 || reason.status === 403)
+    ) {
       onUnauthorized();
       return;
     }
@@ -151,7 +171,8 @@ export function AdminContactMessagesPanel({ onUnauthorized }: AdminContactMessag
             Review messages submitted through the public Contact page.
           </p>
           <p className="text-[10px] text-muted-foreground/80 font-sans">
-            Contact messages are separate from order enquiries and can be marked as read, replied or archived.
+            Contact messages are separate from order enquiries and can be marked
+            as read, replied or archived.
           </p>
         </div>
         <button
@@ -164,22 +185,42 @@ export function AdminContactMessagesPanel({ onUnauthorized }: AdminContactMessag
         </button>
       </div>
 
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <AttentionSummaryCard
+          label="New messages"
+          value={messageCounts.newCount}
+          tone="accent"
+        />
+        <AttentionSummaryCard
+          label="Total messages"
+          value={messageCounts.totalCount}
+        />
+      </div>
+
       <div className="flex flex-wrap items-center gap-3">
         <label className="text-[10px] tracking-wide text-muted-foreground font-sans">
           Status
           <select
             value={statusFilter}
-            onChange={(event) => setStatusFilter(event.target.value as StatusFilter)}
+            onChange={(event) =>
+              setStatusFilter(event.target.value as StatusFilter)
+            }
             className="ml-3 px-3 py-2 text-[10px] border border-border bg-background focus:outline-none focus:border-accent"
           >
             <option value="All">All statuses</option>
             {CONTACT_MESSAGE_STATUSES.map((status) => (
-              <option key={status} value={status}>{STATUS_LABELS[status]}</option>
+              <option key={status} value={status}>
+                {STATUS_LABELS[status]}
+              </option>
             ))}
           </select>
         </label>
         <div className="relative w-full sm:w-[320px]">
-          <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
+          <Search
+            size={13}
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+            aria-hidden="true"
+          />
           <input
             type="text"
             value={searchQuery}
@@ -204,8 +245,22 @@ export function AdminContactMessagesPanel({ onUnauthorized }: AdminContactMessag
         </span>
       </div>
 
-      {error ? <p role="alert" className="border border-destructive/30 bg-card px-4 py-3 text-[11px] text-destructive">{error}</p> : null}
-      {message ? <p role="status" className="border border-emerald-300 bg-emerald-50 px-4 py-3 text-[11px] text-emerald-700">{message}</p> : null}
+      {error ? (
+        <p
+          role="alert"
+          className="border border-destructive/30 bg-card px-4 py-3 text-[11px] text-destructive"
+        >
+          {error}
+        </p>
+      ) : null}
+      {message ? (
+        <p
+          role="status"
+          className="border border-emerald-300 bg-emerald-50 px-4 py-3 text-[11px] text-emerald-700"
+        >
+          {message}
+        </p>
+      ) : null}
 
       <ContactMessagesTable
         messages={filteredMessages}
@@ -224,6 +279,38 @@ export function AdminContactMessagesPanel({ onUnauthorized }: AdminContactMessag
   );
 }
 
+function calculateMessageCounts(
+  messages: readonly AdminContactMessageListItem[],
+) {
+  return {
+    newCount: messages.filter((item) => item.status === "New").length,
+    totalCount: messages.length,
+  };
+}
+
+function AttentionSummaryCard({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: number;
+  tone?: "accent";
+}) {
+  return (
+    <div className="bg-card border border-border px-5 py-4">
+      <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-sans">
+        {label}
+      </div>
+      <div
+        className={`mt-1 text-[1.45rem] font-serif font-light ${tone === "accent" ? "text-rose-700" : "text-foreground"}`}
+      >
+        {value}
+      </div>
+    </div>
+  );
+}
+
 function ContactMessagesTable({
   messages,
   isLoading,
@@ -238,7 +325,15 @@ function ContactMessagesTable({
       <table className="w-full min-w-[900px]">
         <thead>
           <tr className="border-b border-border bg-secondary/40">
-            {["Sender", "Contact", "Subject", "Message", "Created", "Status", ""].map((heading) => (
+            {[
+              "Sender",
+              "Contact",
+              "Subject",
+              "Message",
+              "Created",
+              "Status",
+              "",
+            ].map((heading) => (
               <th
                 key={heading || "actions"}
                 className="px-5 py-3 text-left text-[10px] tracking-wider text-muted-foreground font-sans font-normal"
@@ -251,24 +346,35 @@ function ContactMessagesTable({
         <tbody>
           {isLoading ? (
             <tr>
-              <td colSpan={7} className="px-5 py-10 text-center text-[11px] text-muted-foreground">
+              <td
+                colSpan={7}
+                className="px-5 py-10 text-center text-[11px] text-muted-foreground"
+              >
                 Loading contact messages...
               </td>
             </tr>
           ) : null}
           {!isLoading && messages.length === 0 ? (
             <tr>
-              <td colSpan={7} className="px-5 py-10 text-center text-[11px] text-muted-foreground">
+              <td
+                colSpan={7}
+                className="px-5 py-10 text-center text-[11px] text-muted-foreground"
+              >
                 No contact messages match this status or search.
               </td>
             </tr>
           ) : null}
           {!isLoading
             ? messages.map((item) => (
-                <tr key={item.id} className="border-b border-border/40 hover:bg-secondary/25 transition-colors">
+                <tr
+                  key={item.id}
+                  className="border-b border-border/40 hover:bg-secondary/25 transition-colors"
+                >
                   <td className="px-5 py-3.5 text-[12px] text-foreground font-sans">
                     <div className="flex items-center gap-2">
-                      {item.status === "New" ? <Mail size={12} className="text-accent" /> : null}
+                      {item.status === "New" ? (
+                        <Mail size={12} className="text-accent" />
+                      ) : null}
                       <span>{item.fullName}</span>
                     </div>
                     <div className="text-[9px] text-muted-foreground font-mono mt-0.5">
@@ -277,10 +383,14 @@ function ContactMessagesTable({
                   </td>
                   <td className="px-5 py-3.5 text-[10px] text-muted-foreground font-sans max-w-[180px]">
                     <div className="truncate">{item.email}</div>
-                    <div className="truncate mt-0.5">{item.phone ?? "No phone"}</div>
+                    <div className="truncate mt-0.5">
+                      {item.phone ?? "No phone"}
+                    </div>
                   </td>
                   <td className="px-5 py-3.5 text-[11px] text-muted-foreground font-sans max-w-[180px]">
-                    <span className="line-clamp-2">{item.subject ?? "No subject"}</span>
+                    <span className="line-clamp-2">
+                      {item.subject ?? "No subject"}
+                    </span>
                   </td>
                   <td className="px-5 py-3.5 text-[10px] text-muted-foreground font-sans max-w-[260px]">
                     <p className="line-clamp-2">{item.messagePreview}</p>
@@ -328,7 +438,10 @@ function ContactMessageDetailDrawer({
   }
 
   return (
-    <div className="fixed inset-0 z-[70] bg-foreground/30 flex justify-end" role="presentation">
+    <div
+      className="fixed inset-0 z-[70] bg-foreground/30 flex justify-end"
+      role="presentation"
+    >
       <button
         type="button"
         className="absolute inset-0 cursor-default"
@@ -341,12 +454,19 @@ function ContactMessageDetailDrawer({
       >
         <div className="sticky top-0 z-10 bg-[#F5F0E8]/95 backdrop-blur border-b border-border px-6 py-4 flex items-center justify-between">
           <div>
-            <p className="text-[9px] tracking-[0.2em] uppercase text-muted-foreground">{message?.referenceNumber ?? "Contact message"}</p>
+            <p className="text-[9px] tracking-[0.2em] uppercase text-muted-foreground">
+              {message?.referenceNumber ?? "Contact message"}
+            </p>
             <h2 className="font-serif text-[1.35rem] font-light mt-1">
               {message?.fullName ?? "Loading..."}
             </h2>
           </div>
-          <button type="button" onClick={onClose} className="p-2 text-muted-foreground hover:text-foreground" aria-label="Close">
+          <button
+            type="button"
+            onClick={onClose}
+            className="p-2 text-muted-foreground hover:text-foreground"
+            aria-label="Close"
+          >
             <X size={17} />
           </button>
         </div>
@@ -361,39 +481,68 @@ function ContactMessageDetailDrawer({
               <Detail label="Reference" value={message.referenceNumber} />
               <Detail label="Email" value={message.email} />
               <Detail label="Phone" value={message.phone ?? "Not provided"} />
-              <Detail label="Subject" value={message.subject ?? "Not provided"} />
-              <Detail label="Created" value={formatAdminDate(message.createdAt)} />
-              <Detail label="Updated" value={formatAdminDate(message.updatedAt)} />
-              <Detail label="Consent" value={message.consentGiven ? "Given" : "Not given"} />
+              <Detail
+                label="Subject"
+                value={message.subject ?? "Not provided"}
+              />
+              <Detail
+                label="Created"
+                value={formatAdminDate(message.createdAt)}
+              />
+              <Detail
+                label="Updated"
+                value={formatAdminDate(message.updatedAt)}
+              />
+              <Detail
+                label="Consent"
+                value={message.consentGiven ? "Given" : "Not given"}
+              />
             </section>
 
             <section className="bg-card border border-border p-5">
-              <label htmlFor="contact-message-status" className="block text-[10px] tracking-wider uppercase text-muted-foreground mb-2">
+              <label
+                htmlFor="contact-message-status"
+                className="block text-[10px] tracking-wider uppercase text-muted-foreground mb-2"
+              >
                 Status
               </label>
               <select
                 id="contact-message-status"
                 value={message.status}
                 disabled={isSaving}
-                onChange={(event) => void onStatusChange(event.target.value as ContactMessageStatus)}
+                onChange={(event) =>
+                  void onStatusChange(
+                    event.target.value as ContactMessageStatus,
+                  )
+                }
                 className="w-full border border-border bg-background px-3 py-2.5 text-[12px] focus:outline-none focus:border-accent disabled:opacity-50"
               >
                 {CONTACT_MESSAGE_STATUSES.map((status) => (
-                  <option key={status} value={status}>{STATUS_LABELS[status]}</option>
+                  <option key={status} value={status}>
+                    {STATUS_LABELS[status]}
+                  </option>
                 ))}
               </select>
             </section>
 
             <section className="bg-card border border-border p-5">
-              <h3 className="text-[10px] tracking-wider uppercase text-muted-foreground mb-3">Message</h3>
-              <p className="text-[12px] leading-6 text-foreground whitespace-pre-wrap">{message.message}</p>
+              <h3 className="text-[10px] tracking-wider uppercase text-muted-foreground mb-3">
+                Message
+              </h3>
+              <p className="text-[12px] leading-6 text-foreground whitespace-pre-wrap">
+                {message.message}
+              </p>
             </section>
 
             <section className="bg-card border border-border p-5">
-              <h3 className="text-[10px] tracking-wider uppercase text-muted-foreground mb-3">Privacy consent</h3>
+              <h3 className="text-[10px] tracking-wider uppercase text-muted-foreground mb-3">
+                Privacy consent
+              </h3>
               <p className="text-[11px] leading-5 text-muted-foreground">
                 Consent was {message.consentGiven ? "given" : "not recorded"}
-                {message.consentRecordedAt ? ` on ${formatAdminDate(message.consentRecordedAt)}.` : "."}
+                {message.consentRecordedAt
+                  ? ` on ${formatAdminDate(message.consentRecordedAt)}.`
+                  : "."}
               </p>
             </section>
           </div>
@@ -405,7 +554,9 @@ function ContactMessageDetailDrawer({
 
 function StatusBadge({ status }: { status: ContactMessageStatus }) {
   return (
-    <span className={`text-[10px] px-2 py-0.5 whitespace-nowrap font-sans ${STATUS_COLORS[status]}`}>
+    <span
+      className={`text-[10px] px-2 py-0.5 whitespace-nowrap font-sans ${STATUS_COLORS[status]}`}
+    >
       {STATUS_LABELS[status]}
     </span>
   );
@@ -414,7 +565,9 @@ function StatusBadge({ status }: { status: ContactMessageStatus }) {
 function Detail({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <div className="text-[9px] tracking-wider uppercase text-muted-foreground mb-1">{label}</div>
+      <div className="text-[9px] tracking-wider uppercase text-muted-foreground mb-1">
+        {label}
+      </div>
       <div className="text-foreground break-words">{value}</div>
     </div>
   );
@@ -427,7 +580,9 @@ function toPreview(value: string): string {
 
 function getErrorMessage(reason: unknown): string {
   if (reason instanceof ApiError) {
-    const validationMessages = reason.errors ? Object.values(reason.errors).flat() : [];
+    const validationMessages = reason.errors
+      ? Object.values(reason.errors).flat()
+      : [];
     if (validationMessages.length > 0) {
       return validationMessages.join(" ");
     }
@@ -441,7 +596,6 @@ function getErrorMessage(reason: unknown): string {
 
   return "The contact messages request could not be completed.";
 }
-
 
 function normalizeSearchValue(value: string | null | undefined): string {
   return (value ?? "").trim().toLocaleLowerCase();

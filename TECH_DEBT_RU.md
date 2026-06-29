@@ -240,3 +240,8 @@
 - Anti-spam защита является lightweight hardening поверх существующего rate limiting, без reCAPTCHA/Google dependencies и без изменения UX для реальных клиентов.
 - Backend persistence model и migrations не менялись.
 
+## Task 34 — Admin attention counters
+
+- Admin sidebar показывает badges `N new` для Orders и Contact Messages, когда есть новые заявки/сообщения.
+- Admin Orders и Contact Messages получили summary cards `New ...` и `Total ...`, чтобы владелец сразу видел объём новых обращений.
+- Contact Messages при изменении статуса обновляют счётчики без перезагрузки страницы. Backend API и migrations не менялись.
