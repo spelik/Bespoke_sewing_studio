@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   FileText,
   Images,
+  LayoutDashboard,
   ListOrdered,
   LogOut,
   Mail,
@@ -9,12 +10,14 @@ import {
   Package,
   Palette,
   Scissors,
+  ShieldCheck,
   Search,
   Settings,
   X,
 } from "lucide-react";
 import { ApiError } from "../../api/apiClient";
 import { getAdminContactMessages } from "../../api/contactMessagesApi";
+import { getAdminEmailDeliverySettings } from "../../api/siteSettingsApi";
 import {
   ORDER_STATUSES,
   type AdminOrderListItem,
@@ -30,12 +33,16 @@ import { AdminPortfolioPanel } from "../components/AdminPortfolioPanel";
 import { AdminRepeatableContentPanel } from "../components/AdminRepeatableContentPanel";
 import { AdminServicesPanel } from "../components/AdminServicesPanel";
 import { AdminSettingsPanel } from "../components/AdminSettingsPanel";
-import { ADMIN_STATUS_LABELS } from "../components/adminOrderFormatting";
+import {
+  ADMIN_STATUS_LABELS,
+  formatAdminDate,
+} from "../components/adminOrderFormatting";
 import { useAdminOrders } from "../hooks/useAdminOrders";
 import { usePageNavigation } from "../routing/usePageNavigation";
-import type { AdminContactMessageListItem } from "../types";
+import type { AdminContactMessageListItem, AdminEmailDeliverySettings } from "../types";
 
 type AdminSection =
+  | "dashboard"
   | "orders"
   | "contactMessages"
   | "services"
@@ -55,6 +62,7 @@ const NAV_ITEMS: ReadonlyArray<{
   label: string;
   icon: typeof Package;
 }> = [
+  { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
   { id: "orders", label: "Orders", icon: Package },
   { id: "contactMessages", label: "Contact Messages", icon: Mail },
   { id: "services", label: "Services", icon: Scissors },
@@ -69,13 +77,17 @@ export function AdminPage() {
   const navigate = usePageNavigation();
   const { user, logout } = useAuth();
   const adminOrders = useAdminOrders(logout);
-  const [section, setSection] = useState<AdminSection>("orders");
+  const [section, setSection] = useState<AdminSection>("dashboard");
   const [orderFilter, setOrderFilter] = useState<AdminOrderStatus | "All">(
     "All",
   );
   const [orderSearchQuery, setOrderSearchQuery] = useState("");
+  const [contactMessages, setContactMessages] = useState<AdminContactMessageListItem[]>([]);
   const [contactAttentionCounts, setContactAttentionCounts] =
     useState<AttentionCounts | null>(null);
+  const [emailDeliverySettings, setEmailDeliverySettings] =
+    useState<AdminEmailDeliverySettings | null>(null);
+  const [emailDeliveryError, setEmailDeliveryError] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const orderAttentionCounts = useMemo(
@@ -90,6 +102,7 @@ export function AdminPage() {
       try {
         const messages = await getAdminContactMessages();
         if (!cancelled) {
+          setContactMessages(messages);
           setContactAttentionCounts(calculateContactAttentionCounts(messages));
         }
       } catch (reason: unknown) {
@@ -103,6 +116,38 @@ export function AdminPage() {
     }
 
     void loadContactAttentionCounts();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [logout]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadEmailDeliverySettings() {
+      setEmailDeliveryError(null);
+      try {
+        const settings = await getAdminEmailDeliverySettings();
+        if (!cancelled) {
+          setEmailDeliverySettings(settings);
+        }
+      } catch (reason: unknown) {
+        if (
+          reason instanceof ApiError &&
+          (reason.status === 401 || reason.status === 403)
+        ) {
+          logout();
+          return;
+        }
+
+        if (!cancelled) {
+          setEmailDeliveryError("Email delivery status could not be loaded.");
+        }
+      }
+    }
+
+    void loadEmailDeliverySettings();
 
     return () => {
       cancelled = true;
@@ -210,6 +255,19 @@ export function AdminPage() {
             </p>
           </div>
 
+          {section === "dashboard" ? (
+            <AdminDashboardOverview
+              orders={adminOrders.orders}
+              contactMessages={contactMessages}
+              orderAttentionCounts={orderAttentionCounts}
+              contactAttentionCounts={contactAttentionCounts}
+              emailDeliverySettings={emailDeliverySettings}
+              emailDeliveryError={emailDeliveryError}
+              isOrdersLoading={adminOrders.isLoading}
+              onOpenSection={(targetSection) => setSection(targetSection)}
+              onSelectOrder={(id) => void adminOrders.selectOrder(id)}
+            />
+          ) : null}
           {section === "orders" ? (
             <div className="space-y-5">
               <AttentionSummaryCards
@@ -299,6 +357,7 @@ export function AdminPage() {
             <AdminContactMessagesPanel
               onUnauthorized={logout}
               onCountsChange={setContactAttentionCounts}
+              onMessagesChange={setContactMessages}
             />
           ) : null}
           {section === "services" ? (
@@ -340,6 +399,339 @@ export function AdminPage() {
       />
     </div>
   );
+}
+
+function AdminDashboardOverview({
+  orders,
+  contactMessages,
+  orderAttentionCounts,
+  contactAttentionCounts,
+  emailDeliverySettings,
+  emailDeliveryError,
+  isOrdersLoading,
+  onOpenSection,
+  onSelectOrder,
+}: {
+  orders: readonly AdminOrderListItem[];
+  contactMessages: readonly AdminContactMessageListItem[];
+  orderAttentionCounts: AttentionCounts;
+  contactAttentionCounts: AttentionCounts | null;
+  emailDeliverySettings: AdminEmailDeliverySettings | null;
+  emailDeliveryError: string | null;
+  isOrdersLoading: boolean;
+  onOpenSection(section: AdminSection): void;
+  onSelectOrder(id: string): void;
+}) {
+  const recentOrders = useMemo(() => getRecentOrders(orders), [orders]);
+  const recentContactMessages = useMemo(
+    () => getRecentContactMessages(contactMessages),
+    [contactMessages],
+  );
+
+  const contactCounts = contactAttentionCounts ?? {
+    newCount: 0,
+    totalCount: contactMessages.length,
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+        <DashboardStatCard
+          icon={Package}
+          label="New orders"
+          value={orderAttentionCounts.newCount}
+          caption={`${orderAttentionCounts.totalCount} total orders`}
+          tone="accent"
+          onClick={() => onOpenSection("orders")}
+        />
+        <DashboardStatCard
+          icon={Mail}
+          label="New contact messages"
+          value={contactCounts.newCount}
+          caption={`${contactCounts.totalCount} total messages`}
+          tone="accent"
+          onClick={() => onOpenSection("contactMessages")}
+        />
+        <DashboardStatusCard
+          icon={Mail}
+          label="Email delivery"
+          title={getEmailDeliveryTitle(emailDeliverySettings, emailDeliveryError)}
+          caption={getEmailDeliveryCaption(emailDeliverySettings, emailDeliveryError)}
+          onClick={() => onOpenSection("settings")}
+        />
+        <DashboardStatusCard
+          icon={ShieldCheck}
+          label="Upload security"
+          title="Quarantine enabled"
+          caption="Order attachments are validated before acceptance and show scan status in Orders."
+          onClick={() => onOpenSection("orders")}
+        />
+      </div>
+
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
+        <section className="bg-card border border-border">
+          <div className="px-5 py-4 border-b border-border flex items-center justify-between gap-3">
+            <div>
+              <h2 className="font-serif text-[1.15rem] font-light text-foreground">
+                Recent orders
+              </h2>
+              <p className="text-[10px] text-muted-foreground font-sans mt-0.5">
+                Latest order requests needing review.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => onOpenSection("orders")}
+              className="text-[10px] border border-border bg-background px-3 py-2 hover:border-foreground font-sans"
+            >
+              View all
+            </button>
+          </div>
+          <div className="divide-y divide-border/60">
+            {isOrdersLoading ? (
+              <DashboardEmptyState message="Loading recent orders..." />
+            ) : null}
+            {!isOrdersLoading && recentOrders.length === 0 ? (
+              <DashboardEmptyState message="No orders yet." />
+            ) : null}
+            {!isOrdersLoading
+              ? recentOrders.map((order) => (
+                  <button
+                    key={order.id}
+                    type="button"
+                    onClick={() => onSelectOrder(order.id)}
+                    className="w-full px-5 py-4 text-left hover:bg-secondary/30 transition-colors"
+                  >
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="min-w-0">
+                        <p className="text-[12px] text-foreground font-sans truncate">
+                          {order.clientName}
+                        </p>
+                        <p className="text-[9px] text-muted-foreground font-mono mt-0.5">
+                          {order.referenceNumber}
+                        </p>
+                        <p className="text-[10px] text-muted-foreground font-sans mt-1 truncate">
+                          {order.serviceName}
+                        </p>
+                      </div>
+                      <div className="shrink-0 text-right">
+                        <span className="inline-flex text-[9px] px-2 py-0.5 bg-slate-100 text-slate-700 font-sans">
+                          {ADMIN_STATUS_LABELS[order.status]}
+                        </span>
+                        <p className="text-[9px] text-muted-foreground font-sans mt-1.5">
+                          {formatAdminDate(order.createdAt)}
+                        </p>
+                      </div>
+                    </div>
+                  </button>
+                ))
+              : null}
+          </div>
+        </section>
+
+        <section className="bg-card border border-border">
+          <div className="px-5 py-4 border-b border-border flex items-center justify-between gap-3">
+            <div>
+              <h2 className="font-serif text-[1.15rem] font-light text-foreground">
+                Recent contact messages
+              </h2>
+              <p className="text-[10px] text-muted-foreground font-sans mt-0.5">
+                Latest messages submitted through the Contact page.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => onOpenSection("contactMessages")}
+              className="text-[10px] border border-border bg-background px-3 py-2 hover:border-foreground font-sans"
+            >
+              View all
+            </button>
+          </div>
+          <div className="divide-y divide-border/60">
+            {recentContactMessages.length === 0 ? (
+              <DashboardEmptyState message="No contact messages yet." />
+            ) : null}
+            {recentContactMessages.map((message) => (
+              <button
+                key={message.id}
+                type="button"
+                onClick={() => onOpenSection("contactMessages")}
+                className="w-full px-5 py-4 text-left hover:bg-secondary/30 transition-colors"
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div className="min-w-0">
+                    <p className="text-[12px] text-foreground font-sans truncate">
+                      {message.fullName}
+                    </p>
+                    <p className="text-[9px] text-muted-foreground font-mono mt-0.5">
+                      {message.referenceNumber}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground font-sans mt-1 line-clamp-1">
+                      {message.subject ?? message.messagePreview}
+                    </p>
+                  </div>
+                  <div className="shrink-0 text-right">
+                    <span className="inline-flex text-[9px] px-2 py-0.5 bg-slate-100 text-slate-700 font-sans">
+                      {message.status}
+                    </span>
+                    <p className="text-[9px] text-muted-foreground font-sans mt-1.5">
+                      {formatAdminDate(message.createdAt)}
+                    </p>
+                  </div>
+                </div>
+              </button>
+            ))}
+          </div>
+        </section>
+      </div>
+    </div>
+  );
+}
+
+function DashboardStatCard({
+  icon: Icon,
+  label,
+  value,
+  caption,
+  tone,
+  onClick,
+}: {
+  icon: typeof Package;
+  label: string;
+  value: number;
+  caption: string;
+  tone?: "accent";
+  onClick(): void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="bg-card border border-border px-5 py-4 text-left hover:border-foreground transition-colors"
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-sans">
+            {label}
+          </p>
+          <p
+            className={`mt-1 text-[1.65rem] font-serif font-light ${tone === "accent" ? "text-rose-700" : "text-foreground"}`}
+          >
+            {value}
+          </p>
+          <p className="text-[10px] text-muted-foreground font-sans mt-1">
+            {caption}
+          </p>
+        </div>
+        <Icon size={17} className="text-muted-foreground" />
+      </div>
+    </button>
+  );
+}
+
+function DashboardStatusCard({
+  icon: Icon,
+  label,
+  title,
+  caption,
+  onClick,
+}: {
+  icon: typeof Package;
+  label: string;
+  title: string;
+  caption: string;
+  onClick(): void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="bg-card border border-border px-5 py-4 text-left hover:border-foreground transition-colors"
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-sans">
+            {label}
+          </p>
+          <p className="mt-2 text-[13px] text-foreground font-sans truncate">
+            {title}
+          </p>
+          <p className="text-[10px] text-muted-foreground font-sans mt-1 leading-4">
+            {caption}
+          </p>
+        </div>
+        <Icon size={17} className="text-muted-foreground" />
+      </div>
+    </button>
+  );
+}
+
+function DashboardEmptyState({ message }: { message: string }) {
+  return (
+    <p className="px-5 py-8 text-center text-[11px] text-muted-foreground font-sans">
+      {message}
+    </p>
+  );
+}
+
+function getRecentOrders(
+  orders: readonly AdminOrderListItem[],
+): AdminOrderListItem[] {
+  return [...orders]
+    .sort(
+      (first, second) =>
+        new Date(second.createdAt).getTime() - new Date(first.createdAt).getTime(),
+    )
+    .slice(0, 5);
+}
+
+function getRecentContactMessages(
+  messages: readonly AdminContactMessageListItem[],
+): AdminContactMessageListItem[] {
+  return [...messages]
+    .sort(
+      (first, second) =>
+        new Date(second.createdAt).getTime() - new Date(first.createdAt).getTime(),
+    )
+    .slice(0, 5);
+}
+
+function getEmailDeliveryTitle(
+  settings: AdminEmailDeliverySettings | null,
+  error: string | null,
+): string {
+  if (error) {
+    return "Status unavailable";
+  }
+
+  if (!settings) {
+    return "Loading status...";
+  }
+
+  return settings.provider === "GmailSmtp"
+    ? "Gmail SMTP"
+    : "Configuration";
+}
+
+function getEmailDeliveryCaption(
+  settings: AdminEmailDeliverySettings | null,
+  error: string | null,
+): string {
+  if (error) {
+    return error;
+  }
+
+  if (!settings) {
+    return "Checking configured delivery mode.";
+  }
+
+  if (settings.provider === "GmailSmtp") {
+    return settings.appPasswordConfigured
+      ? `${settings.gmailAddress ?? "Gmail address"} is configured.`
+      : "Gmail SMTP is selected, but the App Password is missing.";
+  }
+
+  return "Email delivery is managed by server configuration or user-secrets.";
 }
 
 function normalizeSearchValue(value: string | null | undefined): string {

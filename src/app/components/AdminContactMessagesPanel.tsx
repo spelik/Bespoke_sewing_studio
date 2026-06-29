@@ -17,6 +17,7 @@ import { formatAdminDate } from "./adminOrderFormatting";
 interface AdminContactMessagesPanelProps {
   onUnauthorized(): void;
   onCountsChange?(counts: { newCount: number; totalCount: number }): void;
+  onMessagesChange?(messages: AdminContactMessageListItem[]): void;
 }
 
 type StatusFilter = "All" | ContactMessageStatus;
@@ -38,6 +39,7 @@ const STATUS_COLORS: Readonly<Record<ContactMessageStatus, string>> = {
 export function AdminContactMessagesPanel({
   onUnauthorized,
   onCountsChange,
+  onMessagesChange,
 }: AdminContactMessagesPanelProps) {
   const [messages, setMessages] = useState<AdminContactMessageListItem[]>([]);
   const [selectedMessage, setSelectedMessage] =
@@ -90,6 +92,7 @@ export function AdminContactMessagesPanel({
       const loadedMessages = await getAdminContactMessages();
       setMessages(loadedMessages);
       onCountsChange?.(calculateMessageCounts(loadedMessages));
+      onMessagesChange?.(loadedMessages);
     } catch (reason: unknown) {
       handleRequestError(reason);
     } finally {
@@ -141,6 +144,7 @@ export function AdminContactMessagesPanel({
             : item,
         );
         onCountsChange?.(calculateMessageCounts(updatedMessages));
+        onMessagesChange?.(updatedMessages);
         return updatedMessages;
       });
       setMessage(`Contact message marked as ${STATUS_LABELS[saved.status]}.`);

@@ -62,6 +62,8 @@
 - Repeatable Content CMS реализован: process steps, studio values, testimonials и privacy subsections перенесены в backend-backed модель `RepeatableContentItem` с public API, protected admin CRUD, EF migration и frontend fallback.
 - Public Home/About/Privacy sections подключены к `GET /api/repeatable-content`; Admin sidebar получил раздел **Repeatable Content** для add/edit/hide/show/archive, карточки админки выровнены и расширены после visual polish.
 
+- Admin Dashboard добавлен как backend-backed обзор: карточки новых Orders/Contact Messages, recent Orders, recent Contact Messages, статус Email delivery и подсказка по upload security помогают владельцу быстрее увидеть, что требует внимания.
+
 ## Оптимизация изображений
 
 - `src/imports/d2-1.png` (`5.22 MB`, Home hero) -> responsive derivatives:

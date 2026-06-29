@@ -55,7 +55,7 @@ Current backend status:
 - logo, favicon, default SEO metadata, header CTA and navigation labels/visibility are managed in Admin **Brand / SEO**
 - the public Order form submits a dynamic `serviceOfferingId` while preserving legacy enum compatibility
 - admin login, Orders list/detail/status/notes and Contact Messages list/detail/status use protected backend endpoints
-- the admin sidebar exposes only backend-backed Orders, Contact Messages, Services, Portfolio, Content, Repeatable Content, Brand/SEO and Settings modules
+- the admin sidebar exposes only backend-backed Dashboard, Orders, Contact Messages, Services, Portfolio, Content, Repeatable Content, Brand/SEO and Settings modules
 
 Local PostgreSQL and backend setup:
 
@@ -173,7 +173,9 @@ these references so customers do not see raw database IDs. Admin Orders and
 Contact Messages lists can also be searched by reference number, client/sender,
 email, phone and message content while keeping the status filters. Admin sidebar
 badges and page summary cards show new/total Orders and Contact Messages so the
-owner can quickly see requests that need attention.
+owner can quickly see requests that need attention. The Admin Dashboard gives a
+quick overview with new request counters, recent Orders, recent Contact Messages,
+email delivery mode and upload security guidance.
 
 ## Contact messages
 
