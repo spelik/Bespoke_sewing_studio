@@ -4,6 +4,11 @@ public sealed class SiteSettings
 {
     public static readonly Guid SingletonId = new("7e7a43ab-bd37-4e9f-8e62-d384e8663180");
 
+    public const string DefaultCustomerOrderConfirmationSubject = "We received your order request";
+    public const string DefaultCustomerOrderConfirmationBody = "Hello {{customerName}},\n\nThank you for your order request to {{studioName}}.\nWe have received your details and will review them shortly.\n\nKind regards,\n{{studioName}}";
+    public const string DefaultCustomerContactConfirmationSubject = "We received your message";
+    public const string DefaultCustomerContactConfirmationBody = "Hello {{customerName}},\n\nThank you for contacting {{studioName}}.\nWe have received your message and will review it shortly.\n\nKind regards,\n{{studioName}}";
+
     public Guid Id { get; init; } = SingletonId;
     public required string StudioName { get; set; }
     public string? SiteTagline { get; set; }
@@ -12,6 +17,11 @@ public sealed class SiteSettings
     public string? ContactButtonLabel { get; set; }
     public string? ContactIntroText { get; set; }
     public bool EmailNotificationsEnabled { get; set; }
+    public bool CustomerConfirmationEmailsEnabled { get; set; }
+    public string CustomerOrderConfirmationSubject { get; set; } = DefaultCustomerOrderConfirmationSubject;
+    public string CustomerOrderConfirmationBody { get; set; } = DefaultCustomerOrderConfirmationBody;
+    public string CustomerContactConfirmationSubject { get; set; } = DefaultCustomerContactConfirmationSubject;
+    public string CustomerContactConfirmationBody { get; set; } = DefaultCustomerContactConfirmationBody;
     public string EmailDeliveryProvider { get; set; } = "Configuration";
     public string? EmailDeliveryGmailAddress { get; set; }
     public string? EmailDeliveryAppPasswordProtected { get; set; }

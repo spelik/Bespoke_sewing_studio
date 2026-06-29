@@ -29,8 +29,14 @@ public sealed class SiteSettingsService(BespokeStudioDbContext dbContext) : ISit
     {
         var settings = await GetOrCreateAsync(cancellationToken);
         return new NotificationSettingsResponse(
+            settings.StudioName,
             settings.PublicEmail,
-            settings.EmailNotificationsEnabled);
+            settings.EmailNotificationsEnabled,
+            settings.CustomerConfirmationEmailsEnabled,
+            settings.CustomerOrderConfirmationSubject,
+            settings.CustomerOrderConfirmationBody,
+            settings.CustomerContactConfirmationSubject,
+            settings.CustomerContactConfirmationBody);
     }
 
     public async Task<AdminSiteSettingsResponse> UpdateSettingsAsync(
@@ -46,6 +52,11 @@ public sealed class SiteSettingsService(BespokeStudioDbContext dbContext) : ISit
         settings.ContactButtonLabel = Normalize(request.ContactButtonLabel);
         settings.ContactIntroText = Normalize(request.ContactIntroText);
         settings.EmailNotificationsEnabled = request.EmailNotificationsEnabled;
+        settings.CustomerConfirmationEmailsEnabled = request.CustomerConfirmationEmailsEnabled;
+        settings.CustomerOrderConfirmationSubject = request.CustomerOrderConfirmationSubject.Trim();
+        settings.CustomerOrderConfirmationBody = NormalizeLineEndings(request.CustomerOrderConfirmationBody.Trim());
+        settings.CustomerContactConfirmationSubject = request.CustomerContactConfirmationSubject.Trim();
+        settings.CustomerContactConfirmationBody = NormalizeLineEndings(request.CustomerContactConfirmationBody.Trim());
         settings.FacebookUrl = Normalize(request.FacebookUrl);
         settings.InstagramUrl = Normalize(request.InstagramUrl);
         settings.TikTokUrl = Normalize(request.TikTokUrl);
@@ -112,6 +123,11 @@ public sealed class SiteSettingsService(BespokeStudioDbContext dbContext) : ISit
         ServiceAreaText = "Appointments arranged individually.",
         FooterText = "Bespoke Sewing Studio. All rights reserved.",
         EmailNotificationsEnabled = false,
+        CustomerConfirmationEmailsEnabled = false,
+        CustomerOrderConfirmationSubject = SiteSettingsEntity.DefaultCustomerOrderConfirmationSubject,
+        CustomerOrderConfirmationBody = SiteSettingsEntity.DefaultCustomerOrderConfirmationBody,
+        CustomerContactConfirmationSubject = SiteSettingsEntity.DefaultCustomerContactConfirmationSubject,
+        CustomerContactConfirmationBody = SiteSettingsEntity.DefaultCustomerContactConfirmationBody,
         EmailDeliveryProvider = "Configuration",
         EmailDeliverySenderName = "Bespoke Sewing Studio",
         LogoAltText = "Bespoke Sewing Studio logo", BrandDisplayName = "Bespoke Sewing Studio",
@@ -147,6 +163,11 @@ public sealed class SiteSettingsService(BespokeStudioDbContext dbContext) : ISit
             settings.ContactButtonLabel,
             settings.ContactIntroText,
             settings.EmailNotificationsEnabled,
+            settings.CustomerConfirmationEmailsEnabled,
+            settings.CustomerOrderConfirmationSubject,
+            settings.CustomerOrderConfirmationBody,
+            settings.CustomerContactConfirmationSubject,
+            settings.CustomerContactConfirmationBody,
             settings.FacebookUrl,
             settings.InstagramUrl,
             settings.TikTokUrl,
@@ -163,6 +184,9 @@ public sealed class SiteSettingsService(BespokeStudioDbContext dbContext) : ISit
 
     private static string? Normalize(string? value) =>
         string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    private static string NormalizeLineEndings(string value) =>
+        value.Replace("\r\n", "\n", StringComparison.Ordinal).Replace("\r", "\n", StringComparison.Ordinal);
 
     private static string? NormalizeEmail(string? value) =>
         Normalize(value)?.ToLowerInvariant();

@@ -482,13 +482,20 @@ destination. Migrations `NormalizeSiteSettingsContacts` and
 
 After `POST /api/orders` persists an enquiry or `POST /api/contact-messages`
 persists a contact message, `INotificationService` loads the saved record and
-current Site Settings. When email notifications are enabled it calls
-`IEmailNotificationSender` with the Site Settings email. Admin-managed email
-delivery settings are checked first: `Configuration` keeps the existing
-configuration-based provider, while `GmailSmtp` sends through Gmail using the
-owner-managed Gmail address and protected Google App Password stored on the
-backend. If admin delivery mode is `Configuration`, `Provider=Logging` uses
-`LoggingEmailNotificationSender` and `Provider=Smtp` uses
+current Site Settings. When owner notifications are enabled it calls
+`IEmailNotificationSender` with the Site Settings owner email. When customer
+confirmations are enabled it also sends a separate plain-text confirmation to
+the customer email from the Order or Contact form. Customer confirmation subject
+and body templates are stored in `SiteSettings` and are editable in Admin
+Settings. Supported placeholders include `{{studioName}}`, `{{customerName}}`,
+`{{customerEmail}}`, `{{customerPhone}}`, Order-only `{{serviceName}}`,
+`{{preferredDate}}`, and Contact-only `{{messageSubject}}`.
+
+Admin-managed email delivery settings are checked first: `Configuration` keeps
+the existing configuration-based provider, while `GmailSmtp` sends through Gmail
+using the owner-managed Gmail address and protected Google App Password stored
+on the backend. If admin delivery mode is `Configuration`, `Provider=Logging`
+uses `LoggingEmailNotificationSender` and `Provider=Smtp` uses
 `SmtpEmailNotificationSender`. Missing/invalid SMTP configuration and SMTP
 delivery errors are logged and fall back to the logging provider without
 changing the successful order or contact message response.
@@ -557,10 +564,10 @@ dotnet user-secrets set "Notifications:Email:Smtp:UseSsl" "true" --project backe
 ```
 
 Equivalent environment variables use double underscores, for example
-`Notifications__Email__Smtp__Password`. Customer confirmation emails are a
-separate future feature and must use their own product setting instead of being
-mixed with owner notifications. WhatsApp and SMS notification channels are
-intentionally not implemented.
+`Notifications__Email__Smtp__Password`. Customer confirmation emails use their
+own Admin Settings toggle and templates instead of being mixed with owner
+notifications. WhatsApp and SMS notification channels are intentionally not
+implemented.
 
 ## Administrator authentication
 

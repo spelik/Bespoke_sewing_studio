@@ -53,6 +53,11 @@ export interface PublicSiteSettings {
 export interface AdminSiteSettings extends PublicSiteSettings {
   id: string;
   emailNotificationsEnabled: boolean;
+  customerConfirmationEmailsEnabled: boolean;
+  customerOrderConfirmationSubject: string;
+  customerOrderConfirmationBody: string;
+  customerContactConfirmationSubject: string;
+  customerContactConfirmationBody: string;
   businessLegalName: string | null;
   updatedAt: string;
 }

@@ -16,6 +16,10 @@ public static partial class SiteSettingsValidator
         AddPhone(errors, nameof(request.Phone), request.Phone);
         AddOptionalMaxLength(errors, nameof(request.ContactButtonLabel), request.ContactButtonLabel, 100);
         AddOptionalMaxLength(errors, nameof(request.ContactIntroText), request.ContactIntroText, 1000);
+        AddRequired(errors, nameof(request.CustomerOrderConfirmationSubject), request.CustomerOrderConfirmationSubject, 200);
+        AddRequired(errors, nameof(request.CustomerOrderConfirmationBody), request.CustomerOrderConfirmationBody, 4000);
+        AddRequired(errors, nameof(request.CustomerContactConfirmationSubject), request.CustomerContactConfirmationSubject, 200);
+        AddRequired(errors, nameof(request.CustomerContactConfirmationBody), request.CustomerContactConfirmationBody, 4000);
         AddUrl(errors, nameof(request.FacebookUrl), request.FacebookUrl);
         AddUrl(errors, nameof(request.InstagramUrl), request.InstagramUrl);
         AddUrl(errors, nameof(request.TikTokUrl), request.TikTokUrl);

@@ -24,6 +24,10 @@ public sealed class SiteSettingsConfiguration : IEntityTypeConfiguration<SiteSet
         builder.Property(settings => settings.PublicPhone).HasMaxLength(50);
         builder.Property(settings => settings.ContactButtonLabel).HasMaxLength(100);
         builder.Property(settings => settings.ContactIntroText).HasMaxLength(1000);
+        builder.Property(settings => settings.CustomerOrderConfirmationSubject).HasMaxLength(200).IsRequired();
+        builder.Property(settings => settings.CustomerOrderConfirmationBody).HasMaxLength(4000).IsRequired();
+        builder.Property(settings => settings.CustomerContactConfirmationSubject).HasMaxLength(200).IsRequired();
+        builder.Property(settings => settings.CustomerContactConfirmationBody).HasMaxLength(4000).IsRequired();
         builder.Property(settings => settings.EmailDeliveryProvider).HasMaxLength(40).IsRequired();
         builder.Property(settings => settings.EmailDeliveryGmailAddress).HasMaxLength(320);
         builder.Property(settings => settings.EmailDeliveryAppPasswordProtected).HasMaxLength(4096);
@@ -63,6 +67,11 @@ public sealed class SiteSettingsConfiguration : IEntityTypeConfiguration<SiteSet
             ContactIntroText = "Consultations and orders are arranged individually.",
             ServiceAreaText = "Appointments arranged individually.",
             EmailNotificationsEnabled = false,
+            CustomerConfirmationEmailsEnabled = false,
+            CustomerOrderConfirmationSubject = SiteSettings.DefaultCustomerOrderConfirmationSubject,
+            CustomerOrderConfirmationBody = SiteSettings.DefaultCustomerOrderConfirmationBody,
+            CustomerContactConfirmationSubject = SiteSettings.DefaultCustomerContactConfirmationSubject,
+            CustomerContactConfirmationBody = SiteSettings.DefaultCustomerContactConfirmationBody,
             EmailDeliveryProvider = "Configuration",
             EmailDeliverySenderName = "Bespoke Sewing Studio",
             FooterText = "Bespoke Sewing Studio. All rights reserved.",

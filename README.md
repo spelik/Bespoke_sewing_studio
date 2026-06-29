@@ -143,14 +143,21 @@ contact/footer text, service area, social URLs, and the email notification
 toggle. The email is shown on the public site and is also the owner notification
 destination. The phone is public contact information only.
 
-Enable new-enquiry email notifications with the toggle in Admin Settings. The
-default development provider writes email content to the backend log. The new
-**Email delivery** block in Admin Settings can either keep developer-managed
-configuration (`Configuration`) or use owner-managed `Gmail SMTP`. In Gmail SMTP
-mode the owner enters a Gmail address and Google App Password; the password is
-protected on the backend, never returned by the API, and can be replaced or
-cleared from the admin UI. WhatsApp and SMS notifications are not implemented
-or planned for the current product scope. Public pages keep their typed fallback
+Enable owner new-request notifications with **Notify me about new requests** in
+Admin Settings. The default development provider writes email content to the
+backend log. The **Email delivery** block in Admin Settings can either keep
+developer-managed configuration (`Configuration`) or use owner-managed `Gmail
+SMTP`. In Gmail SMTP mode the owner enters a Gmail address and Google App
+Password; the password is protected on the backend, never returned by the API,
+and can be replaced or cleared from the admin UI.
+
+Customer confirmation emails are separate from owner notifications. The
+**Customer confirmations** block in Admin Settings has its own toggle and
+plain-text subject/body templates for Order and Contact confirmations. Supported
+placeholders include `{{studioName}}`, `{{customerName}}`, `{{customerEmail}}`,
+`{{customerPhone}}`, plus Order-only `{{serviceName}}`, `{{preferredDate}}`,
+and Contact-only `{{messageSubject}}`. WhatsApp and SMS notifications are not implemented or
+planned for the current product scope. Public pages keep their typed fallback
 content if the API cannot be reached.
 
 
@@ -198,7 +205,7 @@ Before production release:
   email address
 - test real delivery through **Admin > Settings > Send test email**
 - test real delivery from the public Contact form and Order form
-- keep owner notifications separate from future customer confirmation emails
+- keep owner notifications separate from customer confirmation emails and test both toggles independently
 - before production, configure deliverability records and operations:
   SPF, DKIM, DMARC, bounce/rejection monitoring, background retry/queueing and
   credential rotation

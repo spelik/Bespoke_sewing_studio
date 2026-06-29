@@ -22,7 +22,7 @@ interface AdminSettingsPanelProps {
 
 type TextFieldName = Exclude<
   keyof UpdateSiteSettingsRequest,
-  "emailNotificationsEnabled"
+  "emailNotificationsEnabled" | "customerConfirmationEmailsEnabled"
 >;
 
 type EmailDeliveryTextFieldName = Exclude<
@@ -158,6 +158,15 @@ export function AdminSettingsPanel({ onUnauthorized }: AdminSettingsPanelProps) 
     );
     setSuccess(null);
     setTestEmailResult(null);
+  };
+
+  const setCustomerConfirmationEmailsEnabled = (value: boolean) => {
+    setForm((current) =>
+      current
+        ? { ...current, customerConfirmationEmailsEnabled: value }
+        : current,
+    );
+    setSuccess(null);
   };
 
   const handleTestEmail = async () => {
@@ -326,10 +335,10 @@ export function AdminSettingsPanel({ onUnauthorized }: AdminSettingsPanelProps) 
 
       <SettingsGroup title="Notifications">
         <p className="md:col-span-2 text-[11px] text-muted-foreground font-sans leading-relaxed">
-          New enquiry notifications will be sent to the contact email above. Save contact settings before sending a test email.
+          Owner notifications are sent to the contact email above when a new contact message or order request arrives. Save contact settings before sending a test email.
         </p>
         <SettingsCheckbox
-          label="Enable email notifications"
+          label="Notify me about new requests"
           checked={form.emailNotificationsEnabled}
           onChange={setEmailNotificationsEnabled}
         />
@@ -351,6 +360,45 @@ export function AdminSettingsPanel({ onUnauthorized }: AdminSettingsPanelProps) 
             {testEmailResult.message}
           </p>
         ) : null}
+      </SettingsGroup>
+
+      <SettingsGroup title="Customer confirmations">
+        <p className="md:col-span-2 text-[11px] text-muted-foreground font-sans leading-relaxed">
+          Send a short automatic confirmation to the email address entered by the customer. These templates are plain-text emails.
+        </p>
+        <SettingsCheckbox
+          label="Send automatic confirmation to customers"
+          checked={form.customerConfirmationEmailsEnabled}
+          onChange={setCustomerConfirmationEmailsEnabled}
+        />
+        <div className="md:col-span-2 border border-border bg-background p-4 text-[11px] text-muted-foreground font-sans leading-relaxed space-y-2">
+          <p className="text-foreground">Available placeholders</p>
+          <p>{"{{studioName}}"}, {"{{customerName}}"}, {"{{customerEmail}}"}, {"{{customerPhone}}"}</p>
+          <p>Order only: {"{{serviceName}}"}, {"{{preferredDate}}"}</p>
+          <p>Contact only: {"{{messageSubject}}"}</p>
+        </div>
+        <SettingsField
+          label="Order confirmation subject"
+          value={form.customerOrderConfirmationSubject}
+          onChange={(value) => setTextField("customerOrderConfirmationSubject", value)}
+        />
+        <SettingsTextArea
+          label="Order confirmation body"
+          value={form.customerOrderConfirmationBody}
+          rows={7}
+          onChange={(value) => setTextField("customerOrderConfirmationBody", value)}
+        />
+        <SettingsField
+          label="Contact confirmation subject"
+          value={form.customerContactConfirmationSubject}
+          onChange={(value) => setTextField("customerContactConfirmationSubject", value)}
+        />
+        <SettingsTextArea
+          label="Contact confirmation body"
+          value={form.customerContactConfirmationBody}
+          rows={7}
+          onChange={(value) => setTextField("customerContactConfirmationBody", value)}
+        />
       </SettingsGroup>
 
       <SettingsGroup title="Email delivery">
@@ -517,16 +565,18 @@ function SettingsTextArea({
   label,
   value,
   onChange,
+  rows = 3,
 }: {
   label: string;
   value: string | null;
   onChange(value: string): void;
+  rows?: number;
 }) {
   return (
     <label className="text-[11px] text-muted-foreground font-sans md:col-span-2">
       <span className="block mb-1.5">{label}</span>
       <textarea
-        rows={3}
+        rows={rows}
         value={value ?? ""}
         onChange={(event) => onChange(event.target.value)}
         className={`${inputClassName} resize-y`}
@@ -566,6 +616,11 @@ function toUpdateRequest(settings: AdminSiteSettings): UpdateSiteSettingsRequest
     contactButtonLabel: settings.contactButtonLabel,
     contactIntroText: settings.contactIntroText,
     emailNotificationsEnabled: settings.emailNotificationsEnabled,
+    customerConfirmationEmailsEnabled: settings.customerConfirmationEmailsEnabled,
+    customerOrderConfirmationSubject: settings.customerOrderConfirmationSubject,
+    customerOrderConfirmationBody: settings.customerOrderConfirmationBody,
+    customerContactConfirmationSubject: settings.customerContactConfirmationSubject,
+    customerContactConfirmationBody: settings.customerContactConfirmationBody,
     facebookUrl: settings.facebookUrl,
     instagramUrl: settings.instagramUrl,
     tikTokUrl: settings.tikTokUrl,

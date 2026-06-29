@@ -53,6 +53,31 @@ public sealed class NotificationService(
                 }
             }
 
+            if (settings.CustomerConfirmationEmailsEnabled && !string.IsNullOrWhiteSpace(order.Client.Email))
+            {
+                try
+                {
+                    var result = await emailSender.SendAsync(
+                        order.Client.Email,
+                        RenderOrderTemplate(settings.CustomerOrderConfirmationSubject, settings.StudioName, order),
+                        RenderOrderTemplate(settings.CustomerOrderConfirmationBody, settings.StudioName, order),
+                        cancellationToken);
+
+                    if (!result.Success)
+                    {
+                        logger.LogWarning(
+                            "Customer confirmation email for order {OrderId} used {Provider}: {Message}",
+                            orderId,
+                            result.Provider,
+                            result.Message);
+                    }
+                }
+                catch (Exception exception)
+                {
+                    logger.LogError(exception, "Customer confirmation email failed for order {OrderId}.", orderId);
+                }
+            }
+
         }
         catch (Exception exception)
         {
@@ -108,6 +133,34 @@ public sealed class NotificationService(
                         contactMessageId);
                 }
             }
+
+            if (settings.CustomerConfirmationEmailsEnabled)
+            {
+                try
+                {
+                    var result = await emailSender.SendAsync(
+                        message.Email,
+                        RenderContactTemplate(settings.CustomerContactConfirmationSubject, settings.StudioName, message),
+                        RenderContactTemplate(settings.CustomerContactConfirmationBody, settings.StudioName, message),
+                        cancellationToken);
+
+                    if (!result.Success)
+                    {
+                        logger.LogWarning(
+                            "Customer confirmation email for contact message {ContactMessageId} used {Provider}: {Message}",
+                            contactMessageId,
+                            result.Provider,
+                            result.Message);
+                    }
+                }
+                catch (Exception exception)
+                {
+                    logger.LogError(
+                        exception,
+                        "Customer confirmation email failed for contact message {ContactMessageId}.",
+                        contactMessageId);
+                }
+            }
         }
         catch (Exception exception)
         {
@@ -116,6 +169,43 @@ public sealed class NotificationService(
                 "Notifications could not be prepared for contact message {ContactMessageId}.",
                 contactMessageId);
         }
+    }
+
+    private static string RenderOrderTemplate(string template, string studioName, OrderResponse order) =>
+        RenderTemplate(template, new Dictionary<string, string?>
+        {
+            ["studioName"] = studioName,
+            ["customerName"] = order.Client.FullName,
+            ["customerEmail"] = order.Client.Email,
+            ["customerPhone"] = order.Client.Phone,
+            ["serviceName"] = order.ServiceName,
+            ["preferredDate"] = order.PreferredDate?.ToString("yyyy-MM-dd"),
+            ["orderReference"] = order.Id.ToString()
+        });
+
+    private static string RenderContactTemplate(string template, string studioName, ContactMessageResponse message) =>
+        RenderTemplate(template, new Dictionary<string, string?>
+        {
+            ["studioName"] = studioName,
+            ["customerName"] = message.FullName,
+            ["customerEmail"] = message.Email,
+            ["customerPhone"] = message.Phone,
+            ["messageSubject"] = message.Subject,
+            ["contactReference"] = message.Id.ToString()
+        });
+
+    private static string RenderTemplate(string template, IReadOnlyDictionary<string, string?> values)
+    {
+        var result = template;
+        foreach (var (key, value) in values)
+        {
+            result = result.Replace(
+                "{{" + key + "}}",
+                string.IsNullOrWhiteSpace(value) ? "Not provided" : value.Trim(),
+                StringComparison.OrdinalIgnoreCase);
+        }
+
+        return result;
     }
 
     private static string BuildOrderEmailBody(OrderResponse order)

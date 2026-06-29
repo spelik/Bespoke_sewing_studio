@@ -97,7 +97,7 @@
 - Автоматическая очистка orphan `PortfolioImage` пока не реализована; существующий cleanup обрабатывает только orphan order attachments. Архивирование portfolio item намеренно сохраняет физический файл.
 - Автоматический background orphan cleanup пока не реализован; доступен защищённый ручной endpoint. Для production нужны distributed rate limiting/abuse protection и trusted forwarded-header configuration за reverse proxy.
 - SMTP provider реализован; есть два режима: developer-managed SMTP через user-secrets/env/secret store и owner-managed Gmail SMTP через Admin Settings с protected App Password. До production остаются настройка deliverability (SPF/DKIM/DMARC), мониторинг bounce/rejection, production Data Protection key persistence и операционная ротация credentials.
-- Background notification queue и retry policy пока не реализованы: отправка owner notifications для orders/contact messages выполняется inline после сохранения. Customer confirmation email также не реализован.
+- Background notification queue и retry policy пока не реализованы: отправка owner notifications и customer confirmation emails для orders/contact messages выполняется inline после сохранения.
 - Service image upload пока не реализован; advanced money/currency model и drag-and-drop reorder для Services/Portfolio можно добавить позже. Rich text page CMS ещё не реализован.
 - Полноценный rich-text editor/page builder не реализован: Content CMS и Repeatable Content CMS используют безопасные plain-text поля. Version history/drafts остаются будущими задачами. Multilingual CMS не планируется: проект принят как English-only.
 - Production secret management для admin seed и JWT signing key ещё требует внешнего secret store и operational rotation process.
@@ -114,14 +114,13 @@
 - Не хранить raw SMTP credentials, Gmail App Passwords и production отправителей в Git, `appsettings*.json`, screenshots или документации.
 - Проверить в Admin Settings включение email notifications и owner/public email.
 - Проверить реальную доставку через **Send test email**, затем через public Contact form и public Order form.
-- Разделять owner notifications и будущие customer confirmation emails; подтверждения клиенту делать отдельной задачей и отдельным toggle.
+- Разделять owner notifications и customer confirmation emails; подтверждения клиенту имеют отдельный toggle и редактируемые plain-text templates в Admin Settings.
 - До production настроить SPF, DKIM, DMARC, мониторинг SMTP errors/bounce/rejection, operational credential rotation.
 - Позже заменить inline отправку на background queue + retry policy, чтобы временная SMTP-недоступность не влияла на user flow.
 
 ## Рекомендации на следующие задачи
 
-- Выполнить отдельную задачу Customer confirmation emails: подтверждения пользователю должны иметь отдельный toggle и не смешиваться с owner notifications.
-- Проверить Task 29.2 — Admin-managed Gmail SMTP: применить migration, сохранить Gmail SMTP в Admin Settings, проверить Send test email, Contact form и Order form.
+- Протестировать Task 30 после применения migration: customer confirmations OFF/ON для Contact form и Order form, отдельно от owner notifications.
 - Подготовить фактическую production-конфигурацию хостинга с SPA fallback.
 - Добить image pipeline для самых тяжёлых portfolio assets: AVIF или отдельные thumbnails под card layout.
 - Спроектировать нормализованные уникальные ключи client matching и обработку конкурентного создания клиентов.
@@ -203,3 +202,12 @@
 - Admin Settings получил блок **Email delivery** с provider select, Gmail address, sender name, App Password replace/clear и короткой Gmail App Password инструкцией.
 - Добавлена migration `AddAdminEmailDeliverySettings`.
 - В sandbox прошли `npm run typecheck` и `npm run build`; `dotnet build` нужно выполнить локально, так как в sandbox нет .NET SDK.
+
+## Task 30 — Customer confirmation emails
+
+- `SiteSettings` расширен отдельным toggle `CustomerConfirmationEmailsEnabled` и редактируемыми plain-text templates для Order и Contact confirmation emails.
+- Admin Settings получил блок **Customer confirmations** с subject/body полями и подсказкой по placeholders.
+- Customer confirmations отделены от owner notifications: `Notify me about new requests` отправляет письма владельцу, а `Send automatic confirmation to customers` отправляет письмо клиенту на email из формы.
+- Поддерживаются placeholders `{{studioName}}`, `{{customerName}}`, `{{customerEmail}}`, `{{customerPhone}}`, Order-only `{{serviceName}}`, `{{preferredDate}}`, Contact-only `{{messageSubject}}`. Сырые технические GUID/reference не показываются в дефолтных клиентских письмах.
+- Ошибки отправки confirmation email логируются и не отменяют уже сохранённые order/contact message.
+- Добавлена migration `AddCustomerConfirmationEmailTemplates`.
