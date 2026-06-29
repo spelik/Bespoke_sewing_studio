@@ -14,6 +14,7 @@ public sealed class OrderConfiguration : IEntityTypeConfiguration<Order>
         builder.HasKey(order => order.Id);
 
         builder.Property(order => order.Id).ValueGeneratedNever();
+        builder.Property(order => order.ReferenceNumber).HasMaxLength(32).IsRequired();
         builder.Property(order => order.ServiceType).HasConversion<string>().HasMaxLength(32).IsRequired();
         builder.Property(order => order.ServiceNameSnapshot).HasMaxLength(150).IsRequired();
         builder.Property(order => order.Status).HasConversion<string>().HasMaxLength(32).IsRequired();
@@ -33,6 +34,7 @@ public sealed class OrderConfiguration : IEntityTypeConfiguration<Order>
             .HasForeignKey(order => order.ServiceOfferingId)
             .OnDelete(DeleteBehavior.Restrict);
 
+        builder.HasIndex(order => order.ReferenceNumber).IsUnique();
         builder.HasIndex(order => new { order.Status, order.CreatedAt });
         builder.HasIndex(order => order.ServiceOfferingId);
     }

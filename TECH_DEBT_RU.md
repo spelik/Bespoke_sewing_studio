@@ -211,3 +211,18 @@
 - Поддерживаются placeholders `{{studioName}}`, `{{customerName}}`, `{{customerEmail}}`, `{{customerPhone}}`, Order-only `{{serviceName}}`, `{{preferredDate}}`, Contact-only `{{messageSubject}}`. Сырые технические GUID/reference не показываются в дефолтных клиентских письмах.
 - Ошибки отправки confirmation email логируются и не отменяют уже сохранённые order/contact message.
 - Добавлена migration `AddCustomerConfirmationEmailTemplates`.
+
+## Task 31 — Human-readable request numbers
+
+- Orders получили `ReferenceNumber` формата `BSS-ORD-YYYY-000001`; Contact Messages получили `ReferenceNumber` формата `BSS-CON-YYYY-000001`.
+- Внутренние GUID `Id` остаются primary key/API routing key, но публичные success screens, admin list/detail, owner notifications и customer template placeholders используют человекочитаемый reference.
+- Добавлены PostgreSQL sequences `OrderReferenceSequence` и `ContactMessageReferenceSequence`; migration backfill заполняет reference для существующих записей и добавляет unique indexes.
+- Placeholder `{{orderReference}}` теперь рендерит человекочитаемый order reference, `{{contactReference}}` — человекочитаемый contact message reference.
+
+## Task 31.2 — Settings module save buttons
+
+- Admin Settings больше не полагается на одну общую кнопку Save Settings внизу страницы.
+- Для модулей General, Contact, Notifications, Customer confirmations и Social links добавлены отдельные кнопки сохранения и локальные success/error сообщения.
+- Email delivery сохранил отдельную кнопку Save Email Delivery и отдельную отправку test email.
+- Backend API не усложнялся: модульные кнопки используют существующий валидируемый Site Settings update endpoint.
+

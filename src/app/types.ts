@@ -403,6 +403,7 @@ export interface CreateOrderApiRequest {
 
 export interface OrderSubmissionResponse {
   id: string;
+  referenceNumber: string;
   status: "New";
   createdAt: string;
 }
@@ -420,6 +421,7 @@ export interface ContactMessageRequest {
 
 export interface ContactMessageResponse {
   id: string;
+  referenceNumber: string;
   fullName: string;
   email: string;
   phone: string | null;
@@ -434,6 +436,7 @@ export interface ContactMessageResponse {
 
 export interface AdminContactMessageListItem {
   id: string;
+  referenceNumber: string;
   fullName: string;
   email: string;
   phone: string | null;

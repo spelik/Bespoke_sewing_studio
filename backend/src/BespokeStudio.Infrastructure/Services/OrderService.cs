@@ -16,6 +16,12 @@ public sealed class OrderService(BespokeStudioDbContext dbContext) : IOrderServi
         CancellationToken cancellationToken = default)
     {
         var now = DateTimeOffset.UtcNow;
+        var referenceNumber = await RequestReferenceNumberGenerator.CreateAsync(
+            dbContext,
+            "OrderReferenceSequence",
+            "BSS-ORD",
+            now,
+            cancellationToken);
         var serviceOffering = await ResolveServiceOfferingAsync(request, cancellationToken);
         var legacyServiceType = request.ServiceType ?? OrderServiceType.Other;
         var serviceName = serviceOffering?.Name ?? FormatLegacyServiceName(legacyServiceType);
@@ -105,6 +111,7 @@ public sealed class OrderService(BespokeStudioDbContext dbContext) : IOrderServi
         var order = new Order
         {
             ClientId = client.Id,
+            ReferenceNumber = referenceNumber,
             ServiceType = legacyServiceType,
             ServiceOfferingId = serviceOffering?.Id,
             ServiceNameSnapshot = serviceName,
@@ -207,6 +214,7 @@ public sealed class OrderService(BespokeStudioDbContext dbContext) : IOrderServi
             orderby order.CreatedAt descending
             select new OrderListItemResponse(
                 order.Id,
+                order.ReferenceNumber,
                 order.ClientId,
                 client.FullName,
                 client.Email,
@@ -280,6 +288,7 @@ public sealed class OrderService(BespokeStudioDbContext dbContext) : IOrderServi
     {
         return new OrderResponse(
             order.Id,
+            order.ReferenceNumber,
             order.ClientId,
             new ClientResponse(
                 client.Id,

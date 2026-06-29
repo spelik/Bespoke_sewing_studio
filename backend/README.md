@@ -120,6 +120,10 @@ service offerings, and uploaded-file metadata. Domain enums describe order
 status, contact message status, service type, portfolio publication status,
 upload purpose and upload scan status.
 
+Orders and Contact Messages store human-readable request references separately
+from their internal GUID primary keys. Public/customer-facing references use
+`BSS-ORD-YYYY-000001` for orders and `BSS-CON-YYYY-000001` for contact messages.
+
 The domain does not reference EF Core, database attributes, `DbContext`, or a
 storage provider. Email, phone, and money value objects remain a future design
 decision after validation and currency rules are agreed.
@@ -205,7 +209,8 @@ dotnet ef database update --project backend/src/BespokeStudio.Infrastructure --s
 The repository currently contains migrations for the initial schema, phone-only
 orders, Identity/JWT, Site Settings, contact normalisation, removal of WhatsApp
 notification fields, dynamic services/prices, Portfolio/Gallery CMS, Website
-Content CMS, Brand/SEO settings, Repeatable Content CMS and Contact Messages. They have been
+Content CMS, Brand/SEO settings, Repeatable Content CMS, Contact Messages,
+customer confirmation email templates and human-readable request references. They have been
 applied to the local development database during the corresponding tasks. Installing the matching
 CLI tool, if it is missing locally:
 
@@ -238,7 +243,8 @@ migration is enabled yet.
 
 ## Orders API
 
-The first persistence-backed API module is available under `/api/orders`:
+The Orders API is available under `/api/orders`. Each order has an internal GUID
+`id` and a customer-facing `referenceNumber` such as `BSS-ORD-2026-000001`:
 
 - `POST /api/orders` anonymously creates an enquiry and returns `201 Created`
 - `GET /api/orders?take=100` returns the newest enquiries (Admin JWT required)
@@ -266,9 +272,9 @@ normalised email and then an exact trimmed phone. A new client is created only
 when neither value matches an existing client.
 
 Start the API and use `/swagger` for interactive testing, or open
-`BespokeStudio.Api/BespokeStudio.Api.http` and run its prepared requests. Copy
-the id returned by `POST /api/orders` into the `OrderId` variable before running
-the detail, status, and note examples.
+`BespokeStudio.Api/BespokeStudio.Api.http` and run its prepared requests. Copy the internal `id` returned by `POST /api/orders` into the `OrderId` variable
+before running the detail, status, and note examples. Use `referenceNumber` in
+customer-facing messages and admin communication.
 
 New-order email notifications use the logging provider by default and can use SMTP.
 The public frontend Order form calls anonymous `POST /api/orders`.
@@ -286,7 +292,7 @@ rather than service enquiries.
 
 Public endpoint:
 
-- `POST /api/contact-messages` anonymously creates a contact message and returns `201 Created`
+- `POST /api/contact-messages` anonymously creates a contact message and returns `201 Created` with a customer-facing `referenceNumber` such as `BSS-CON-2026-000001`
 
 Admin JWT endpoints:
 
@@ -469,7 +475,9 @@ Available endpoints:
 - `PATCH /api/admin/site-settings` — validates and updates settings (Admin JWT required)
 
 The public response exposes the single studio email and phone but excludes
-notification enabled flags, business legal name, and other admin-only metadata. The update endpoint returns
+notification enabled flags, business legal name, and other admin-only metadata. The Admin Settings UI groups
+settings into modules with separate save actions while still using the same validated
+site settings update endpoint. The update endpoint returns
 `400 ValidationProblem` for an empty studio name, invalid email/phone values,
 invalid non-HTTP(S) URLs, or configured values exceeding their limits.
 
@@ -489,7 +497,9 @@ the customer email from the Order or Contact form. Customer confirmation subject
 and body templates are stored in `SiteSettings` and are editable in Admin
 Settings. Supported placeholders include `{{studioName}}`, `{{customerName}}`,
 `{{customerEmail}}`, `{{customerPhone}}`, Order-only `{{serviceName}}`,
-`{{preferredDate}}`, and Contact-only `{{messageSubject}}`.
+`{{preferredDate}}`, `{{orderReference}}`, and Contact-only `{{messageSubject}}`,
+`{{contactReference}}`. The reference placeholders render the human-readable
+request numbers, not raw GUIDs.
 
 Admin-managed email delivery settings are checked first: `Configuration` keeps
 the existing configuration-based provider, while `GmailSmtp` sends through Gmail

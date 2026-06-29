@@ -11,6 +11,7 @@ public sealed class ContactMessageConfiguration : IEntityTypeConfiguration<Conta
         builder.ToTable("ContactMessages");
         builder.HasKey(message => message.Id);
         builder.Property(message => message.Id).ValueGeneratedNever();
+        builder.Property(message => message.ReferenceNumber).HasMaxLength(32).IsRequired();
         builder.Property(message => message.FullName).HasMaxLength(200).IsRequired();
         builder.Property(message => message.Email).HasMaxLength(320).IsRequired();
         builder.Property(message => message.Phone).HasMaxLength(50);
@@ -20,6 +21,7 @@ public sealed class ContactMessageConfiguration : IEntityTypeConfiguration<Conta
             .HasConversion<string>()
             .HasMaxLength(40)
             .IsRequired();
+        builder.HasIndex(message => message.ReferenceNumber).IsUnique();
         builder.HasIndex(message => message.Status);
         builder.HasIndex(message => message.CreatedAt);
         builder.HasIndex(message => message.Email);

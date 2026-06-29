@@ -4,6 +4,7 @@ namespace BespokeStudio.Application.Contracts.Orders;
 
 public sealed record OrderListItemResponse(
     Guid Id,
+    string ReferenceNumber,
     Guid ClientId,
     string ClientName,
     string? ClientEmail,

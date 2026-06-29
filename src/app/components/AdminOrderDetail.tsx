@@ -86,7 +86,7 @@ export function AdminOrderDetail({
       >
         <div className="sticky top-0 z-10 bg-[#F5F0E8]/95 backdrop-blur border-b border-border px-6 py-4 flex items-center justify-between">
           <div>
-            <p className="text-[9px] tracking-[0.2em] uppercase text-muted-foreground">Enquiry details</p>
+            <p className="text-[9px] tracking-[0.2em] uppercase text-muted-foreground">{order?.referenceNumber ?? "Enquiry details"}</p>
             <h2 className="font-serif text-[1.35rem] font-light mt-1">
               {order?.client.fullName ?? "Loading..."}
             </h2>
@@ -103,6 +103,7 @@ export function AdminOrderDetail({
         ) : (
           <div className="p-6 space-y-6">
             <section className="bg-card border border-border p-5 grid grid-cols-1 sm:grid-cols-2 gap-4 text-[11px]">
+              <Detail label="Reference" value={order.referenceNumber} />
               <Detail label="Email" value={order.client.email ?? "Not provided"} />
               <Detail label="Phone" value={order.client.phone ?? "Not provided"} />
               <Detail label="Service" value={order.serviceName} />

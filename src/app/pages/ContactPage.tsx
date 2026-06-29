@@ -21,7 +21,7 @@ const emptyForm: ContactMessageRequest = {
 
 export function ContactPage() {
   const [form, setForm] = useState<ContactMessageRequest>(emptyForm);
-  const [messageSent, setMessageSent] = useState(false);
+  const [submittedReference, setSubmittedReference] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { settings } = useSiteSettings();
@@ -52,9 +52,9 @@ export function ContactPage() {
     setIsSubmitting(true);
 
     try {
-      await createContactMessage(form);
+      const result = await createContactMessage(form);
       setForm(emptyForm);
-      setMessageSent(true);
+      setSubmittedReference(result.referenceNumber);
     } catch (submissionError) {
       setError(getContactMessageSubmissionErrorMessage(submissionError));
     } finally {
@@ -105,7 +105,7 @@ export function ContactPage() {
               <h2 className="font-serif text-[1.8rem] font-light text-foreground mb-8">
                 Send a Message
               </h2>
-              {messageSent ? (
+              {submittedReference ? (
                 <div className="border border-accent/30 bg-secondary p-8 text-center" aria-live="polite">
                   <Check size={20} className="mx-auto text-accent mb-3" />
                   <p className="font-serif text-[1rem] font-light text-foreground">
@@ -114,10 +114,13 @@ export function ContactPage() {
                   <p className="text-[12px] text-muted-foreground mt-2 font-sans">
                     We will be in touch within one working day.
                   </p>
+                  <p className="text-[11px] text-muted-foreground/60 mt-3 font-sans">
+                    Message reference: {submittedReference}
+                  </p>
                   <button
                     type="button"
                     onClick={() => {
-                      setMessageSent(false);
+                      setSubmittedReference(null);
                       setError(null);
                     }}
                     className="mt-6 px-5 py-2.5 border border-border text-[11px] tracking-wide hover:border-foreground transition-colors font-sans"

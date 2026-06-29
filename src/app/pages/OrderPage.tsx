@@ -97,7 +97,7 @@ export function OrderPage() {
             {settings.contactIntroText ?? "Thank you for your enquiry. We will contact you about your request."}
           </p>
           <p className="text-[11px] text-muted-foreground/60 font-sans">
-            Request reference: {result?.id}
+            Request reference: {result?.referenceNumber}
           </p>
         </div>
       </div>

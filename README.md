@@ -140,7 +140,9 @@ editing are not implemented.
 Sign in at `http://127.0.0.1:5173/admin`, then select **Settings** in the
 sidebar. The administrator edits one email and one contact phone, plus
 contact/footer text, service area, social URLs, and the email notification
-toggle. The email is shown on the public site and is also the owner notification
+toggle. Settings are grouped into modules with their own save actions for
+General, Contact, Notifications, Customer confirmations, Email delivery and
+Social links. The email is shown on the public site and is also the owner notification
 destination. The phone is public contact information only.
 
 Enable owner new-request notifications with **Notify me about new requests** in
@@ -156,16 +158,22 @@ Customer confirmation emails are separate from owner notifications. The
 plain-text subject/body templates for Order and Contact confirmations. Supported
 placeholders include `{{studioName}}`, `{{customerName}}`, `{{customerEmail}}`,
 `{{customerPhone}}`, plus Order-only `{{serviceName}}`, `{{preferredDate}}`,
-and Contact-only `{{messageSubject}}`. WhatsApp and SMS notifications are not implemented or
+`{{orderReference}}`, and Contact-only `{{messageSubject}}`, `{{contactReference}}`. WhatsApp and SMS notifications are not implemented or
 planned for the current product scope. Public pages keep their typed fallback
 content if the API cannot be reached.
 
+Orders and Contact Messages now keep human-readable request references in addition
+to their internal GUID IDs. Order references use `BSS-ORD-YYYY-000001`; Contact
+Message references use `BSS-CON-YYYY-000001`. Admin lists, detail drawers, owner
+notifications, customer template placeholders and public success screens use
+these references so customers do not see raw database IDs.
 
 ## Contact messages
 
 The public Contact page sends real enquiries to `POST /api/contact-messages`.
 The backend validates name, email, optional phone, optional subject, message and
-consent, stores the message in PostgreSQL, and returns `201 Created`. The form
+consent, stores the message in PostgreSQL, assigns a human-readable reference
+like `BSS-CON-2026-000001`, and returns `201 Created`. The form
 shows loading, success and validation/API error states and clears after a
 successful submission.
 

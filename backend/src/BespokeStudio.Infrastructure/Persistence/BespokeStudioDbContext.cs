@@ -26,6 +26,10 @@ public sealed class BespokeStudioDbContext(DbContextOptions<BespokeStudioDbConte
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
+
+        modelBuilder.HasSequence<long>("OrderReferenceSequence");
+        modelBuilder.HasSequence<long>("ContactMessageReferenceSequence");
+
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(BespokeStudioDbContext).Assembly);
     }
 }

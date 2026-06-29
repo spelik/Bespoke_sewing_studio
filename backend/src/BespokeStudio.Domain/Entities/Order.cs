@@ -6,6 +6,7 @@ public sealed class Order
 {
     public Guid Id { get; init; } = Guid.NewGuid();
     public Guid ClientId { get; set; }
+    public required string ReferenceNumber { get; set; }
     public OrderServiceType ServiceType { get; set; }
     public Guid? ServiceOfferingId { get; set; }
     public required string ServiceNameSnapshot { get; set; }

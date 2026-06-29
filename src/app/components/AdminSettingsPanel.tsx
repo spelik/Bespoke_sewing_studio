@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useState } from "react";
 import { ApiError } from "../../api/apiClient";
 import {
   getAdminEmailDeliverySettings,
@@ -30,6 +30,19 @@ type EmailDeliveryTextFieldName = Exclude<
   "provider" | "clearAppPassword"
 >;
 
+type SiteSettingsModuleKey =
+  | "general"
+  | "contact"
+  | "notifications"
+  | "customerConfirmations"
+  | "socialLinks";
+
+type SettingsFeedback = {
+  moduleKey: SiteSettingsModuleKey;
+  type: "success" | "error";
+  message: string;
+};
+
 const inputClassName =
   "w-full border border-border bg-background px-3 py-2.5 text-[12px] text-foreground focus:outline-none focus:border-accent transition-colors font-sans";
 
@@ -52,7 +65,8 @@ export function AdminSettingsPanel({ onUnauthorized }: AdminSettingsPanelProps) 
   const [emailDeliveryError, setEmailDeliveryError] = useState<string | null>(
     null,
   );
-  const [success, setSuccess] = useState<string | null>(null);
+  const [settingsFeedback, setSettingsFeedback] =
+    useState<SettingsFeedback | null>(null);
   const [emailDeliverySuccess, setEmailDeliverySuccess] = useState<
     string | null
   >(null);
@@ -113,7 +127,7 @@ export function AdminSettingsPanel({ onUnauthorized }: AdminSettingsPanelProps) 
     setForm((current) =>
       current ? { ...current, [field]: value || null } : current,
     );
-    setSuccess(null);
+    setSettingsFeedback(null);
   };
 
   const setEmailDeliveryProvider = (provider: EmailDeliveryProvider) => {
@@ -156,7 +170,7 @@ export function AdminSettingsPanel({ onUnauthorized }: AdminSettingsPanelProps) 
     setForm((current) =>
       current ? { ...current, emailNotificationsEnabled: value } : current,
     );
-    setSuccess(null);
+    setSettingsFeedback(null);
     setTestEmailResult(null);
   };
 
@@ -166,7 +180,7 @@ export function AdminSettingsPanel({ onUnauthorized }: AdminSettingsPanelProps) 
         ? { ...current, customerConfirmationEmailsEnabled: value }
         : current,
     );
-    setSuccess(null);
+    setSettingsFeedback(null);
   };
 
   const handleTestEmail = async () => {
@@ -195,29 +209,39 @@ export function AdminSettingsPanel({ onUnauthorized }: AdminSettingsPanelProps) 
     }
   };
 
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
+  const handleSaveSiteSettings = async (
+    moduleKey: SiteSettingsModuleKey,
+    successMessage: string,
+  ) => {
     if (!form || isSaving) {
       return;
     }
 
     setIsSaving(true);
     setError(null);
-    setSuccess(null);
+    setSettingsFeedback(null);
 
     try {
       const saved = await updateAdminSiteSettings(form);
       setForm(toUpdateRequest(saved));
       setUpdatedAt(saved.updatedAt);
       await refresh().catch(() => undefined);
-      setSuccess("Settings saved successfully.");
+      setSettingsFeedback({
+        moduleKey,
+        type: "success",
+        message: successMessage,
+      });
     } catch (reason: unknown) {
       if (reason instanceof ApiError && reason.status === 401) {
         onUnauthorized();
         return;
       }
 
-      setError(getErrorMessage(reason));
+      setSettingsFeedback({
+        moduleKey,
+        type: "error",
+        message: getErrorMessage(reason),
+      });
     } finally {
       setIsSaving(false);
     }
@@ -267,18 +291,12 @@ export function AdminSettingsPanel({ onUnauthorized }: AdminSettingsPanelProps) 
   const isGmailSmtp = emailDelivery.provider === "GmailSmtp";
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <div className="space-y-6">
       {error ? (
         <div role="alert" className="border border-destructive/30 bg-card px-4 py-3 text-[11px] text-destructive font-sans">
           {error}
         </div>
       ) : null}
-      {success ? (
-        <div role="status" className="border border-emerald-300 bg-emerald-50 px-4 py-3 text-[11px] text-emerald-700 font-sans">
-          {success}
-        </div>
-      ) : null}
-
       <SettingsGroup title="General">
         <SettingsField
           label="Studio name"
@@ -295,6 +313,17 @@ export function AdminSettingsPanel({ onUnauthorized }: AdminSettingsPanelProps) 
           label="Business legal name"
           value={form.businessLegalName}
           onChange={(value) => setTextField("businessLegalName", value)}
+        />
+        <SettingsSaveAction
+          moduleKey="general"
+          buttonLabel="Save general settings"
+          savingLabel="Saving general settings..."
+          updatedAt={updatedAt}
+          isSaving={isSaving}
+          feedback={settingsFeedback}
+          onSave={() =>
+            handleSaveSiteSettings("general", "General settings saved.")
+          }
         />
       </SettingsGroup>
 
@@ -331,6 +360,17 @@ export function AdminSettingsPanel({ onUnauthorized }: AdminSettingsPanelProps) 
           value={form.footerText}
           onChange={(value) => setTextField("footerText", value)}
         />
+        <SettingsSaveAction
+          moduleKey="contact"
+          buttonLabel="Save contact settings"
+          savingLabel="Saving contact settings..."
+          updatedAt={updatedAt}
+          isSaving={isSaving}
+          feedback={settingsFeedback}
+          onSave={() =>
+            handleSaveSiteSettings("contact", "Contact settings saved.")
+          }
+        />
       </SettingsGroup>
 
       <SettingsGroup title="Notifications">
@@ -360,6 +400,20 @@ export function AdminSettingsPanel({ onUnauthorized }: AdminSettingsPanelProps) 
             {testEmailResult.message}
           </p>
         ) : null}
+        <SettingsSaveAction
+          moduleKey="notifications"
+          buttonLabel="Save notification settings"
+          savingLabel="Saving notification settings..."
+          updatedAt={updatedAt}
+          isSaving={isSaving}
+          feedback={settingsFeedback}
+          onSave={() =>
+            handleSaveSiteSettings(
+              "notifications",
+              "Notification settings saved.",
+            )
+          }
+        />
       </SettingsGroup>
 
       <SettingsGroup title="Customer confirmations">
@@ -374,8 +428,8 @@ export function AdminSettingsPanel({ onUnauthorized }: AdminSettingsPanelProps) 
         <div className="md:col-span-2 border border-border bg-background p-4 text-[11px] text-muted-foreground font-sans leading-relaxed space-y-2">
           <p className="text-foreground">Available placeholders</p>
           <p>{"{{studioName}}"}, {"{{customerName}}"}, {"{{customerEmail}}"}, {"{{customerPhone}}"}</p>
-          <p>Order only: {"{{serviceName}}"}, {"{{preferredDate}}"}</p>
-          <p>Contact only: {"{{messageSubject}}"}</p>
+          <p>Order only: {"{{serviceName}}"}, {"{{preferredDate}}"}, {"{{orderReference}}"}</p>
+          <p>Contact only: {"{{messageSubject}}"}, {"{{contactReference}}"}</p>
         </div>
         <SettingsField
           label="Order confirmation subject"
@@ -398,6 +452,20 @@ export function AdminSettingsPanel({ onUnauthorized }: AdminSettingsPanelProps) 
           value={form.customerContactConfirmationBody}
           rows={7}
           onChange={(value) => setTextField("customerContactConfirmationBody", value)}
+        />
+        <SettingsSaveAction
+          moduleKey="customerConfirmations"
+          buttonLabel="Save customer confirmation templates"
+          savingLabel="Saving customer confirmation templates..."
+          updatedAt={updatedAt}
+          isSaving={isSaving}
+          feedback={settingsFeedback}
+          onSave={() =>
+            handleSaveSiteSettings(
+              "customerConfirmations",
+              "Customer confirmation templates saved.",
+            )
+          }
         />
       </SettingsGroup>
 
@@ -480,21 +548,20 @@ export function AdminSettingsPanel({ onUnauthorized }: AdminSettingsPanelProps) 
         <SettingsField label="Instagram URL" type="url" value={form.instagramUrl} onChange={(value) => setTextField("instagramUrl", value)} />
         <SettingsField label="TikTok URL" type="url" value={form.tikTokUrl} onChange={(value) => setTextField("tikTokUrl", value)} />
         <SettingsField label="Pinterest URL" type="url" value={form.pinterestUrl} onChange={(value) => setTextField("pinterestUrl", value)} />
+        <SettingsSaveAction
+          moduleKey="socialLinks"
+          buttonLabel="Save social links"
+          savingLabel="Saving social links..."
+          updatedAt={updatedAt}
+          isSaving={isSaving}
+          feedback={settingsFeedback}
+          onSave={() =>
+            handleSaveSiteSettings("socialLinks", "Social links saved.")
+          }
+        />
       </SettingsGroup>
 
-      <div className="flex flex-wrap items-center justify-between gap-4 bg-card border border-border p-5">
-        <p className="text-[10px] text-muted-foreground font-sans">
-          {updatedAt ? `Last updated ${new Date(updatedAt).toLocaleString()}` : "Not saved yet"}
-        </p>
-        <button
-          type="submit"
-          disabled={isSaving}
-          className="bg-foreground text-primary-foreground px-6 py-2.5 text-[11px] tracking-wide hover:bg-accent disabled:opacity-50 transition-colors font-sans"
-        >
-          {isSaving ? "Saving..." : "Save Settings"}
-        </button>
-      </div>
-    </form>
+    </div>
   );
 }
 
@@ -504,6 +571,59 @@ function SettingsGroup({ title, children }: { title: string; children: React.Rea
       <h2 className="text-[12px] font-medium text-foreground mb-5 font-sans tracking-wide">{title}</h2>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">{children}</div>
     </section>
+  );
+}
+
+
+function SettingsSaveAction({
+  moduleKey,
+  buttonLabel,
+  savingLabel,
+  updatedAt,
+  isSaving,
+  feedback,
+  onSave,
+}: {
+  moduleKey: SiteSettingsModuleKey;
+  buttonLabel: string;
+  savingLabel: string;
+  updatedAt: string | null;
+  isSaving: boolean;
+  feedback: SettingsFeedback | null;
+  onSave(): void;
+}) {
+  const currentFeedback = feedback?.moduleKey === moduleKey ? feedback : null;
+
+  return (
+    <div className="md:col-span-2 flex flex-wrap items-center justify-between gap-4 border-t border-border/70 pt-4">
+      <div className="space-y-1">
+        <p className="text-[10px] text-muted-foreground font-sans">
+          {updatedAt
+            ? `Last saved ${new Date(updatedAt).toLocaleString()}`
+            : "Not saved yet"}
+        </p>
+        {currentFeedback ? (
+          <p
+            role={currentFeedback.type === "success" ? "status" : "alert"}
+            className={`text-[11px] font-sans ${
+              currentFeedback.type === "success"
+                ? "text-emerald-700"
+                : "text-destructive"
+            }`}
+          >
+            {currentFeedback.message}
+          </p>
+        ) : null}
+      </div>
+      <button
+        type="button"
+        disabled={isSaving}
+        onClick={onSave}
+        className="border border-border bg-background px-4 py-3 text-[11px] text-foreground hover:border-accent disabled:opacity-50 transition-colors font-sans"
+      >
+        {isSaving ? savingLabel : buttonLabel}
+      </button>
+    </div>
   );
 }
 

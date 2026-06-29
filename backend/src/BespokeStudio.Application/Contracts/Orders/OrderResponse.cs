@@ -5,6 +5,7 @@ namespace BespokeStudio.Application.Contracts.Orders;
 
 public sealed record OrderResponse(
     Guid Id,
+    string ReferenceNumber,
     Guid ClientId,
     ClientResponse Client,
     Guid? ServiceOfferingId,

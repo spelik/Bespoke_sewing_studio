@@ -98,6 +98,7 @@ export function AdminContactMessagesPanel({ onUnauthorized }: AdminContactMessag
             ? {
                 ...item,
                 fullName: saved.fullName,
+                referenceNumber: saved.referenceNumber,
                 email: saved.email,
                 phone: saved.phone,
                 subject: saved.subject,
@@ -233,7 +234,7 @@ function ContactMessagesTable({
                       <span>{item.fullName}</span>
                     </div>
                     <div className="text-[9px] text-muted-foreground font-mono mt-0.5">
-                      {item.id.slice(0, 8)}
+                      {item.referenceNumber}
                     </div>
                   </td>
                   <td className="px-5 py-3.5 text-[10px] text-muted-foreground font-sans max-w-[180px]">
@@ -257,7 +258,7 @@ function ContactMessagesTable({
                       type="button"
                       onClick={() => onSelect(item.id)}
                       className="inline-flex items-center gap-1.5 text-[10px] text-muted-foreground hover:text-foreground transition-colors"
-                      aria-label={`View contact message from ${item.fullName}`}
+                      aria-label={`View contact message ${item.referenceNumber} from ${item.fullName}`}
                     >
                       <Eye size={13} /> View
                     </button>
@@ -302,7 +303,7 @@ function ContactMessageDetailDrawer({
       >
         <div className="sticky top-0 z-10 bg-[#F5F0E8]/95 backdrop-blur border-b border-border px-6 py-4 flex items-center justify-between">
           <div>
-            <p className="text-[9px] tracking-[0.2em] uppercase text-muted-foreground">Contact message</p>
+            <p className="text-[9px] tracking-[0.2em] uppercase text-muted-foreground">{message?.referenceNumber ?? "Contact message"}</p>
             <h2 className="font-serif text-[1.35rem] font-light mt-1">
               {message?.fullName ?? "Loading..."}
             </h2>
@@ -319,6 +320,7 @@ function ContactMessageDetailDrawer({
         ) : (
           <div className="p-6 space-y-6">
             <section className="bg-card border border-border p-5 grid grid-cols-1 sm:grid-cols-2 gap-4 text-[11px]">
+              <Detail label="Reference" value={message.referenceNumber} />
               <Detail label="Email" value={message.email} />
               <Detail label="Phone" value={message.phone ?? "Not provided"} />
               <Detail label="Subject" value={message.subject ?? "Not provided"} />

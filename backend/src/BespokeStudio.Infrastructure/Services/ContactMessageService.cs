@@ -13,8 +13,15 @@ public sealed class ContactMessageService(BespokeStudioDbContext dbContext) : IC
         CancellationToken cancellationToken = default)
     {
         var now = DateTimeOffset.UtcNow;
+        var referenceNumber = await RequestReferenceNumberGenerator.CreateAsync(
+            dbContext,
+            "ContactMessageReferenceSequence",
+            "BSS-CON",
+            now,
+            cancellationToken);
         var message = new ContactMessage
         {
+            ReferenceNumber = referenceNumber,
             FullName = request.FullName.Trim(),
             Email = request.Email.Trim().ToLowerInvariant(),
             Phone = N(request.Phone),
@@ -43,6 +50,7 @@ public sealed class ContactMessageService(BespokeStudioDbContext dbContext) : IC
 
         return messages.Select(message => new ContactMessageListItemResponse(
             message.Id,
+            message.ReferenceNumber,
             message.FullName,
             message.Email,
             message.Phone,
@@ -86,6 +94,7 @@ public sealed class ContactMessageService(BespokeStudioDbContext dbContext) : IC
 
     private static ContactMessageResponse ToResponse(ContactMessage message) => new(
         message.Id,
+        message.ReferenceNumber,
         message.FullName,
         message.Email,
         message.Phone,

@@ -5,6 +5,7 @@ namespace BespokeStudio.Domain.Entities;
 public sealed class ContactMessage
 {
     public Guid Id { get; init; } = Guid.NewGuid();
+    public required string ReferenceNumber { get; set; }
     public required string FullName { get; set; }
     public required string Email { get; set; }
     public string? Phone { get; set; }

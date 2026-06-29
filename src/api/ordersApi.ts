@@ -60,6 +60,7 @@ export type AdminOrderStatus = (typeof ORDER_STATUSES)[number];
 
 export interface AdminOrderListItem {
   id: string;
+  referenceNumber: string;
   clientId: string;
   clientName: string;
   clientEmail: string | null;
@@ -103,6 +104,7 @@ export interface AdminOrderAttachment {
 
 export interface AdminOrderDetail {
   id: string;
+  referenceNumber: string;
   clientId: string;
   client: AdminClient;
   serviceOfferingId: string | null;

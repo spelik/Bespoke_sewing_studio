@@ -180,7 +180,7 @@ public sealed class NotificationService(
             ["customerPhone"] = order.Client.Phone,
             ["serviceName"] = order.ServiceName,
             ["preferredDate"] = order.PreferredDate?.ToString("yyyy-MM-dd"),
-            ["orderReference"] = order.Id.ToString()
+            ["orderReference"] = order.ReferenceNumber
         });
 
     private static string RenderContactTemplate(string template, string studioName, ContactMessageResponse message) =>
@@ -191,7 +191,7 @@ public sealed class NotificationService(
             ["customerEmail"] = message.Email,
             ["customerPhone"] = message.Phone,
             ["messageSubject"] = message.Subject,
-            ["contactReference"] = message.Id.ToString()
+            ["contactReference"] = message.ReferenceNumber
         });
 
     private static string RenderTemplate(string template, IReadOnlyDictionary<string, string?> values)
@@ -218,7 +218,7 @@ public sealed class NotificationService(
             .AppendLine($"Preferred date: {order.PreferredDate?.ToString("yyyy-MM-dd") ?? "Not provided"}")
             .AppendLine($"Description: {order.Description}")
             .AppendLine($"Attachment count: {order.Attachments.Count}")
-            .AppendLine($"Order reference: {order.Id}")
+            .AppendLine($"Order reference: {order.ReferenceNumber}")
             .AppendLine($"Created: {order.CreatedAt:O}")
             .AppendLine("Admin: /admin");
 
@@ -234,7 +234,7 @@ public sealed class NotificationService(
             .AppendLine($"Subject: {message.Subject ?? "Not provided"}")
             .AppendLine($"Message: {message.Message}")
             .AppendLine($"Consent given: {(message.ConsentGiven ? "Yes" : "No")}")
-            .AppendLine($"Contact message reference: {message.Id}")
+            .AppendLine($"Contact message reference: {message.ReferenceNumber}")
             .AppendLine($"Created: {message.CreatedAt:O}")
             .AppendLine("Admin: /admin");
 
