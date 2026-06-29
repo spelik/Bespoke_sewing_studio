@@ -40,7 +40,7 @@ Current backend status:
 - the public Contact form calls `POST /api/contact-messages` and persists messages in PostgreSQL
 - the public Order form accepts JPG, PNG, WebP and PDF attachments up to 5 MB each
 - attachment metadata, including upload scan status, is stored in PostgreSQL; development files are stored under `backend/storage/uploads`
-- public upload, order creation and Contact form endpoints use configurable per-IP rate limits
+- public upload, order creation and Contact form endpoints use configurable per-IP rate limits and lightweight honeypot/timing anti-spam checks
 - administrators can manually remove expired orphan uploads through a protected cleanup endpoint
 - public contact, social and footer settings load from `GET /api/site-settings/public`
 - the Admin **Settings** section edits public contact and notification settings
@@ -103,13 +103,16 @@ npm.cmd run dev -- --host 127.0.0.1
 
 The backend must be available at the configured `VITE_API_BASE_URL` before an
 Order form submission or admin sign-in. Select up to five files in the public
-Order form; after submission, open the enquiry in `/admin` to download its
-protected attachments. `backend/storage/` is ignored by Git.
+Order form across one or multiple selections; after submission, open the enquiry
+in `/admin` to download its protected attachments. `backend/storage/` is ignored by Git.
 
 Public `POST /api/uploads/order-attachments` requests are limited to 10 per 10
 minutes per IP, public `POST /api/orders` requests to 5 per 10 minutes per IP,
 and public `POST /api/contact-messages` requests to 5 per 10 minutes per IP by default. A rejected request returns `429` and a `Retry-After` header; the
-Order form displays the API message without exposing server details.
+Order form displays the API message without exposing server details. Order and
+Contact submissions also include hidden honeypot/timing fields; filled honeypots,
+missing timestamps and unrealistically fast or stale submissions are rejected before
+records are saved.
 
 An upload that is not linked to an order and is older than the configured
 `UploadStorage:OrphanCleanupAgeMinutes` TTL (120 minutes by default) can be
@@ -173,8 +176,8 @@ email, phone and message content while keeping the status filters.
 ## Contact messages
 
 The public Contact page sends real enquiries to `POST /api/contact-messages`.
-The backend validates name, email, optional phone, optional subject, message and
-consent, stores the message in PostgreSQL, assigns a human-readable reference
+The backend validates name, email, optional phone, optional subject, message,
+consent and lightweight anti-spam fields, stores the message in PostgreSQL, assigns a human-readable reference
 like `BSS-CON-2026-000001`, and returns `201 Created`. The form
 shows loading, success and validation/API error states and clears after a
 successful submission.

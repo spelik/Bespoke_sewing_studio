@@ -386,6 +386,8 @@ export interface OrderRequest {
   preferredDate?: string;
   consent: boolean;
   attachments: File[];
+  websiteUrl: string;
+  formLoadedAt: string;
 }
 
 export interface CreateOrderApiRequest {
@@ -399,6 +401,8 @@ export interface CreateOrderApiRequest {
   preferredDate: string | null;
   consent: boolean;
   attachmentIds: string[] | null;
+  websiteUrl: string | null;
+  formLoadedAt: string;
 }
 
 export interface OrderSubmissionResponse {
@@ -417,6 +421,8 @@ export interface ContactMessageRequest {
   subject?: string;
   message: string;
   consent: boolean;
+  websiteUrl: string;
+  formLoadedAt: string;
 }
 
 export interface ContactMessageResponse {

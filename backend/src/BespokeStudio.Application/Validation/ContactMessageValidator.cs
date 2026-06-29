@@ -9,6 +9,8 @@ public static class ContactMessageValidator
     {
         var errors = new Dictionary<string, string[]>();
 
+        PublicFormSpamValidator.AddValidationErrors(errors, request.WebsiteUrl, request.FormLoadedAt);
+
         AddRequired(errors, nameof(request.FullName), request.FullName, 200);
         AddRequired(errors, nameof(request.Email), request.Email, 320);
         AddRequired(errors, nameof(request.Message), request.Message, 4000);

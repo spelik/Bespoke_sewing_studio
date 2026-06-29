@@ -10,17 +10,21 @@ import { SectionLabel } from "../components/SectionLabel";
 import { usePageContent } from "../content/PageContentContext";
 import { useSiteSettings } from "../siteSettings/SiteSettingsContext";
 
-const emptyForm: ContactMessageRequest = {
-  fullName: "",
-  email: "",
-  phone: "",
-  subject: "",
-  message: "",
-  consent: false,
-};
+function createEmptyForm(): ContactMessageRequest {
+  return {
+    fullName: "",
+    email: "",
+    phone: "",
+    subject: "",
+    message: "",
+    consent: false,
+    websiteUrl: "",
+    formLoadedAt: new Date().toISOString(),
+  };
+}
 
 export function ContactPage() {
-  const [form, setForm] = useState<ContactMessageRequest>(emptyForm);
+  const [form, setForm] = useState<ContactMessageRequest>(() => createEmptyForm());
   const [submittedReference, setSubmittedReference] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -53,7 +57,7 @@ export function ContactPage() {
 
     try {
       const result = await createContactMessage(form);
-      setForm(emptyForm);
+      setForm(createEmptyForm());
       setSubmittedReference(result.referenceNumber);
     } catch (submissionError) {
       setError(getContactMessageSubmissionErrorMessage(submissionError));
@@ -122,6 +126,7 @@ export function ContactPage() {
                     onClick={() => {
                       setSubmittedReference(null);
                       setError(null);
+                      setForm(createEmptyForm());
                     }}
                     className="mt-6 px-5 py-2.5 border border-border text-[11px] tracking-wide hover:border-foreground transition-colors font-sans"
                   >
@@ -130,6 +135,20 @@ export function ContactPage() {
                 </div>
               ) : (
                 <form className="space-y-4" onSubmit={handleSubmit}>
+                  <div className="hidden" aria-hidden="true">
+                    <label htmlFor="contact-website-url">Website</label>
+                    <input
+                      id="contact-website-url"
+                      name="websiteUrl"
+                      type="text"
+                      tabIndex={-1}
+                      autoComplete="off"
+                      value={form.websiteUrl}
+                      onChange={handleInputChange}
+                    />
+                  </div>
+                  <input name="formLoadedAt" type="hidden" value={form.formLoadedAt} readOnly />
+
                   <input
                     name="fullName"
                     type="text"

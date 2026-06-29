@@ -145,6 +145,8 @@ export async function createOrder(
     attachmentIds: uploadedFiles.length > 0
       ? uploadedFiles.map((file) => file.id)
       : null,
+    websiteUrl: order.websiteUrl.trim() || null,
+    formLoadedAt: order.formLoadedAt,
   };
 
   return apiClient.post<CreateOrderApiRequest, OrderSubmissionResponse>("/orders", request);

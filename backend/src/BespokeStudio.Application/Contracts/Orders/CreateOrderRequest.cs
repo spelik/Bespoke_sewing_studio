@@ -12,4 +12,6 @@ public sealed record CreateOrderRequest(
     string Description,
     DateOnly? PreferredDate,
     bool Consent,
-    IReadOnlyCollection<Guid>? AttachmentIds);
+    IReadOnlyCollection<Guid>? AttachmentIds,
+    string? WebsiteUrl,
+    DateTimeOffset? FormLoadedAt);

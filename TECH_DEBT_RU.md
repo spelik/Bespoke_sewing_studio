@@ -233,3 +233,10 @@
 - Email delivery сохранил отдельную кнопку Save Email Delivery и отдельную отправку test email.
 - Backend API не усложнялся: модульные кнопки используют существующий валидируемый Site Settings update endpoint.
 
+## Task 33 — Public form anti-spam hardening and multi-file upload fix
+
+- Public Order form теперь накапливает выбранные файлы через несколько последовательных selections/drop actions вместо замены предыдущего выбора; лимит 5 файлов и existing frontend validation сохранены.
+- Public Order и Contact form отправляют скрытый honeypot field и timestamp открытия формы. Backend validators отклоняют заполненный honeypot, отсутствующий timestamp, слишком быструю отправку и stale submissions до сохранения заявки.
+- Anti-spam защита является lightweight hardening поверх существующего rate limiting, без reCAPTCHA/Google dependencies и без изменения UX для реальных клиентов.
+- Backend persistence model и migrations не менялись.
+

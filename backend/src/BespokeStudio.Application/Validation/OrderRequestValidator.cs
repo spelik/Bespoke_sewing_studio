@@ -9,6 +9,8 @@ public static class OrderRequestValidator
     {
         var errors = new Dictionary<string, string[]>();
 
+        PublicFormSpamValidator.AddValidationErrors(errors, request.WebsiteUrl, request.FormLoadedAt);
+
         AddRequired(errors, nameof(request.FullName), request.FullName, 200);
         AddRequired(errors, nameof(request.Description), request.Description, 4000);
         AddOptionalMaxLength(errors, nameof(request.Email), request.Email, 320);

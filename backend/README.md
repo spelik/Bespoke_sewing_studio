@@ -16,6 +16,7 @@ Current status:
 - Repeatable Content CMS manages process steps, studio values, testimonials and privacy subsections
 - Admin Contact Messages module lists messages, filters by status and updates workflow state
 - Site Settings and Brand/Logo/SEO settings provide public contact, navigation, logo, CTA and metadata configuration
+- public Order and Contact submissions use rate limits plus lightweight honeypot/timing anti-spam checks
 - email notification foundation supports owner notifications for Orders and Contact Messages through Logging and SMTP providers; WhatsApp/SMS channels are intentionally not implemented
 - the product is English-only; multilingual CMS, language fields and EN/UA switching are not part of the current scope
 
@@ -263,11 +264,16 @@ Example request:
   "description": "I would like to discuss a custom dress order.",
   "preferredDate": null,
   "consent": true,
-  "attachmentIds": null
+  "attachmentIds": null,
+  "websiteUrl": null,
+  "formLoadedAt": "2026-06-29T19:15:00Z"
 }
 ```
 
-At least one of `email` or `phone` is required. Client matching first checks a
+`websiteUrl` is a hidden honeypot field and should stay `null`/empty.
+`formLoadedAt` is the UTC timestamp from when the public form was opened;
+submissions that are missing it, arrive too quickly, are stale or fill the
+honeypot are rejected before persistence. At least one of `email` or `phone` is required. Client matching first checks a
 normalised email and then an exact trimmed phone. A new client is created only
 when neither value matches an existing client.
 
@@ -301,11 +307,13 @@ Admin JWT endpoints:
 - `PATCH /api/admin/contact-messages/{id}/status` updates the workflow status
 
 Supported statuses are `New`, `Read`, `Replied` and `Archived`. The public
-request requires name, email, message and `consent=true`; phone and subject are
-optional. Validation failures return `400 ValidationProblem` with JSON property
+request requires name, email, message, `consent=true` and the hidden anti-spam
+fields `websiteUrl` and `formLoadedAt`; phone and subject are optional.
+Validation failures return `400 ValidationProblem` with JSON property
 names matching the frontend form. Public contact message creation uses the
 `PublicContactPolicy` fixed-window rate limit configured through
-`RateLimiting:PublicContactPermitLimit` and `RateLimiting:WindowMinutes`.
+`RateLimiting:PublicContactPermitLimit` and `RateLimiting:WindowMinutes`. The
+same lightweight honeypot/timing validation is used by public Order creation.
 
 After a message is stored, `INotificationService` sends an owner notification
 through the same email foundation used for Orders. `EmailNotificationsEnabled`

@@ -6,4 +6,6 @@ public sealed record CreateContactMessageRequest(
     string? Phone,
     string? Subject,
     string Message,
-    bool Consent);
+    bool Consent,
+    string? WebsiteUrl,
+    DateTimeOffset? FormLoadedAt);

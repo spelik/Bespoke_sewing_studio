@@ -30,6 +30,7 @@ Authorization: Bearer {{AccessToken}}
 
 ###
 
+# Replace formLoadedAt with the current UTC timestamp before running this direct API request.
 POST {{BespokeStudio.Api_HostAddress}}/api/orders
 Content-Type: application/json
 
@@ -41,7 +42,9 @@ Content-Type: application/json
   "description": "I would like to discuss a custom dress order.",
   "preferredDate": null,
   "consent": true,
-  "attachmentIds": null
+  "attachmentIds": null,
+  "websiteUrl": null,
+  "formLoadedAt": "2026-06-29T19:15:00Z"
 }
 
 ###

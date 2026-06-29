@@ -15,6 +15,8 @@ interface CreateContactMessageApiRequest {
   subject: string | null;
   message: string;
   consent: boolean;
+  websiteUrl: string | null;
+  formLoadedAt: string;
 }
 
 export const CONTACT_MESSAGE_STATUSES: readonly ContactMessageStatus[] = [
@@ -34,6 +36,8 @@ export function createContactMessage(
     subject: request.subject?.trim() || null,
     message: request.message.trim(),
     consent: request.consent,
+    websiteUrl: request.websiteUrl.trim() || null,
+    formLoadedAt: request.formLoadedAt,
   };
 
   return apiClient.post<CreateContactMessageApiRequest, ContactMessageResponse>(

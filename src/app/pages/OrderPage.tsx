@@ -20,6 +20,7 @@ export function OrderPage() {
   const [service, setService] = useState("");
   const [consent, setConsent] = useState(false);
   const [attachments, setAttachments] = useState<File[]>([]);
+  const [formLoadedAt] = useState(() => new Date().toISOString());
   const [attachmentError, setAttachmentError] = useState<string | null>(null);
   const { submitted, result, isSubmitting, errorMessage, handleSubmit } = useAsyncForm<
     OrderRequest,
@@ -51,18 +52,25 @@ export function OrderPage() {
         preferredDate: String(formData.get("preferredDate") ?? "") || undefined,
         consent,
         attachments,
+        websiteUrl: String(formData.get("websiteUrl") ?? ""),
+        formLoadedAt,
       };
     },
     getOrderSubmissionErrorMessage,
   );
 
-  function selectAttachments(files: File[]) {
+  function addAttachments(files: File[]) {
+    if (files.length === 0) {
+      return;
+    }
+
+    const nextFiles = mergeUniqueFiles(attachments, files);
+
     try {
-      validateOrderAttachments(files);
-      setAttachments(files);
+      validateOrderAttachments(nextFiles);
+      setAttachments(nextFiles);
       setAttachmentError(null);
     } catch (error) {
-      setAttachments([]);
       setAttachmentError(getOrderSubmissionErrorMessage(error));
     }
   }
@@ -74,7 +82,7 @@ export function OrderPage() {
 
   function handleDrop(event: DragEvent<HTMLLabelElement>) {
     event.preventDefault();
-    selectAttachments(Array.from(event.dataTransfer.files));
+    addAttachments(Array.from(event.dataTransfer.files));
   }
 
   useEffect(() => {
@@ -121,6 +129,18 @@ export function OrderPage() {
             onSubmit={handleSubmit}
             aria-busy={isSubmitting}
           >
+            <div className="hidden" aria-hidden="true">
+              <label htmlFor="order-website-url">Website</label>
+              <input
+                id="order-website-url"
+                name="websiteUrl"
+                type="text"
+                tabIndex={-1}
+                autoComplete="off"
+              />
+            </div>
+            <input name="formLoadedAt" type="hidden" value={formLoadedAt} readOnly />
+
             {/* Personal details */}
             <div>
               <h3 className="text-[10px] tracking-[0.3em] uppercase text-muted-foreground mb-6 pb-3 border-b border-border font-sans">
@@ -247,7 +267,7 @@ export function OrderPage() {
                       accept=".jpg,.jpeg,.png,.webp,.pdf,image/jpeg,image/png,image/webp,application/pdf"
                       className="sr-only"
                       onChange={(event) => {
-                        selectAttachments(Array.from(event.target.files ?? []));
+                        addAttachments(Array.from(event.target.files ?? []));
                         event.currentTarget.value = "";
                       }}
                     />
@@ -338,6 +358,26 @@ export function OrderPage() {
     </div>
   );
 }
+
+function mergeUniqueFiles(currentFiles: File[], selectedFiles: File[]): File[] {
+  const seen = new Set(currentFiles.map(getFileIdentity));
+  const merged = [...currentFiles];
+
+  for (const file of selectedFiles) {
+    const identity = getFileIdentity(file);
+    if (!seen.has(identity)) {
+      merged.push(file);
+      seen.add(identity);
+    }
+  }
+
+  return merged;
+}
+
+function getFileIdentity(file: File): string {
+  return `${file.name}-${file.size}-${file.lastModified}`;
+}
+
 function formatFileSize(sizeBytes: number): string {
   return `${(sizeBytes / 1024).toFixed(1)} KB`;
 }
