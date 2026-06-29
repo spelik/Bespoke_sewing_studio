@@ -66,7 +66,7 @@ export function AdminOrdersTable({
                   <td className="px-5 py-3.5 text-[12px] text-foreground font-sans">
                     <div>{order.clientName}</div>
                     <div className="text-[9px] text-muted-foreground font-mono mt-0.5">
-                      {order.id.slice(0, 8)}
+                      {order.referenceNumber}
                     </div>
                   </td>
                   <td className="px-5 py-3.5 text-[10px] text-muted-foreground font-sans max-w-[170px]">
@@ -94,7 +94,7 @@ export function AdminOrdersTable({
                       type="button"
                       onClick={() => onSelect(order.id)}
                       className="inline-flex items-center gap-1.5 text-[10px] text-muted-foreground hover:text-foreground transition-colors"
-                      aria-label={`View enquiry from ${order.clientName}`}
+                      aria-label={`View enquiry ${order.referenceNumber} from ${order.clientName}`}
                     >
                       <Eye size={13} /> View
                     </button>
