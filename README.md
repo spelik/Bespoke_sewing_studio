@@ -39,7 +39,7 @@ Current backend status:
 - the public Order form calls `POST /api/orders`
 - the public Contact form calls `POST /api/contact-messages` and persists messages in PostgreSQL
 - the public Order form accepts JPG, PNG, WebP and PDF attachments up to 5 MB each
-- attachment metadata is stored in PostgreSQL; development files are stored under `backend/storage/uploads`
+- attachment metadata, including upload scan status, is stored in PostgreSQL; development files are stored under `backend/storage/uploads`
 - public upload, order creation and Contact form endpoints use configurable per-IP rate limits
 - administrators can manually remove expired orphan uploads through a protected cleanup endpoint
 - public contact, social and footer settings load from `GET /api/site-settings/public`
@@ -114,8 +114,12 @@ Order form displays the API message without exposing server details.
 An upload that is not linked to an order and is older than the configured
 `UploadStorage:OrphanCleanupAgeMinutes` TTL (120 minutes by default) can be
 removed by an administrator through `POST /api/uploads/cleanup-orphans` using
-an Admin JWT. Cleanup is manual at this stage. Production object storage and
-antivirus/deep-content scanning are not implemented.
+an Admin JWT. Cleanup is manual at this stage. Local uploads are written to a
+quarantine folder first, validated by file signature, optionally scanned through
+configured ClamAV/command-line malware scanning, and moved to final storage only
+when accepted. The default development scanner provider is `Disabled`; production
+must configure ClamAV before accepting uploads. Production object storage is not
+implemented.
 
 ## Services and prices
 

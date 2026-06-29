@@ -259,6 +259,9 @@ export function OrderPage() {
                     <p className="text-[11px] text-muted-foreground/50 mt-2 font-sans">
                       JPG, PNG, WebP or PDF &middot; Up to 5 MB each &middot; Maximum 5 files
                     </p>
+                    <p className="text-[10px] text-muted-foreground/50 mt-1 font-sans">
+                      Files are checked before they are accepted.
+                    </p>
                   </label>
                   {attachments.length > 0 ? (
                     <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3" aria-label="Selected attachments">
@@ -327,7 +330,7 @@ export function OrderPage() {
             </button>
 
             <p className="text-[11px] text-muted-foreground/50 text-center font-sans">
-              Your request will be sent securely to {brand.brandDisplayName}.
+              Your request and accepted attachments will be sent securely to {brand.brandDisplayName}.
             </p>
           </form>
         </div>

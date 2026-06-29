@@ -8,4 +8,7 @@ public sealed record UploadedFileResponse(
     string ContentType,
     long SizeBytes,
     UploadPurpose Purpose,
-    DateTimeOffset CreatedAt);
+    DateTimeOffset CreatedAt,
+    UploadScanStatus ScanStatus,
+    string? ScanProvider,
+    DateTimeOffset? ScannedAt);

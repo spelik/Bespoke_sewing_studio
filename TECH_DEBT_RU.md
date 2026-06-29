@@ -46,7 +46,7 @@
 - Frontend admin login подключён к JWT API: access token хранится в `sessionStorage`, `/admin` защищён route guard, logout очищает сессию.
 - Admin Orders page использует реальные list/detail/status/note endpoints; изменения статуса и заметки обновляют UI без перезагрузки.
 - Order attachments реализованы двухшаговым flow: public multipart upload возвращает IDs, `POST /api/orders` связывает metadata с заявкой, а admin скачивает файл через JWT-protected endpoint.
-- PostgreSQL хранит только upload metadata; физические dev-файлы находятся в ignored `backend/storage/uploads`, с generated filenames, allowlist типов и лимитом `5 MB` на файл.
+- PostgreSQL хранит upload metadata и scan status; физические dev-файлы находятся в ignored `backend/storage/uploads`, с generated filenames, allowlist типов, file signature validation, quarantine flow и лимитом `5 MB` на файл.
 - Public `POST /api/uploads/order-attachments` и `POST /api/orders` защищены configurable fixed-window rate limiting по remote IP; превышение возвращает `429`, JSON problem details и `Retry-After`.
 - Добавлены `IUploadCleanupService`/`UploadCleanupService`: cleanup удаляет только OrderAttachment uploads старше configurable TTL, повторно проверяя отсутствие связи с order перед удалением.
 - Ручной `POST /api/uploads/cleanup-orphans` доступен только Admin JWT и возвращает summary по scanned/deleted/missing/skipped; linked attachments не удаляются.
@@ -93,7 +93,7 @@
 - Client matching пока не защищён уникальным normalized email/phone constraint; при конкурентных запросах возможны дубликаты.
 - Ручную validation можно позже заменить или дополнить FluentValidation при росте числа команд и правил.
 - Для production auth остаются refresh-token/session strategy, password reset, email confirmation/MFA, rate limiting login и ротация JWT signing key через внешний secret store.
-- Production storage provider (S3/Azure Blob/R2), antivirus/deep content scanning, thumbnail/AVIF generation и image cropper пока не реализованы. Portfolio upload использует локальное dev storage.
+- Production storage provider (S3/Azure Blob/R2), deep content inspection, thumbnail/AVIF generation и image cropper пока не реализованы. Для локального storage добавлены quarantine flow, scan metadata и configurable ClamAV/command-line scanner; production ещё требует фактической настройки ClamAV и мониторинга обновления signatures.
 - Автоматическая очистка orphan `PortfolioImage` пока не реализована; существующий cleanup обрабатывает только orphan order attachments. Архивирование portfolio item намеренно сохраняет физический файл.
 - Автоматический background orphan cleanup пока не реализован; доступен защищённый ручной endpoint. Для production нужны distributed rate limiting/abuse protection и trusted forwarded-header configuration за reverse proxy.
 - SMTP provider реализован; есть два режима: developer-managed SMTP через user-secrets/env/secret store и owner-managed Gmail SMTP через Admin Settings с protected App Password. До production остаются настройка deliverability (SPF/DKIM/DMARC), мониторинг bounce/rejection, production Data Protection key persistence и операционная ротация credentials.

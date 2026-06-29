@@ -1,3 +1,5 @@
+using BespokeStudio.Domain.Enums;
+
 namespace BespokeStudio.Application.Contracts.Orders;
 
 public sealed record OrderAttachmentResponse(
@@ -7,4 +9,7 @@ public sealed record OrderAttachmentResponse(
     string ContentType,
     long SizeBytes,
     string? Caption,
-    int DisplayOrder);
+    int DisplayOrder,
+    UploadScanStatus ScanStatus,
+    string? ScanProvider,
+    DateTimeOffset? ScannedAt);

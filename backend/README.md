@@ -117,8 +117,8 @@ attachments, portfolio images, content images or an unlinked brand upload.
 `BespokeStudio.Domain` contains persistence-independent entities for clients,
 orders and notes/attachments, contact messages, portfolio items and categories,
 service offerings, and uploaded-file metadata. Domain enums describe order
-status, contact message status, service type, portfolio publication status, and
-upload purpose.
+status, contact message status, service type, portfolio publication status,
+upload purpose and upload scan status.
 
 The domain does not reference EF Core, database attributes, `DbContext`, or a
 storage provider. Email, phone, and money value objects remain a future design
@@ -348,13 +348,15 @@ contract stable:
 
 The upload endpoint is anonymous because it is used before an order exists. It
 accepts at most five non-empty files, each no larger than `5 MB`, and validates
-both content type and filename extension. Allowed combinations are JPG/JPEG,
-PNG, WebP, and PDF. Server-generated random filenames are used; the original
-filename is retained only as metadata.
+content type, filename extension and basic file signature/magic bytes. Allowed
+combinations are JPG/JPEG, PNG, WebP, and PDF. Server-generated random filenames
+are used; the original filename is retained only as metadata.
 
-PostgreSQL stores only `UploadedFiles` metadata and `OrderAttachments` links.
-Physical development files are stored under `backend/storage/uploads`, which
-is excluded by `.gitignore`. Configuration is in `UploadStorage`:
+PostgreSQL stores only `UploadedFiles` metadata, scan status and
+`OrderAttachments` links. Physical development files are stored under
+`backend/storage/uploads`, which is excluded by `.gitignore`. Uploads are first
+written under `backend/storage/uploads/quarantine`, checked, and then moved to
+their final folder only when accepted. Configuration is in `UploadStorage`:
 
 ```json
 {
@@ -373,7 +375,45 @@ the original filename. Files are not served from `wwwroot`.
 
 To verify manually, submit an enquiry with an allowed file in `/order`, confirm
 that a generated file appears under `backend/storage/uploads`, then sign in at
-`/admin`, open the enquiry, and select **Download** in Attachments.
+`/admin`, open the enquiry, confirm the attachment scan status is shown, and
+select **Download** in Attachments.
+
+### Upload security and ClamAV
+
+Upload security is configured under `UploadSecurity:MalwareScanner`. The default
+repository configuration keeps the provider `Disabled` so local development does
+not require ClamAV. In this mode files are still written through quarantine and
+validated by extension/content type/file signature, then stored with
+`ScanStatus=Skipped`.
+
+For production, configure ClamAV or another command-line scanner through
+environment variables, secret store or an excluded production settings file:
+
+```json
+{
+  "UploadSecurity": {
+    "MalwareScanner": {
+      "Provider": "ClamAV",
+      "DisplayName": "ClamAV",
+      "ExecutablePath": "clamscan",
+      "Arguments": ["--no-summary", "{filePath}"],
+      "TimeoutSeconds": 30,
+      "CleanExitCodes": [0],
+      "InfectedExitCodes": [1],
+      "ErrorExitCodes": [2],
+      "TreatScannerErrorAsRejection": true
+    }
+  }
+}
+```
+
+When the scanner returns a clean result, metadata is stored with
+`ScanStatus=Clean`, `ScanProvider` and `ScannedAt`, and the file is moved from
+quarantine to final storage. Infected files or scanner failures are rejected and
+not linked to orders. Admin order attachment cards show the recorded scan status.
+Do not describe scanned files as "100% safe"; use wording such as "Security scan
+completed".
+
 
 ### Public request rate limits
 
@@ -412,8 +452,8 @@ Invoke-RestMethod http://localhost:5099/api/uploads/cleanup-orphans `
 The response reports scanned candidates, deleted metadata, deleted physical
 files, missing physical files, and skipped candidates. The endpoint returns
 `401/403` without a valid Admin JWT. There is no scheduled background cleanup
-yet. Production object storage, antivirus/deep-content scanning, and image
-processing are also outside the current local-storage implementation.
+yet. Production object storage, deep content inspection and image processing are
+outside the current local-storage implementation.
 
 ## Site Settings API
 

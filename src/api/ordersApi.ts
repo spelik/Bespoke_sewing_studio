@@ -30,6 +30,8 @@ export class OrderFileValidationError extends Error {
   }
 }
 
+export type UploadScanStatus = "Pending" | "Clean" | "Skipped" | "Infected" | "Rejected" | "ScanFailed";
+
 export interface UploadedOrderAttachment {
   id: string;
   originalFileName: string;
@@ -37,6 +39,9 @@ export interface UploadedOrderAttachment {
   sizeBytes: number;
   purpose: "OrderAttachment";
   createdAt: string;
+  scanStatus: UploadScanStatus;
+  scanProvider: string | null;
+  scannedAt: string | null;
 }
 
 export const ORDER_STATUSES = [
@@ -91,6 +96,9 @@ export interface AdminOrderAttachment {
   sizeBytes: number;
   caption: string | null;
   displayOrder: number;
+  scanStatus: UploadScanStatus;
+  scanProvider: string | null;
+  scannedAt: string | null;
 }
 
 export interface AdminOrderDetail {

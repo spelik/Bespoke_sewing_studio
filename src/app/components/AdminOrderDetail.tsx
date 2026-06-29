@@ -1,5 +1,5 @@
 import { type FormEvent, useEffect, useState } from "react";
-import { Download, FileText, Image as ImageIcon, LoaderCircle, X } from "lucide-react";
+import { Download, FileText, Image as ImageIcon, LoaderCircle, ShieldCheck, ShieldAlert, X } from "lucide-react";
 import { ApiError } from "../../api/apiClient";
 import {
   getAdminAttachmentFile,
@@ -209,6 +209,27 @@ function Detail({ label, value }: { label: string; value: string }) {
     </div>
   );
 }
+
+function getScanStatusLabel(attachment: AdminOrderDetailModel["attachments"][number]): string {
+  if (attachment.scanStatus === "Clean") {
+    return `Security scan completed${attachment.scanProvider ? ` · ${attachment.scanProvider}` : ""}`;
+  }
+
+  if (attachment.scanStatus === "Skipped") {
+    return "Security scan not configured for this upload";
+  }
+
+  if (attachment.scanStatus === "Pending") {
+    return "Security scan pending";
+  }
+
+  return "Security scan did not pass";
+}
+
+function isPositiveScanStatus(status: AdminOrderDetailModel["attachments"][number]["scanStatus"]): boolean {
+  return status === "Clean" || status === "Skipped";
+}
+
 function formatFileSize(sizeBytes: number): string {
   return `${(sizeBytes / 1024).toFixed(1)} KB`;
 }
@@ -292,6 +313,19 @@ function AdminAttachmentCard({
           <p className="mt-1 text-[9px] text-muted-foreground">
             {attachment.contentType} &middot; {formatFileSize(attachment.sizeBytes)}
           </p>
+          <p className="mt-2 inline-flex items-center gap-1.5 text-[9px] text-muted-foreground">
+            {isPositiveScanStatus(attachment.scanStatus) ? (
+              <ShieldCheck size={11} className="text-accent" aria-hidden="true" />
+            ) : (
+              <ShieldAlert size={11} className="text-destructive" aria-hidden="true" />
+            )}
+            {getScanStatusLabel(attachment)}
+          </p>
+          {attachment.scannedAt ? (
+            <p className="mt-1 text-[9px] text-muted-foreground/70">
+              Checked {formatAdminDate(attachment.scannedAt)}
+            </p>
+          ) : null}
           {previewFailed ? (
             <p className="mt-2 text-[9px] text-muted-foreground">Preview unavailable. Download the file to view it.</p>
           ) : null}

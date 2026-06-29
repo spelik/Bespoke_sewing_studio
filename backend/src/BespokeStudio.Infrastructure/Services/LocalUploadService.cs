@@ -7,6 +7,7 @@ using BespokeStudio.Infrastructure.Persistence;
 using BespokeStudio.Infrastructure.Storage;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace BespokeStudio.Infrastructure.Services;
@@ -24,15 +25,21 @@ public sealed class LocalUploadService : IUploadService
 
     private readonly BespokeStudioDbContext _dbContext;
     private readonly UploadStorageOptions _options;
+    private readonly IMalwareScanner _malwareScanner;
+    private readonly ILogger<LocalUploadService> _logger;
     private readonly string _storageRoot;
 
     public LocalUploadService(
         BespokeStudioDbContext dbContext,
         IOptions<UploadStorageOptions> options,
-        IHostEnvironment environment)
+        IHostEnvironment environment,
+        IMalwareScanner malwareScanner,
+        ILogger<LocalUploadService> logger)
     {
         _dbContext = dbContext;
         _options = options.Value;
+        _malwareScanner = malwareScanner;
+        _logger = logger;
         _storageRoot = UploadStoragePath.ResolveRoot(_options, environment);
     }
 
@@ -47,68 +54,33 @@ public sealed class LocalUploadService : IUploadService
         }
 
         var preparedFiles = files.Select(ValidateAndPrepare).ToArray();
-        var createdPaths = new List<string>(preparedFiles.Length);
-        var metadataItems = new List<UploadedFileMetadata>(preparedFiles.Length);
+        var storedUploads = new List<StoredUpload>(preparedFiles.Length);
 
         try
         {
             foreach (var file in preparedFiles)
             {
-                cancellationToken.ThrowIfCancellationRequested();
-
-                var relativeDirectory = Path.Combine(
+                storedUploads.Add(await StoreValidatedFileAsync(
+                    file,
+                    UploadPurpose.OrderAttachment,
                     "order-attachments",
-                    DateTime.UtcNow.ToString("yyyy"),
-                    DateTime.UtcNow.ToString("MM"));
-                var storedFileName = $"{Guid.NewGuid():N}{file.Extension}";
-                var storageKey = Path.Combine(relativeDirectory, storedFileName)
-                    .Replace(Path.DirectorySeparatorChar, '/');
-                var directoryPath = Path.Combine(_storageRoot, relativeDirectory);
-                var physicalPath = Path.Combine(directoryPath, storedFileName);
-
-                Directory.CreateDirectory(directoryPath);
-                createdPaths.Add(physicalPath);
-
-                await using (var destination = new FileStream(
-                    physicalPath,
-                    FileMode.CreateNew,
-                    FileAccess.Write,
-                    FileShare.None,
-                    bufferSize: 81920,
-                    useAsync: true))
-                {
-                    await CopyWithLimitAsync(
-                        file.Request.Content,
-                        destination,
-                        _options.MaxFileSizeBytes,
-                        cancellationToken);
-                }
-
-                metadataItems.Add(new UploadedFileMetadata
-                {
-                    Purpose = UploadPurpose.OrderAttachment,
-                    OriginalFileName = file.OriginalFileName,
-                    StoredFileName = storedFileName,
-                    StorageKey = storageKey,
-                    ContentType = file.ContentType,
-                    SizeBytes = file.Request.SizeBytes
-                });
+                    cancellationToken));
             }
 
-            _dbContext.UploadedFiles.AddRange(metadataItems);
+            _dbContext.UploadedFiles.AddRange(storedUploads.Select(upload => upload.Metadata));
             await _dbContext.SaveChangesAsync(cancellationToken);
         }
         catch
         {
-            foreach (var path in createdPaths)
+            foreach (var upload in storedUploads)
             {
-                TryDelete(path);
+                TryDelete(upload.PhysicalPath);
             }
 
             throw;
         }
 
-        return metadataItems.Select(ToResponse).ToArray();
+        return storedUploads.Select(upload => ToResponse(upload.Metadata)).ToArray();
     }
 
     public async Task<UploadedFileResponse> UploadPortfolioImageAsync(
@@ -121,93 +93,149 @@ public sealed class LocalUploadService : IUploadService
             throw new UploadValidationException("Portfolio uploads must be JPG, PNG or WebP images.");
         }
 
-        var relativeDirectory = Path.Combine("portfolio-images", DateTime.UtcNow.ToString("yyyy"), DateTime.UtcNow.ToString("MM"));
-        var storedFileName = $"{Guid.NewGuid():N}{prepared.Extension}";
-        var storageKey = Path.Combine(relativeDirectory, storedFileName).Replace(Path.DirectorySeparatorChar, '/');
-        var directoryPath = Path.Combine(_storageRoot, relativeDirectory);
-        var physicalPath = Path.Combine(directoryPath, storedFileName);
-        Directory.CreateDirectory(directoryPath);
+        var storedUpload = await StoreValidatedFileAsync(
+            prepared,
+            UploadPurpose.PortfolioImage,
+            "portfolio-images",
+            cancellationToken);
 
         try
         {
-            await using (var destination = new FileStream(physicalPath, FileMode.CreateNew, FileAccess.Write, FileShare.None,
-                bufferSize: 81920, useAsync: true))
-            {
-                await CopyWithLimitAsync(prepared.Request.Content, destination, _options.MaxFileSizeBytes, cancellationToken);
-            }
-
-            var metadata = new UploadedFileMetadata
-            {
-                Purpose = UploadPurpose.PortfolioImage,
-                OriginalFileName = prepared.OriginalFileName,
-                StoredFileName = storedFileName,
-                StorageKey = storageKey,
-                ContentType = prepared.ContentType,
-                SizeBytes = prepared.Request.SizeBytes
-            };
-            _dbContext.UploadedFiles.Add(metadata);
+            _dbContext.UploadedFiles.Add(storedUpload.Metadata);
             await _dbContext.SaveChangesAsync(cancellationToken);
-            return ToResponse(metadata);
+            return ToResponse(storedUpload.Metadata);
         }
         catch
         {
-            TryDelete(physicalPath);
+            TryDelete(storedUpload.PhysicalPath);
             throw;
         }
     }
 
-    public async Task<UploadedFileResponse> UploadContentImageAsync(UploadFileRequest file,CancellationToken cancellationToken=default)
+    public async Task<UploadedFileResponse> UploadContentImageAsync(
+        UploadFileRequest file,
+        CancellationToken cancellationToken = default)
     {
-        var prepared=ValidateAndPrepare(file);
-        if(!prepared.ContentType.StartsWith("image/",StringComparison.Ordinal))throw new UploadValidationException("Content uploads must be JPG, PNG or WebP images.");
-        var relativeDirectory=Path.Combine("content-images",DateTime.UtcNow.ToString("yyyy"),DateTime.UtcNow.ToString("MM"));
-        var storedFileName=$"{Guid.NewGuid():N}{prepared.Extension}";var storageKey=Path.Combine(relativeDirectory,storedFileName).Replace(Path.DirectorySeparatorChar,'/');
-        var directoryPath=Path.Combine(_storageRoot,relativeDirectory);var physicalPath=Path.Combine(directoryPath,storedFileName);Directory.CreateDirectory(directoryPath);
+        var prepared = ValidateAndPrepare(file);
+        if (!prepared.ContentType.StartsWith("image/", StringComparison.Ordinal))
+        {
+            throw new UploadValidationException("Content uploads must be JPG, PNG or WebP images.");
+        }
+
+        var storedUpload = await StoreValidatedFileAsync(
+            prepared,
+            UploadPurpose.SiteAsset,
+            "content-images",
+            cancellationToken);
+
         try
         {
-            await using(var destination=new FileStream(physicalPath,FileMode.CreateNew,FileAccess.Write,FileShare.None,81920,true))
-                await CopyWithLimitAsync(prepared.Request.Content,destination,_options.MaxFileSizeBytes,cancellationToken);
-            var metadata=new UploadedFileMetadata{Purpose=UploadPurpose.SiteAsset,OriginalFileName=prepared.OriginalFileName,StoredFileName=storedFileName,StorageKey=storageKey,ContentType=prepared.ContentType,SizeBytes=prepared.Request.SizeBytes};
-            _dbContext.UploadedFiles.Add(metadata);await _dbContext.SaveChangesAsync(cancellationToken);return ToResponse(metadata);
-        }catch{TryDelete(physicalPath);throw;}
+            _dbContext.UploadedFiles.Add(storedUpload.Metadata);
+            await _dbContext.SaveChangesAsync(cancellationToken);
+            return ToResponse(storedUpload.Metadata);
+        }
+        catch
+        {
+            TryDelete(storedUpload.PhysicalPath);
+            throw;
+        }
     }
 
-    public async Task<UploadDownloadResponse?> OpenPublicContentImageAsync(Guid uploadedFileId,CancellationToken cancellationToken=default)
+    public async Task<UploadedFileResponse> UploadBrandImageAsync(
+        UploadFileRequest file,
+        CancellationToken cancellationToken = default)
     {
-        var metadata=await(from content in _dbContext.PageContents.AsNoTracking() join file in _dbContext.UploadedFiles.AsNoTracking() on content.ImageFileId equals file.Id
-            where file.Id==uploadedFileId&&file.Purpose==UploadPurpose.SiteAsset&&content.IsActive&&content.ArchivedAt==null&&file.ContentType.StartsWith("image/") select file).FirstOrDefaultAsync(cancellationToken);
+        var prepared = ValidateAndPrepare(file);
+        if (!prepared.ContentType.StartsWith("image/", StringComparison.Ordinal))
+        {
+            throw new UploadValidationException("Brand uploads must be JPG, PNG or WebP images.");
+        }
+
+        var storedUpload = await StoreValidatedFileAsync(
+            prepared,
+            UploadPurpose.BrandAsset,
+            "brand-images",
+            cancellationToken);
+
+        try
+        {
+            _dbContext.UploadedFiles.Add(storedUpload.Metadata);
+            await _dbContext.SaveChangesAsync(cancellationToken);
+            return ToResponse(storedUpload.Metadata);
+        }
+        catch
+        {
+            TryDelete(storedUpload.PhysicalPath);
+            throw;
+        }
+    }
+
+    public async Task<UploadDownloadResponse?> OpenPublicContentImageAsync(
+        Guid uploadedFileId,
+        CancellationToken cancellationToken = default)
+    {
+        var metadata = await (
+            from content in _dbContext.PageContents.AsNoTracking()
+            join file in _dbContext.UploadedFiles.AsNoTracking() on content.ImageFileId equals file.Id
+            where file.Id == uploadedFileId &&
+                file.Purpose == UploadPurpose.SiteAsset &&
+                content.IsActive &&
+                content.ArchivedAt == null &&
+                file.ContentType.StartsWith("image/")
+            select file)
+            .FirstOrDefaultAsync(cancellationToken);
+
         return OpenFile(metadata);
     }
 
-    public async Task<UploadDownloadResponse?> OpenContentImageForAdminAsync(Guid uploadedFileId,CancellationToken cancellationToken=default)
+    public async Task<UploadDownloadResponse?> OpenContentImageForAdminAsync(
+        Guid uploadedFileId,
+        CancellationToken cancellationToken = default)
     {
-        var metadata=await _dbContext.UploadedFiles.AsNoTracking().SingleOrDefaultAsync(file=>file.Id==uploadedFileId&&file.Purpose==UploadPurpose.SiteAsset&&file.ContentType.StartsWith("image/"),cancellationToken);
+        var metadata = await _dbContext.UploadedFiles
+            .AsNoTracking()
+            .SingleOrDefaultAsync(
+                file => file.Id == uploadedFileId &&
+                    file.Purpose == UploadPurpose.SiteAsset &&
+                    file.ContentType.StartsWith("image/"),
+                cancellationToken);
+
         return OpenFile(metadata);
     }
 
-    public async Task<UploadedFileResponse> UploadBrandImageAsync(UploadFileRequest file,CancellationToken cancellationToken=default)
+    public async Task<UploadDownloadResponse?> OpenPublicBrandImageAsync(
+        Guid uploadedFileId,
+        CancellationToken cancellationToken = default)
     {
-        var prepared=ValidateAndPrepare(file);
-        if(!prepared.ContentType.StartsWith("image/",StringComparison.Ordinal)) throw new UploadValidationException("Brand uploads must be JPG, PNG or WebP images.");
-        var relativeDirectory=Path.Combine("brand-images",DateTime.UtcNow.ToString("yyyy"),DateTime.UtcNow.ToString("MM"));
-        var storedFileName=$"{Guid.NewGuid():N}{prepared.Extension}"; var storageKey=Path.Combine(relativeDirectory,storedFileName).Replace(Path.DirectorySeparatorChar,'/');
-        var directoryPath=Path.Combine(_storageRoot,relativeDirectory); var physicalPath=Path.Combine(directoryPath,storedFileName); Directory.CreateDirectory(directoryPath);
-        try { await using(var destination=new FileStream(physicalPath,FileMode.CreateNew,FileAccess.Write,FileShare.None,81920,true)) await CopyWithLimitAsync(prepared.Request.Content,destination,_options.MaxFileSizeBytes,cancellationToken);
-            var metadata=new UploadedFileMetadata{Purpose=UploadPurpose.BrandAsset,OriginalFileName=prepared.OriginalFileName,StoredFileName=storedFileName,StorageKey=storageKey,ContentType=prepared.ContentType,SizeBytes=prepared.Request.SizeBytes};
-            _dbContext.UploadedFiles.Add(metadata); await _dbContext.SaveChangesAsync(cancellationToken); return ToResponse(metadata); }
-        catch { TryDelete(physicalPath); throw; }
-    }
+        var metadata = await (
+            from settings in _dbContext.SiteSettings.AsNoTracking()
+            join file in _dbContext.UploadedFiles.AsNoTracking() on uploadedFileId equals file.Id
+            where settings.Id == SiteSettings.SingletonId &&
+                file.Purpose == UploadPurpose.BrandAsset &&
+                file.ContentType.StartsWith("image/") &&
+                (settings.LogoFileId == uploadedFileId ||
+                 settings.FaviconFileId == uploadedFileId ||
+                 settings.DefaultOgImageFileId == uploadedFileId)
+            select file)
+            .SingleOrDefaultAsync(cancellationToken);
 
-    public async Task<UploadDownloadResponse?> OpenPublicBrandImageAsync(Guid uploadedFileId,CancellationToken cancellationToken=default)
-    {
-        var metadata=await(from settings in _dbContext.SiteSettings.AsNoTracking() join file in _dbContext.UploadedFiles.AsNoTracking() on uploadedFileId equals file.Id
-            where settings.Id==SiteSettings.SingletonId && file.Purpose==UploadPurpose.BrandAsset && file.ContentType.StartsWith("image/") &&
-                (settings.LogoFileId==uploadedFileId||settings.FaviconFileId==uploadedFileId||settings.DefaultOgImageFileId==uploadedFileId) select file).SingleOrDefaultAsync(cancellationToken);
         return OpenFile(metadata);
     }
 
-    public async Task<UploadDownloadResponse?> OpenBrandImageForAdminAsync(Guid uploadedFileId,CancellationToken cancellationToken=default)
-        => OpenFile(await _dbContext.UploadedFiles.AsNoTracking().SingleOrDefaultAsync(x=>x.Id==uploadedFileId&&x.Purpose==UploadPurpose.BrandAsset&&x.ContentType.StartsWith("image/"),cancellationToken));
+    public async Task<UploadDownloadResponse?> OpenBrandImageForAdminAsync(
+        Guid uploadedFileId,
+        CancellationToken cancellationToken = default)
+    {
+        var metadata = await _dbContext.UploadedFiles
+            .AsNoTracking()
+            .SingleOrDefaultAsync(
+                file => file.Id == uploadedFileId &&
+                    file.Purpose == UploadPurpose.BrandAsset &&
+                    file.ContentType.StartsWith("image/"),
+                cancellationToken);
+
+        return OpenFile(metadata);
+    }
 
     public async Task<UploadDownloadResponse?> OpenPublicPortfolioImageAsync(
         Guid uploadedFileId,
@@ -217,31 +245,32 @@ public sealed class LocalUploadService : IUploadService
             from item in _dbContext.PortfolioItems.AsNoTracking()
             join category in _dbContext.PortfolioCategories.AsNoTracking() on item.CategoryId equals category.Id
             join file in _dbContext.UploadedFiles.AsNoTracking() on item.CoverImageFileId equals file.Id
-            where file.Id == uploadedFileId && file.Purpose == UploadPurpose.PortfolioImage &&
-                item.IsActive && item.ArchivedAt == null && category.IsActive && category.ArchivedAt == null &&
+            where file.Id == uploadedFileId &&
+                file.Purpose == UploadPurpose.PortfolioImage &&
+                item.IsActive &&
+                item.ArchivedAt == null &&
+                category.IsActive &&
+                category.ArchivedAt == null &&
                 file.ContentType.StartsWith("image/")
             select file)
             .SingleOrDefaultAsync(cancellationToken);
 
-        if (metadata is null) return null;
-        var physicalPath = UploadStoragePath.ResolveFile(_storageRoot, metadata.StorageKey);
-        if (!File.Exists(physicalPath)) return null;
-        var stream = new FileStream(physicalPath, FileMode.Open, FileAccess.Read, FileShare.Read, 81920, useAsync: true);
-        return new UploadDownloadResponse(stream, metadata.OriginalFileName, metadata.ContentType, metadata.SizeBytes);
+        return OpenFile(metadata);
     }
 
     public async Task<UploadDownloadResponse?> OpenPortfolioImageForAdminAsync(
         Guid uploadedFileId,
         CancellationToken cancellationToken = default)
     {
-        var metadata = await _dbContext.UploadedFiles.AsNoTracking()
-            .SingleOrDefaultAsync(file => file.Id == uploadedFileId && file.Purpose == UploadPurpose.PortfolioImage &&
-                file.ContentType.StartsWith("image/"), cancellationToken);
-        if (metadata is null) return null;
-        var physicalPath = UploadStoragePath.ResolveFile(_storageRoot, metadata.StorageKey);
-        if (!File.Exists(physicalPath)) return null;
-        var stream = new FileStream(physicalPath, FileMode.Open, FileAccess.Read, FileShare.Read, 81920, useAsync: true);
-        return new UploadDownloadResponse(stream, metadata.OriginalFileName, metadata.ContentType, metadata.SizeBytes);
+        var metadata = await _dbContext.UploadedFiles
+            .AsNoTracking()
+            .SingleOrDefaultAsync(
+                file => file.Id == uploadedFileId &&
+                    file.Purpose == UploadPurpose.PortfolioImage &&
+                    file.ContentType.StartsWith("image/"),
+                cancellationToken);
+
+        return OpenFile(metadata);
     }
 
     public async Task<UploadDownloadResponse?> OpenOrderAttachmentAsync(
@@ -256,30 +285,7 @@ public sealed class LocalUploadService : IUploadService
             select file)
             .SingleOrDefaultAsync(cancellationToken);
 
-        if (metadata is null)
-        {
-            return null;
-        }
-
-        var physicalPath = UploadStoragePath.ResolveFile(_storageRoot, metadata.StorageKey);
-        if (!File.Exists(physicalPath))
-        {
-            return null;
-        }
-
-        var stream = new FileStream(
-            physicalPath,
-            FileMode.Open,
-            FileAccess.Read,
-            FileShare.Read,
-            bufferSize: 81920,
-            useAsync: true);
-
-        return new UploadDownloadResponse(
-            stream,
-            metadata.OriginalFileName,
-            metadata.ContentType,
-            metadata.SizeBytes);
+        return OpenFile(metadata);
     }
 
     public async Task<UploadMetadataResponse?> GetMetadataAsync(
@@ -320,8 +326,97 @@ public sealed class LocalUploadService : IUploadService
                 file.ContentType,
                 file.SizeBytes,
                 file.Purpose,
-                file.CreatedAt))
+                file.CreatedAt,
+                file.ScanStatus,
+                file.ScanProvider,
+                file.ScannedAt))
             .ToListAsync(cancellationToken);
+    }
+
+    private async Task<StoredUpload> StoreValidatedFileAsync(
+        PreparedUpload file,
+        UploadPurpose purpose,
+        string storageFolder,
+        CancellationToken cancellationToken)
+    {
+        var now = DateTimeOffset.UtcNow;
+        var relativeDirectory = Path.Combine(
+            storageFolder,
+            now.ToString("yyyy"),
+            now.ToString("MM"));
+        var quarantineDirectory = Path.Combine(
+            "quarantine",
+            storageFolder,
+            now.ToString("yyyy"),
+            now.ToString("MM"));
+        var storedFileName = $"{Guid.NewGuid():N}{file.Extension}";
+        var storageKey = Path.Combine(relativeDirectory, storedFileName)
+            .Replace(Path.DirectorySeparatorChar, '/');
+        var finalDirectoryPath = Path.Combine(_storageRoot, relativeDirectory);
+        var finalPhysicalPath = Path.Combine(finalDirectoryPath, storedFileName);
+        var quarantineDirectoryPath = Path.Combine(_storageRoot, quarantineDirectory);
+        var quarantinePhysicalPath = Path.Combine(quarantineDirectoryPath, storedFileName);
+
+        try
+        {
+            Directory.CreateDirectory(quarantineDirectoryPath);
+
+            await using (var destination = new FileStream(
+                quarantinePhysicalPath,
+                FileMode.CreateNew,
+                FileAccess.Write,
+                FileShare.None,
+                bufferSize: 81920,
+                useAsync: true))
+            {
+                await CopyWithLimitAsync(
+                    file.Request.Content,
+                    destination,
+                    _options.MaxFileSizeBytes,
+                    cancellationToken);
+            }
+
+            await ValidateFileSignatureAsync(
+                quarantinePhysicalPath,
+                file.ContentType,
+                cancellationToken);
+
+            var scan = await _malwareScanner.ScanAsync(
+                quarantinePhysicalPath,
+                cancellationToken);
+
+            if (!scan.IsAccepted)
+            {
+                throw new UploadValidationException(ToUploadRejectionMessage(scan.Status));
+            }
+
+            Directory.CreateDirectory(finalDirectoryPath);
+            File.Move(quarantinePhysicalPath, finalPhysicalPath);
+
+            var metadata = new UploadedFileMetadata
+            {
+                Purpose = purpose,
+                OriginalFileName = file.OriginalFileName,
+                StoredFileName = storedFileName,
+                StorageKey = storageKey,
+                ContentType = file.ContentType,
+                SizeBytes = file.Request.SizeBytes,
+                ScanStatus = scan.Status,
+                ScanProvider = scan.Provider,
+                ScannedAt = scan.ScannedAt,
+                ScanMessage = scan.Message,
+                CreatedAt = now,
+                UpdatedAt = now
+            };
+
+            return new StoredUpload(metadata, finalPhysicalPath);
+        }
+        catch
+        {
+            TryDelete(quarantinePhysicalPath);
+            TryDelete(finalPhysicalPath);
+            throw;
+        }
     }
 
     private PreparedUpload ValidateAndPrepare(UploadFileRequest request)
@@ -365,6 +460,38 @@ public sealed class LocalUploadService : IUploadService
         return new PreparedUpload(request, originalFileName, contentType, extension);
     }
 
+    private static async Task ValidateFileSignatureAsync(
+        string physicalPath,
+        string contentType,
+        CancellationToken cancellationToken)
+    {
+        var header = new byte[16];
+        await using var stream = new FileStream(
+            physicalPath,
+            FileMode.Open,
+            FileAccess.Read,
+            FileShare.Read,
+            bufferSize: 16,
+            useAsync: true);
+
+        var read = await stream.ReadAsync(header, cancellationToken);
+        var isValid = contentType switch
+        {
+            "image/jpeg" => read >= 3 && header[0] == 0xFF && header[1] == 0xD8 && header[2] == 0xFF,
+            "image/png" => read >= 8 && header.AsSpan(0, 8).SequenceEqual(new byte[] { 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A }),
+            "image/webp" => read >= 12 &&
+                header.AsSpan(0, 4).SequenceEqual("RIFF"u8) &&
+                header.AsSpan(8, 4).SequenceEqual("WEBP"u8),
+            "application/pdf" => read >= 5 && header.AsSpan(0, 5).SequenceEqual("%PDF-"u8),
+            _ => false
+        };
+
+        if (!isValid)
+        {
+            throw new UploadValidationException("The file contents do not match the selected file type.");
+        }
+    }
+
     private static async Task CopyWithLimitAsync(
         Stream source,
         Stream destination,
@@ -394,15 +521,39 @@ public sealed class LocalUploadService : IUploadService
             file.ContentType,
             file.SizeBytes,
             file.Purpose,
-            file.CreatedAt);
+            file.CreatedAt,
+            file.ScanStatus,
+            file.ScanProvider,
+            file.ScannedAt);
 
     private UploadDownloadResponse? OpenFile(UploadedFileMetadata? metadata)
     {
-        if(metadata is null)return null;var physicalPath=UploadStoragePath.ResolveFile(_storageRoot,metadata.StorageKey);if(!File.Exists(physicalPath))return null;
-        return new UploadDownloadResponse(new FileStream(physicalPath,FileMode.Open,FileAccess.Read,FileShare.Read,81920,true),metadata.OriginalFileName,metadata.ContentType,metadata.SizeBytes);
+        if (metadata is null)
+        {
+            return null;
+        }
+
+        var physicalPath = UploadStoragePath.ResolveFile(_storageRoot, metadata.StorageKey);
+        if (!File.Exists(physicalPath))
+        {
+            return null;
+        }
+
+        return new UploadDownloadResponse(
+            new FileStream(physicalPath, FileMode.Open, FileAccess.Read, FileShare.Read, 81920, true),
+            metadata.OriginalFileName,
+            metadata.ContentType,
+            metadata.SizeBytes);
     }
 
-    private static void TryDelete(string path)
+    private static string ToUploadRejectionMessage(UploadScanStatus status) => status switch
+    {
+        UploadScanStatus.Infected => "This file could not be accepted because the security scan did not pass.",
+        UploadScanStatus.ScanFailed => "This file could not be checked at the moment. Please try again later.",
+        _ => "This file could not be accepted. Please upload a different file."
+    };
+
+    private void TryDelete(string path)
     {
         try
         {
@@ -411,9 +562,9 @@ public sealed class LocalUploadService : IUploadService
                 File.Delete(path);
             }
         }
-        catch
+        catch (Exception exception)
         {
-            // Preserve the original failure; orphan cleanup is an operational concern.
+            _logger.LogWarning(exception, "Failed to delete upload file {Path}.", path);
         }
     }
 
@@ -422,4 +573,8 @@ public sealed class LocalUploadService : IUploadService
         string OriginalFileName,
         string ContentType,
         string Extension);
+
+    private sealed record StoredUpload(
+        UploadedFileMetadata Metadata,
+        string PhysicalPath);
 }

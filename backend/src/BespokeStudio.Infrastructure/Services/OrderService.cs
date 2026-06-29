@@ -37,6 +37,12 @@ public sealed class OrderService(BespokeStudioDbContext dbContext) : IOrderServi
                 "One or more uploaded attachments are missing or invalid.");
         }
 
+        if (uploadedFiles.Any(file => file.ScanStatus is not (UploadScanStatus.Clean or UploadScanStatus.Skipped)))
+        {
+            throw new OrderAttachmentValidationException(
+                "One or more uploaded attachments have not passed security checks.");
+        }
+
         if (attachmentIds.Length > 0 && await dbContext.OrderAttachments
                 .AsNoTracking()
                 .AnyAsync(attachment => attachmentIds.Contains(attachment.UploadedFileId), cancellationToken))
@@ -133,7 +139,10 @@ public sealed class OrderService(BespokeStudioDbContext dbContext) : IOrderServi
                 file.ContentType,
                 file.SizeBytes,
                 attachment.Caption,
-                attachment.DisplayOrder);
+                attachment.DisplayOrder,
+                file.ScanStatus,
+                file.ScanProvider,
+                file.ScannedAt);
         }).ToArray();
 
         return MapOrderResponse(order, client, attachmentResponses, []);
@@ -168,7 +177,10 @@ public sealed class OrderService(BespokeStudioDbContext dbContext) : IOrderServi
                 file.ContentType,
                 file.SizeBytes,
                 attachment.Caption,
-                attachment.DisplayOrder))
+                attachment.DisplayOrder,
+                file.ScanStatus,
+                file.ScanProvider,
+                file.ScannedAt))
             .ToListAsync(cancellationToken);
 
         var notes = await dbContext.OrderNotes

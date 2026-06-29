@@ -19,6 +19,10 @@ public sealed class UploadedFileMetadataConfiguration : IEntityTypeConfiguration
         builder.Property(file => file.StoredFileName).HasMaxLength(255).IsRequired();
         builder.Property(file => file.StorageKey).HasMaxLength(1024).IsRequired();
         builder.Property(file => file.ContentType).HasMaxLength(255).IsRequired();
+        builder.Property(file => file.ScanStatus).HasConversion<string>().HasMaxLength(32).IsRequired();
+        builder.Property(file => file.ScanProvider).HasMaxLength(80);
+        builder.Property(file => file.ScannedAt);
+        builder.Property(file => file.ScanMessage).HasMaxLength(500);
         builder.Property(file => file.CreatedAt).IsRequired();
         builder.Property(file => file.UpdatedAt).IsRequired();
 

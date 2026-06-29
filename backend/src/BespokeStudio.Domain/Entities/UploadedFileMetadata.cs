@@ -11,6 +11,10 @@ public sealed class UploadedFileMetadata
     public required string StorageKey { get; set; }
     public required string ContentType { get; set; }
     public long SizeBytes { get; set; }
+    public UploadScanStatus ScanStatus { get; set; } = UploadScanStatus.Pending;
+    public string? ScanProvider { get; set; }
+    public DateTimeOffset? ScannedAt { get; set; }
+    public string? ScanMessage { get; set; }
     public DateTimeOffset CreatedAt { get; init; } = DateTimeOffset.UtcNow;
     public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
 }
