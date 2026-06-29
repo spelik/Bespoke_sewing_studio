@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import {
+  Download,
   FileText,
   Images,
   LayoutDashboard,
@@ -44,6 +45,7 @@ import {
 } from "../components/adminOrderFormatting";
 import { useAdminOrders } from "../hooks/useAdminOrders";
 import { usePageNavigation } from "../routing/usePageNavigation";
+import { createCsvFileName, downloadCsv } from "../utils/csvExport";
 import type {
   AdminContactMessageListItem,
   AdminEmailDeliverySettings,
@@ -389,14 +391,24 @@ export function AdminPage() {
                     {adminOrders.orders.length} total
                   </span>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => void adminOrders.reload()}
-                  disabled={adminOrders.isLoading}
-                  className="px-4 py-2 text-[10px] tracking-wide border border-border bg-background hover:border-foreground disabled:opacity-50"
-                >
-                  Refresh
-                </button>
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => exportOrdersCsv(filteredOrders)}
+                    disabled={filteredOrders.length === 0}
+                    className="inline-flex items-center gap-2 px-4 py-2 text-[10px] tracking-wide border border-border bg-background hover:border-foreground disabled:opacity-50"
+                  >
+                    <Download size={12} aria-hidden="true" /> Export CSV
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void adminOrders.reload()}
+                    disabled={adminOrders.isLoading}
+                    className="px-4 py-2 text-[10px] tracking-wide border border-border bg-background hover:border-foreground disabled:opacity-50"
+                  >
+                    Refresh
+                  </button>
+                </div>
               </div>
               <AdminOrdersTable
                 orders={filteredOrders}
@@ -942,6 +954,21 @@ function getEmailDeliveryCaption(
   }
 
   return "Email delivery is managed by server configuration or user-secrets.";
+}
+
+
+function exportOrdersCsv(orders: readonly AdminOrderListItem[]): void {
+  downloadCsv(createCsvFileName("bespoke-orders"), orders, [
+    { header: "Reference", value: (order) => order.referenceNumber },
+    { header: "Client", value: (order) => order.clientName },
+    { header: "Email", value: (order) => order.clientEmail },
+    { header: "Phone", value: (order) => order.clientPhone },
+    { header: "Service", value: (order) => order.serviceName },
+    { header: "Status", value: (order) => ADMIN_STATUS_LABELS[order.status] },
+    { header: "Preferred date", value: (order) => order.preferredDate },
+    { header: "Created at", value: (order) => order.createdAt },
+    { header: "Message", value: (order) => order.description },
+  ]);
 }
 
 function normalizeSearchValue(value: string | null | undefined): string {

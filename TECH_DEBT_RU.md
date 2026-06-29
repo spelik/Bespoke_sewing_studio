@@ -259,3 +259,14 @@ Scope:
 - Checks public contact details, owner notifications, customer confirmations, email delivery, upload security, admin data/API access and DNS email records.
 - The checklist is informational and does not display secrets. ClamAV and SPF/DKIM/DMARC still require manual production verification.
 - Backend and database schema were not changed.
+
+
+## Task 37 — Admin visible-list CSV export
+
+Status: Done locally after ZIP preparation; requires local verification before commit.
+
+Scope:
+
+- Added frontend-only CSV export for visible Admin Orders rows. The export respects the current status filter and search query.
+- Added frontend-only CSV export for visible Admin Contact Messages rows. The export respects the current status filter and search query.
+- CSV files include a UTF-8 BOM and escaped cells for safer opening in spreadsheet tools. Backend API and migrations were not changed.

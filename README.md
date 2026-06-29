@@ -178,11 +178,13 @@ Message references use `BSS-CON-YYYY-000001`. Admin lists, detail drawers, owner
 notifications, customer template placeholders and public success screens use
 these references so customers do not see raw database IDs. Admin Orders and
 Contact Messages lists can also be searched by reference number, client/sender,
-email, phone and message content while keeping the status filters. Admin sidebar
-badges and page summary cards show new/total Orders and Contact Messages so the
-owner can quickly see requests that need attention. The Admin Dashboard gives a
-quick overview with new request counters, recent Orders, recent Contact Messages,
-email delivery mode and upload security guidance.
+email, phone and message content while keeping the status filters. The currently
+visible Orders and Contact Messages rows can be exported to CSV for Excel or
+Google Sheets, and the export respects the active search and status filter. Admin
+sidebar badges and page summary cards show new/total Orders and Contact Messages
+so the owner can quickly see requests that need attention. The Admin Dashboard
+gives a quick overview with new request counters, recent Orders, recent Contact
+Messages, email delivery mode and upload security guidance.
 
 ## Contact messages
 

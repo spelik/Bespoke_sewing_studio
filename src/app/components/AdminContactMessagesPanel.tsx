@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Eye, LoaderCircle, Mail, Search, X } from "lucide-react";
+import { Download, Eye, LoaderCircle, Mail, Search, X } from "lucide-react";
 import { ApiError } from "../../api/apiClient";
 import {
   CONTACT_MESSAGE_STATUSES,
@@ -12,6 +12,7 @@ import type {
   AdminContactMessageListItem,
   ContactMessageStatus,
 } from "../types";
+import { createCsvFileName, downloadCsv } from "../utils/csvExport";
 import { formatAdminDate } from "./adminOrderFormatting";
 
 interface AdminContactMessagesPanelProps {
@@ -201,52 +202,62 @@ export function AdminContactMessagesPanel({
         />
       </div>
 
-      <div className="flex flex-wrap items-center gap-3">
-        <label className="text-[10px] tracking-wide text-muted-foreground font-sans">
-          Status
-          <select
-            value={statusFilter}
-            onChange={(event) =>
-              setStatusFilter(event.target.value as StatusFilter)
-            }
-            className="ml-3 px-3 py-2 text-[10px] border border-border bg-background focus:outline-none focus:border-accent"
-          >
-            <option value="All">All statuses</option>
-            {CONTACT_MESSAGE_STATUSES.map((status) => (
-              <option key={status} value={status}>
-                {STATUS_LABELS[status]}
-              </option>
-            ))}
-          </select>
-        </label>
-        <div className="relative w-full sm:w-[320px]">
-          <Search
-            size={13}
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
-            aria-hidden="true"
-          />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(event) => setSearchQuery(event.target.value)}
-            placeholder="Search reference, sender, email, subject..."
-            className="w-full border border-border bg-background pl-8 pr-8 py-2 text-[10px] font-sans focus:outline-none focus:border-accent"
-            aria-label="Search contact messages"
-          />
-          {searchQuery ? (
-            <button
-              type="button"
-              onClick={() => setSearchQuery("")}
-              className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-muted-foreground hover:text-foreground"
-              aria-label="Clear contact message search"
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <label className="text-[10px] tracking-wide text-muted-foreground font-sans">
+            Status
+            <select
+              value={statusFilter}
+              onChange={(event) =>
+                setStatusFilter(event.target.value as StatusFilter)
+              }
+              className="ml-3 px-3 py-2 text-[10px] border border-border bg-background focus:outline-none focus:border-accent"
             >
-              <X size={12} />
-            </button>
-          ) : null}
+              <option value="All">All statuses</option>
+              {CONTACT_MESSAGE_STATUSES.map((status) => (
+                <option key={status} value={status}>
+                  {STATUS_LABELS[status]}
+                </option>
+              ))}
+            </select>
+          </label>
+          <div className="relative w-full sm:w-[320px]">
+            <Search
+              size={13}
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+              aria-hidden="true"
+            />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              placeholder="Search reference, sender, email, subject..."
+              className="w-full border border-border bg-background pl-8 pr-8 py-2 text-[10px] font-sans focus:outline-none focus:border-accent"
+              aria-label="Search contact messages"
+            />
+            {searchQuery ? (
+              <button
+                type="button"
+                onClick={() => setSearchQuery("")}
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-muted-foreground hover:text-foreground"
+                aria-label="Clear contact message search"
+              >
+                <X size={12} />
+              </button>
+            ) : null}
+          </div>
+          <span className="text-[10px] text-muted-foreground font-sans">
+            {filteredMessages.length} visible / {messages.length} total
+          </span>
         </div>
-        <span className="text-[10px] text-muted-foreground font-sans">
-          {filteredMessages.length} visible / {messages.length} total
-        </span>
+        <button
+          type="button"
+          onClick={() => exportContactMessagesCsv(filteredMessages)}
+          disabled={filteredMessages.length === 0}
+          className="inline-flex items-center gap-2 px-4 py-2 text-[10px] tracking-wide border border-border bg-background hover:border-foreground disabled:opacity-50 font-sans"
+        >
+          <Download size={12} aria-hidden="true" /> Export CSV
+        </button>
       </div>
 
       {error ? (
@@ -599,6 +610,22 @@ function getErrorMessage(reason: unknown): string {
   }
 
   return "The contact messages request could not be completed.";
+}
+
+
+function exportContactMessagesCsv(
+  messages: readonly AdminContactMessageListItem[],
+): void {
+  downloadCsv(createCsvFileName("bespoke-contact-messages"), messages, [
+    { header: "Reference", value: (message) => message.referenceNumber },
+    { header: "Sender", value: (message) => message.fullName },
+    { header: "Email", value: (message) => message.email },
+    { header: "Phone", value: (message) => message.phone },
+    { header: "Subject", value: (message) => message.subject },
+    { header: "Status", value: (message) => STATUS_LABELS[message.status] },
+    { header: "Created at", value: (message) => message.createdAt },
+    { header: "Message preview", value: (message) => message.messagePreview },
+  ]);
 }
 
 function normalizeSearchValue(value: string | null | undefined): string {
