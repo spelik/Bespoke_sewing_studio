@@ -166,7 +166,9 @@ Orders and Contact Messages now keep human-readable request references in additi
 to their internal GUID IDs. Order references use `BSS-ORD-YYYY-000001`; Contact
 Message references use `BSS-CON-YYYY-000001`. Admin lists, detail drawers, owner
 notifications, customer template placeholders and public success screens use
-these references so customers do not see raw database IDs.
+these references so customers do not see raw database IDs. Admin Orders and
+Contact Messages lists can also be searched by reference number, client/sender,
+email, phone and message content while keeping the status filters.
 
 ## Contact messages
 
@@ -178,10 +180,11 @@ shows loading, success and validation/API error states and clears after a
 successful submission.
 
 Sign in at `http://127.0.0.1:5173/admin`, then select **Contact Messages** to
-view Contact form messages, filter by status and update the workflow status:
-`New`, `Read`, `Replied` or `Archived`. New contact messages use the same owner
-email notification foundation as Orders when email notifications are enabled in
-Site Settings. In development the default logging provider writes the email
+view Contact form messages, filter by status, search by `BSS-CON-...` reference
+or sender/contact details, and update the workflow status: `New`, `Read`,
+`Replied` or `Archived`. New contact messages use the same owner email
+notification foundation as Orders when email notifications are enabled in Site
+Settings. In development the default logging provider writes the email
 content to the backend log; SMTP can be configured through user-secrets or
 environment variables.
 

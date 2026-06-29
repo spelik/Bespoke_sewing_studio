@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { FileText, Images, ListOrdered, LogOut, Mail, Menu, Package, Palette, Scissors, Settings } from "lucide-react";
+import { useMemo, useState } from "react";
+import { FileText, Images, ListOrdered, LogOut, Mail, Menu, Package, Palette, Scissors, Search, Settings, X } from "lucide-react";
 import { ORDER_STATUSES, type AdminOrderStatus } from "../../api/ordersApi";
 import { useAuth } from "../auth/AuthContext";
 import { AdminBrandSettingsPanel } from "../components/AdminBrandSettingsPanel";
@@ -34,8 +34,31 @@ export function AdminPage() {
   const adminOrders = useAdminOrders(logout);
   const [section, setSection] = useState<AdminSection>("orders");
   const [orderFilter, setOrderFilter] = useState<AdminOrderStatus | "All">("All");
+  const [orderSearchQuery, setOrderSearchQuery] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const filteredOrders = orderFilter === "All" ? adminOrders.orders : adminOrders.orders.filter((order) => order.status === orderFilter);
+  const filteredOrders = useMemo(() => {
+    const normalizedQuery = normalizeSearchValue(orderSearchQuery);
+    return adminOrders.orders.filter((order) => {
+      if (orderFilter !== "All" && order.status !== orderFilter) {
+        return false;
+      }
+
+      if (!normalizedQuery) {
+        return true;
+      }
+
+      return [
+        order.referenceNumber,
+        order.clientName,
+        order.clientEmail,
+        order.clientPhone,
+        order.serviceName,
+        order.description,
+      ]
+        .map((value) => normalizeSearchValue(value))
+        .some((value) => value.includes(normalizedQuery));
+    });
+  }, [adminOrders.orders, orderFilter, orderSearchQuery]);
 
   return (
     <div className="pt-[72px] min-h-screen bg-[#F5F0E8] flex">
@@ -68,15 +91,41 @@ export function AdminPage() {
 
           {section === "orders" ? <div className="space-y-5">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <label className="text-[10px] tracking-wide text-muted-foreground font-sans">Status
-                <select value={orderFilter} onChange={(event) => setOrderFilter(event.target.value as AdminOrderStatus | "All")} className="ml-3 px-3 py-2 text-[10px] border border-border bg-background focus:outline-none focus:border-accent">
-                  <option value="All">All statuses</option>
-                  {ORDER_STATUSES.map((status) => <option key={status} value={status}>{ADMIN_STATUS_LABELS[status]}</option>)}
-                </select>
-              </label>
+              <div className="flex flex-wrap items-center gap-3">
+                <label className="text-[10px] tracking-wide text-muted-foreground font-sans">Status
+                  <select value={orderFilter} onChange={(event) => setOrderFilter(event.target.value as AdminOrderStatus | "All")} className="ml-3 px-3 py-2 text-[10px] border border-border bg-background focus:outline-none focus:border-accent">
+                    <option value="All">All statuses</option>
+                    {ORDER_STATUSES.map((status) => <option key={status} value={status}>{ADMIN_STATUS_LABELS[status]}</option>)}
+                  </select>
+                </label>
+                <div className="relative w-full sm:w-[320px]">
+                  <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
+                  <input
+                    type="text"
+                    value={orderSearchQuery}
+                    onChange={(event) => setOrderSearchQuery(event.target.value)}
+                    placeholder="Search reference, client, email, phone, service..."
+                    className="w-full border border-border bg-background pl-8 pr-8 py-2 text-[10px] font-sans focus:outline-none focus:border-accent"
+                    aria-label="Search orders"
+                  />
+                  {orderSearchQuery ? (
+                    <button
+                      type="button"
+                      onClick={() => setOrderSearchQuery("")}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-muted-foreground hover:text-foreground"
+                      aria-label="Clear order search"
+                    >
+                      <X size={12} />
+                    </button>
+                  ) : null}
+                </div>
+                <span className="text-[10px] text-muted-foreground font-sans">
+                  {filteredOrders.length} visible / {adminOrders.orders.length} total
+                </span>
+              </div>
               <button type="button" onClick={() => void adminOrders.reload()} disabled={adminOrders.isLoading} className="px-4 py-2 text-[10px] tracking-wide border border-border bg-background hover:border-foreground disabled:opacity-50">Refresh</button>
             </div>
-            <AdminOrdersTable orders={filteredOrders} isLoading={adminOrders.isLoading} emptyMessage="No enquiries match this status." onSelect={(id) => void adminOrders.selectOrder(id)} />
+            <AdminOrdersTable orders={filteredOrders} isLoading={adminOrders.isLoading} emptyMessage="No enquiries match this status or search." onSelect={(id) => void adminOrders.selectOrder(id)} />
           </div> : null}
           {section === "contactMessages" ? <AdminContactMessagesPanel onUnauthorized={logout} /> : null}
           {section === "services" ? <AdminServicesPanel onUnauthorized={logout} /> : null}
@@ -92,4 +141,9 @@ export function AdminPage() {
       <AdminOrderDetail order={adminOrders.selectedOrder} isLoading={adminOrders.isDetailLoading} isSaving={adminOrders.isSaving} onClose={adminOrders.clearSelection} onStatusChange={adminOrders.changeStatus} onAddNote={adminOrders.addNote} />
     </div>
   );
+}
+
+
+function normalizeSearchValue(value: string | null | undefined): string {
+  return (value ?? "").trim().toLocaleLowerCase();
 }

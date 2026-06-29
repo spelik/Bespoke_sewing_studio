@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Eye, LoaderCircle, Mail, X } from "lucide-react";
+import { Eye, LoaderCircle, Mail, Search, X } from "lucide-react";
 import { ApiError } from "../../api/apiClient";
 import {
   CONTACT_MESSAGE_STATUSES,
@@ -38,6 +38,7 @@ export function AdminContactMessagesPanel({ onUnauthorized }: AdminContactMessag
   const [messages, setMessages] = useState<AdminContactMessageListItem[]>([]);
   const [selectedMessage, setSelectedMessage] = useState<AdminContactMessageDetail | null>(null);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("All");
+  const [searchQuery, setSearchQuery] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isDetailLoading, setIsDetailLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -48,13 +49,29 @@ export function AdminContactMessagesPanel({ onUnauthorized }: AdminContactMessag
     void loadMessages();
   }, []);
 
-  const filteredMessages = useMemo(
-    () =>
-      statusFilter === "All"
-        ? messages
-        : messages.filter((item) => item.status === statusFilter),
-    [messages, statusFilter],
-  );
+  const filteredMessages = useMemo(() => {
+    const normalizedQuery = normalizeSearchValue(searchQuery);
+    return messages.filter((item) => {
+      if (statusFilter !== "All" && item.status !== statusFilter) {
+        return false;
+      }
+
+      if (!normalizedQuery) {
+        return true;
+      }
+
+      return [
+        item.referenceNumber,
+        item.fullName,
+        item.email,
+        item.phone,
+        item.subject,
+        item.messagePreview,
+      ]
+        .map((value) => normalizeSearchValue(value))
+        .some((value) => value.includes(normalizedQuery));
+    });
+  }, [messages, searchQuery, statusFilter]);
 
   async function loadMessages() {
     setIsLoading(true);
@@ -161,6 +178,27 @@ export function AdminContactMessagesPanel({ onUnauthorized }: AdminContactMessag
             ))}
           </select>
         </label>
+        <div className="relative w-full sm:w-[320px]">
+          <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(event) => setSearchQuery(event.target.value)}
+            placeholder="Search reference, sender, email, subject..."
+            className="w-full border border-border bg-background pl-8 pr-8 py-2 text-[10px] font-sans focus:outline-none focus:border-accent"
+            aria-label="Search contact messages"
+          />
+          {searchQuery ? (
+            <button
+              type="button"
+              onClick={() => setSearchQuery("")}
+              className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-muted-foreground hover:text-foreground"
+              aria-label="Clear contact message search"
+            >
+              <X size={12} />
+            </button>
+          ) : null}
+        </div>
         <span className="text-[10px] text-muted-foreground font-sans">
           {filteredMessages.length} visible / {messages.length} total
         </span>
@@ -221,7 +259,7 @@ function ContactMessagesTable({
           {!isLoading && messages.length === 0 ? (
             <tr>
               <td colSpan={7} className="px-5 py-10 text-center text-[11px] text-muted-foreground">
-                No contact messages match this status.
+                No contact messages match this status or search.
               </td>
             </tr>
           ) : null}
@@ -402,4 +440,9 @@ function getErrorMessage(reason: unknown): string {
   }
 
   return "The contact messages request could not be completed.";
+}
+
+
+function normalizeSearchValue(value: string | null | undefined): string {
+  return (value ?? "").trim().toLocaleLowerCase();
 }

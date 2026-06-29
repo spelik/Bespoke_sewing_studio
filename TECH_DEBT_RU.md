@@ -219,6 +219,13 @@
 - Добавлены PostgreSQL sequences `OrderReferenceSequence` и `ContactMessageReferenceSequence`; migration backfill заполняет reference для существующих записей и добавляет unique indexes.
 - Placeholder `{{orderReference}}` теперь рендерит человекочитаемый order reference, `{{contactReference}}` — человекочитаемый contact message reference.
 
+
+## Task 32 — Search by request reference in admin lists
+
+- Admin Orders получил frontend-поиск по `BSS-ORD-...`, имени клиента, email, телефону, услуге и тексту сообщения с сохранением status filter.
+- Admin Contact Messages получил frontend-поиск по `BSS-CON-...`, имени отправителя, email, телефону, subject и preview сообщения с сохранением status filter.
+- Backend API не менялся; поиск работает по уже загруженным list DTO и остаётся маленьким UI-only улучшением.
+
 ## Task 31.2 — Settings module save buttons
 
 - Admin Settings больше не полагается на одну общую кнопку Save Settings внизу страницы.
