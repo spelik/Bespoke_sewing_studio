@@ -205,6 +205,7 @@ app.MapContactMessageEndpoints();
 app.MapAuthEndpoints();
 app.MapSiteSettingsEndpoints();
 app.MapNotificationEndpoints();
+app.MapEmailDeliverySettingsEndpoints();
 app.MapServiceOfferingEndpoints();
 app.MapPortfolioEndpoints();
 app.MapContentEndpoints();

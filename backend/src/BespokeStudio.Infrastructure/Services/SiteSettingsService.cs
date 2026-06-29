@@ -112,6 +112,8 @@ public sealed class SiteSettingsService(BespokeStudioDbContext dbContext) : ISit
         ServiceAreaText = "Appointments arranged individually.",
         FooterText = "Bespoke Sewing Studio. All rights reserved.",
         EmailNotificationsEnabled = false,
+        EmailDeliveryProvider = "Configuration",
+        EmailDeliverySenderName = "Bespoke Sewing Studio",
         LogoAltText = "Bespoke Sewing Studio logo", BrandDisplayName = "Bespoke Sewing Studio",
         HeaderCtaLabel = "Book Now", HeaderCtaUrl = "/order", DefaultMetaTitle = "Bespoke Sewing Studio",
         DefaultMetaDescription = "Bespoke sewing, tailoring, dressmaking, alterations and memory bears.",

@@ -12,6 +12,11 @@ public sealed class SiteSettings
     public string? ContactButtonLabel { get; set; }
     public string? ContactIntroText { get; set; }
     public bool EmailNotificationsEnabled { get; set; }
+    public string EmailDeliveryProvider { get; set; } = "Configuration";
+    public string? EmailDeliveryGmailAddress { get; set; }
+    public string? EmailDeliveryAppPasswordProtected { get; set; }
+    public string EmailDeliverySenderName { get; set; } = "Bespoke Sewing Studio";
+    public DateTimeOffset? EmailDeliveryUpdatedAt { get; set; }
     public string? FacebookUrl { get; set; }
     public string? InstagramUrl { get; set; }
     public string? TikTokUrl { get; set; }

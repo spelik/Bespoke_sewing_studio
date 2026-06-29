@@ -443,8 +443,12 @@ destination. Migrations `NormalizeSiteSettingsContacts` and
 After `POST /api/orders` persists an enquiry or `POST /api/contact-messages`
 persists a contact message, `INotificationService` loads the saved record and
 current Site Settings. When email notifications are enabled it calls
-`IEmailNotificationSender` with the Site Settings email. `Provider=Logging`
-uses `LoggingEmailNotificationSender`; `Provider=Smtp` uses
+`IEmailNotificationSender` with the Site Settings email. Admin-managed email
+delivery settings are checked first: `Configuration` keeps the existing
+configuration-based provider, while `GmailSmtp` sends through Gmail using the
+owner-managed Gmail address and protected Google App Password stored on the
+backend. If admin delivery mode is `Configuration`, `Provider=Logging` uses
+`LoggingEmailNotificationSender` and `Provider=Smtp` uses
 `SmtpEmailNotificationSender`. Missing/invalid SMTP configuration and SMTP
 delivery errors are logged and fall back to the logging provider without
 changing the successful order or contact message response.
@@ -454,19 +458,27 @@ policy. It requires enabled email notifications and a Site Settings email, then
 uses the currently configured provider and returns a summary containing only
 provider/result metadata—never SMTP credentials.
 
-SMTP credentials must come from environment variables, `dotnet user-secrets`,
-or an external secret store; they must not be stored in `SiteSettings`, source
-control, committed appsettings files, screenshots or project documentation.
-`Provider=Logging` is only the local development fallback; real owner email
-delivery requires `Provider=Smtp`.
+Raw SMTP credentials must not be stored in source control, committed appsettings
+files, screenshots or project documentation. Developer-managed SMTP credentials
+come from environment variables, `dotnet user-secrets`, or an external secret
+store. Owner-managed Gmail SMTP stores only a protected Google App Password in
+the singleton `SiteSettings` row through ASP.NET Core Data Protection; the
+password is never returned by admin APIs. Production deployments that use
+owner-managed Gmail SMTP must persist Data Protection keys outside the app
+deployment directory so the protected value remains decryptable after restarts
+or redeployments. `Provider=Logging` is only the local development fallback.
 
 Mandatory production email checklist:
 
-- configure `Notifications:Email:Provider=Smtp`
-- configure SMTP `Host`, `Port`, `Username`, `Password`, `FromEmail`, `FromName`
-  and `UseSsl`
+- choose either developer-managed `Notifications:Email:Provider=Smtp` or
+  owner-managed **Admin > Settings > Email delivery > Gmail SMTP**
+- for developer-managed SMTP, configure `Host`, `Port`, `Username`, `Password`,
+  `FromEmail`, `FromName` and `UseSsl`
 - use `dotnet user-secrets` only for local development
-- use environment variables or a managed secret store in production
+- use environment variables or a managed secret store in production for
+  developer-managed SMTP secrets
+- persist ASP.NET Core Data Protection keys in production when using
+  owner-managed Gmail SMTP
 - never commit SMTP usernames/passwords or Google App Passwords
 - if Gmail is used, enable Google 2-Step Verification and create a Google App
   Password; do not use the normal Gmail account password for SMTP

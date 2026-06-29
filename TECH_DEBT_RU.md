@@ -2,6 +2,8 @@
 
 ## Закрыто
 
+- Admin-managed Gmail SMTP добавлен в Settings: владелец может выбрать Gmail SMTP, ввести Gmail address и Google App Password, пароль хранится как protected value на backend и никогда не возвращается в API.
+
 - Production Email/SMTP checklist зафиксирован как обязательный pre-production блок: реальная SMTP-отправка, секреты вне Git, Gmail App Password, проверки test email/contact/order delivery, SPF/DKIM/DMARC, мониторинг, retry/background queue и ротация credentials.
 
 - Contact Messages API реализован: public `POST /api/contact-messages` сохраняет сообщения Contact form в PostgreSQL, admin JWT endpoints позволяют просматривать сообщения и менять статусы `New` / `Read` / `Replied` / `Archived`.
@@ -94,7 +96,7 @@
 - Production storage provider (S3/Azure Blob/R2), antivirus/deep content scanning, thumbnail/AVIF generation и image cropper пока не реализованы. Portfolio upload использует локальное dev storage.
 - Автоматическая очистка orphan `PortfolioImage` пока не реализована; существующий cleanup обрабатывает только orphan order attachments. Архивирование portfolio item намеренно сохраняет физический файл.
 - Автоматический background orphan cleanup пока не реализован; доступен защищённый ручной endpoint. Для production нужны distributed rate limiting/abuse protection и trusted forwarded-header configuration за reverse proxy.
-- SMTP provider реализован; production credentials должны задаваться через user-secrets/env/secret store. До production остаются настройка deliverability (SPF/DKIM/DMARC), мониторинг bounce/rejection и операционная ротация credentials.
+- SMTP provider реализован; есть два режима: developer-managed SMTP через user-secrets/env/secret store и owner-managed Gmail SMTP через Admin Settings с protected App Password. До production остаются настройка deliverability (SPF/DKIM/DMARC), мониторинг bounce/rejection, production Data Protection key persistence и операционная ротация credentials.
 - Background notification queue и retry policy пока не реализованы: отправка owner notifications для orders/contact messages выполняется inline после сохранения. Customer confirmation email также не реализован.
 - Service image upload пока не реализован; advanced money/currency model и drag-and-drop reorder для Services/Portfolio можно добавить позже. Rich text page CMS ещё не реализован.
 - Полноценный rich-text editor/page builder не реализован: Content CMS и Repeatable Content CMS используют безопасные plain-text поля. Version history/drafts остаются будущими задачами. Multilingual CMS не планируется: проект принят как English-only.
@@ -103,11 +105,13 @@
 
 ## Обязательный pre-production блок: Email / SMTP
 
-- Переключить owner notifications с development `Provider=Logging` на реальный `Provider=Smtp`.
-- Настроить SMTP `Host`, `Port`, `Username`, `Password`, `FromEmail`, `FromName`, `UseSsl`.
+- Выбрать режим реальной отправки: developer-managed `Provider=Smtp` через конфигурацию или owner-managed **Admin Settings > Email delivery > Gmail SMTP**.
+- Для developer-managed SMTP настроить `Host`, `Port`, `Username`, `Password`, `FromEmail`, `FromName`, `UseSsl`.
 - Для Gmail использовать Google App Password после включения 2-Step Verification; обычный пароль Gmail для SMTP не использовать.
-- Локально хранить SMTP credentials только в `dotnet user-secrets`; в production — только environment variables или внешний secret store.
-- Не хранить SMTP credentials, Gmail App Passwords и production отправителей в Git, `appsettings*.json`, screenshots или документации.
+- Локально хранить developer-managed SMTP credentials только в `dotnet user-secrets`; в production — только environment variables или внешний secret store.
+- Owner-managed Gmail App Password хранить только как protected value в базе; API не должен возвращать пароль на frontend.
+- Для production с owner-managed Gmail SMTP настроить persistent ASP.NET Core Data Protection keys.
+- Не хранить raw SMTP credentials, Gmail App Passwords и production отправителей в Git, `appsettings*.json`, screenshots или документации.
 - Проверить в Admin Settings включение email notifications и owner/public email.
 - Проверить реальную доставку через **Send test email**, затем через public Contact form и public Order form.
 - Разделять owner notifications и будущие customer confirmation emails; подтверждения клиенту делать отдельной задачей и отдельным toggle.
@@ -117,7 +121,7 @@
 ## Рекомендации на следующие задачи
 
 - Выполнить отдельную задачу Customer confirmation emails: подтверждения пользователю должны иметь отдельный toggle и не смешиваться с owner notifications.
-- Выполнить Task 29 — Production SMTP setup: настроить реальный SMTP provider, проверить доставку owner notifications и задокументировать operational secrets/deliverability process.
+- Проверить Task 29.2 — Admin-managed Gmail SMTP: применить migration, сохранить Gmail SMTP в Admin Settings, проверить Send test email, Contact form и Order form.
 - Подготовить фактическую production-конфигурацию хостинга с SPA fallback.
 - Добить image pipeline для самых тяжёлых portfolio assets: AVIF или отдельные thumbnails под card layout.
 - Спроектировать нормализованные уникальные ключи client matching и обработку конкурентного создания клиентов.
@@ -182,9 +186,20 @@
 ## Task 29.0 — Production SMTP checklist docs
 
 - Production Email/SMTP checklist добавлен в обязательные pre-production требования.
-- Зафиксировано, что `Provider=Logging` — только development fallback; реальная отправка owner notifications требует `Provider=Smtp`.
+- Зафиксировано, что `Provider=Logging` — только development fallback; реальная отправка owner notifications требует developer-managed `Provider=Smtp` или owner-managed `GmailSmtp`.
 - Для Gmail зафиксировано требование использовать Google App Password и включённую 2-Step Verification, а не обычный пароль аккаунта.
 - Зафиксировано правило хранения SMTP credentials: локально `dotnet user-secrets`, production environment variables/secret store, ничего не коммитить в Git/appsettings/docs.
 - Добавлены обязательные проверки: Admin Settings email toggle/owner email, Send test email, Contact form delivery, Order form delivery.
 - Customer confirmation emails вынесены в отдельную будущую задачу с отдельным toggle; owner notifications и клиентские подтверждения не смешивать.
 - До production остаются SPF/DKIM/DMARC, SMTP error/bounce monitoring, credential rotation и background queue/retry policy.
+
+## Task 29.2 — Admin-managed Gmail SMTP settings
+
+- Добавлен backend/admin режим `GmailSmtp` для owner-managed отправки писем.
+- `SiteSettings` расширен полями Email Delivery: provider, Gmail address, protected App Password, sender name, updated timestamp.
+- Google App Password защищается через ASP.NET Core Data Protection и никогда не возвращается admin API/frontend.
+- Добавлены Admin endpoints `GET/PATCH /api/admin/email-delivery`.
+- `ConfiguredEmailNotificationSender` сначала проверяет admin-managed delivery mode, затем использует старый configuration-based Logging/SMTP режим.
+- Admin Settings получил блок **Email delivery** с provider select, Gmail address, sender name, App Password replace/clear и короткой Gmail App Password инструкцией.
+- Добавлена migration `AddAdminEmailDeliverySettings`.
+- В sandbox прошли `npm run typecheck` и `npm run build`; `dotnet build` нужно выполнить локально, так как в sandbox нет .NET SDK.

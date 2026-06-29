@@ -1,5 +1,5 @@
 import { type FormEvent, useEffect, useState } from "react";
-import { Download, LoaderCircle, X } from "lucide-react";
+import { Download, FileText, Image as ImageIcon, LoaderCircle, X } from "lucide-react";
 import { ApiError } from "../../api/apiClient";
 import {
   getAdminAttachmentFile,
@@ -140,30 +140,19 @@ export function AdminOrderDetail({
               {order.attachments.length === 0 ? (
                 <p className="text-[11px] text-muted-foreground">No attachments were included with this enquiry.</p>
               ) : (
-                <ul className="space-y-2">
+                <div className="grid grid-cols-1 gap-3">
                   {order.attachments.map((attachment) => (
-                    <li key={attachment.id} className="flex items-center justify-between gap-3 border-b border-border/50 pb-2 text-[11px] text-foreground">
-                      <div className="min-w-0">
-                        <div className="truncate">{attachment.originalFileName}</div>
-                        <div className="text-[9px] text-muted-foreground mt-0.5">
-                          {attachment.contentType} &middot; {(attachment.sizeBytes / 1024).toFixed(1)} KB
-                        </div>
-                      </div>
-                      <button
-                        type="button"
-                        disabled={downloadingAttachmentId === attachment.uploadedFileId}
-                        onClick={() => void handleAttachmentDownload(
-                          attachment.uploadedFileId,
-                          attachment.originalFileName,
-                        )}
-                        className="shrink-0 inline-flex items-center gap-1.5 text-[10px] text-accent hover:text-foreground disabled:opacity-50 transition-colors"
-                      >
-                        <Download size={12} />
-                        {downloadingAttachmentId === attachment.uploadedFileId ? "Downloading..." : "Download"}
-                      </button>
-                    </li>
+                    <AdminAttachmentCard
+                      key={attachment.id}
+                      attachment={attachment}
+                      isDownloading={downloadingAttachmentId === attachment.uploadedFileId}
+                      onDownload={() => void handleAttachmentDownload(
+                        attachment.uploadedFileId,
+                        attachment.originalFileName,
+                      )}
+                    />
                   ))}
-                </ul>
+                </div>
               )}
               {attachmentError ? (
                 <p role="alert" className="text-[10px] text-destructive mt-3">{attachmentError}</p>
@@ -218,5 +207,105 @@ function Detail({ label, value }: { label: string; value: string }) {
       <div className="text-[9px] tracking-wider uppercase text-muted-foreground mb-1">{label}</div>
       <div className="text-foreground break-words">{value}</div>
     </div>
+  );
+}
+function formatFileSize(sizeBytes: number): string {
+  return `${(sizeBytes / 1024).toFixed(1)} KB`;
+}
+
+function AdminAttachmentCard({
+  attachment,
+  isDownloading,
+  onDownload,
+}: {
+  attachment: AdminOrderDetailModel["attachments"][number];
+  isDownloading: boolean;
+  onDownload(): void;
+}) {
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [isPreviewLoading, setIsPreviewLoading] = useState(false);
+  const [previewFailed, setPreviewFailed] = useState(false);
+  const isImage = attachment.contentType.startsWith("image/");
+
+  useEffect(() => {
+    if (!isImage) {
+      setPreviewUrl(null);
+      setIsPreviewLoading(false);
+      setPreviewFailed(false);
+      return undefined;
+    }
+
+    let isCancelled = false;
+    let objectUrl: string | null = null;
+
+    setPreviewUrl(null);
+    setPreviewFailed(false);
+    setIsPreviewLoading(true);
+
+    void getAdminAttachmentFile(attachment.uploadedFileId)
+      .then((blob) => {
+        if (isCancelled) {
+          return;
+        }
+        objectUrl = URL.createObjectURL(blob);
+        setPreviewUrl(objectUrl);
+      })
+      .catch(() => {
+        if (!isCancelled) {
+          setPreviewFailed(true);
+        }
+      })
+      .finally(() => {
+        if (!isCancelled) {
+          setIsPreviewLoading(false);
+        }
+      });
+
+    return () => {
+      isCancelled = true;
+      if (objectUrl) {
+        URL.revokeObjectURL(objectUrl);
+      }
+    };
+  }, [attachment.uploadedFileId, isImage]);
+
+  return (
+    <article className="border border-border bg-background p-3 text-[11px] text-foreground">
+      <div className="flex items-start gap-3">
+        <div className="h-20 w-20 shrink-0 overflow-hidden border border-border bg-secondary/50 flex items-center justify-center">
+          {previewUrl ? (
+            <img
+              src={previewUrl}
+              alt={`Preview of ${attachment.originalFileName}`}
+              className="h-full w-full object-cover"
+            />
+          ) : isPreviewLoading ? (
+            <LoaderCircle size={16} className="animate-spin text-muted-foreground/70" aria-label="Loading preview" />
+          ) : attachment.contentType === "application/pdf" ? (
+            <FileText size={20} className="text-muted-foreground/70" aria-hidden="true" />
+          ) : (
+            <ImageIcon size={20} className="text-muted-foreground/70" aria-hidden="true" />
+          )}
+        </div>
+        <div className="min-w-0 flex-1">
+          <h4 className="truncate text-[12px] text-foreground">{attachment.originalFileName}</h4>
+          <p className="mt-1 text-[9px] text-muted-foreground">
+            {attachment.contentType} &middot; {formatFileSize(attachment.sizeBytes)}
+          </p>
+          {previewFailed ? (
+            <p className="mt-2 text-[9px] text-muted-foreground">Preview unavailable. Download the file to view it.</p>
+          ) : null}
+          <button
+            type="button"
+            disabled={isDownloading}
+            onClick={onDownload}
+            className="mt-3 inline-flex items-center gap-1.5 text-[10px] text-accent hover:text-foreground disabled:opacity-50 transition-colors"
+          >
+            <Download size={12} />
+            {isDownloading ? "Downloading..." : "Download"}
+          </button>
+        </div>
+      </div>
+    </article>
   );
 }

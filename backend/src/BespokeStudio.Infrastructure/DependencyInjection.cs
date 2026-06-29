@@ -4,6 +4,7 @@ using BespokeStudio.Infrastructure.Notifications;
 using BespokeStudio.Infrastructure.Persistence;
 using BespokeStudio.Infrastructure.Services;
 using BespokeStudio.Infrastructure.Storage;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -22,6 +23,8 @@ public static class DependencyInjection
         services.AddDbContext<BespokeStudioDbContext>(options =>
             options.UseNpgsql(connectionString, npgsqlOptions =>
                 npgsqlOptions.MigrationsAssembly(typeof(BespokeStudioDbContext).Assembly.FullName)));
+
+        services.AddDataProtection();
 
         services
             .AddOptions<UploadStorageOptions>()
@@ -56,6 +59,7 @@ public static class DependencyInjection
         services.AddScoped<IPageContentService, PageContentService>();
         services.AddScoped<IRepeatableContentService, RepeatableContentService>();
         services.AddScoped<ISiteSettingsService, SiteSettingsService>();
+        services.AddScoped<IEmailDeliverySettingsService, EmailDeliverySettingsService>();
         services.AddScoped<INotificationService, NotificationService>();
         services.AddScoped<LoggingEmailNotificationSender>();
         services.AddScoped<SmtpEmailNotificationSender>();

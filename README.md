@@ -140,10 +140,14 @@ toggle. The email is shown on the public site and is also the owner notification
 destination. The phone is public contact information only.
 
 Enable new-enquiry email notifications with the toggle in Admin Settings. The
-default development provider writes email content to the backend log; SMTP can
-be configured through user-secrets or environment variables. WhatsApp and SMS
-notifications are not implemented or planned for the current product scope.
-Public pages keep their typed fallback content if the API cannot be reached.
+default development provider writes email content to the backend log. The new
+**Email delivery** block in Admin Settings can either keep developer-managed
+configuration (`Configuration`) or use owner-managed `Gmail SMTP`. In Gmail SMTP
+mode the owner enters a Gmail address and Google App Password; the password is
+protected on the backend, never returned by the API, and can be replaced or
+cleared from the admin UI. WhatsApp and SMS notifications are not implemented
+or planned for the current product scope. Public pages keep their typed fallback
+content if the API cannot be reached.
 
 
 ## Contact messages
@@ -172,13 +176,18 @@ mandatory production setup item and must be configured outside source control.
 
 Before production release:
 
-- switch `Notifications:Email:Provider` from `Logging` to `Smtp`
-- keep SMTP credentials out of Git, committed `appsettings*.json`, docs and
-  `SiteSettings`
-- use `dotnet user-secrets` only for local development and environment
-  variables or a secret store for production
+- choose one delivery mode:
+  - developer-managed `Notifications:Email:Provider=Smtp` through user-secrets,
+    environment variables or a secret store
+  - owner-managed **Admin > Settings > Email delivery > Gmail SMTP**
+- keep raw SMTP credentials out of Git, committed `appsettings*.json`, docs and
+  screenshots
+- if owner-managed Gmail SMTP is used, the Google App Password is stored only as
+  a protected value in the database and is never returned to the frontend
+- persist ASP.NET Core Data Protection keys in production so protected admin
+  SMTP secrets remain decryptable across deployments/restarts
 - configure `Host`, `Port`, `Username`, `Password`, `FromEmail`, `FromName` and
-  `UseSsl`
+  `UseSsl` when using developer-managed SMTP
 - if Gmail is used, enable Google 2-Step Verification and use a Google App
   Password rather than the normal Gmail password
 - verify **Admin > Settings > Email notifications enabled** and the owner/public
@@ -203,8 +212,10 @@ dotnet user-secrets set "Notifications:Email:Smtp:FromName" "Bespoke Sewing Stud
 dotnet user-secrets set "Notifications:Email:Smtp:UseSsl" "true" --project backend/src/BespokeStudio.Api
 ```
 
-Production equivalents must use environment variables such as
-`Notifications__Email__Smtp__Password` or a managed secret store.
+Production equivalents for developer-managed SMTP must use environment
+variables such as `Notifications__Email__Smtp__Password` or a managed secret
+store. Owner-managed Gmail SMTP can instead be configured in **Admin > Settings
+> Email delivery** after deployment.
 
 ## Language
 

@@ -1,12 +1,17 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { ApiError } from "../../api/apiClient";
 import {
+  getAdminEmailDeliverySettings,
   getAdminSiteSettings,
   sendTestEmailNotification,
+  updateAdminEmailDeliverySettings,
   updateAdminSiteSettings,
 } from "../../api/siteSettingsApi";
 import type {
+  AdminEmailDeliverySettings,
   AdminSiteSettings,
+  EmailDeliveryProvider,
+  UpdateEmailDeliverySettingsRequest,
   UpdateSiteSettingsRequest,
 } from "../types";
 import { useSiteSettings } from "../siteSettings/SiteSettingsContext";
@@ -20,18 +25,37 @@ type TextFieldName = Exclude<
   "emailNotificationsEnabled"
 >;
 
+type EmailDeliveryTextFieldName = Exclude<
+  keyof UpdateEmailDeliverySettingsRequest,
+  "provider" | "clearAppPassword"
+>;
+
 const inputClassName =
   "w-full border border-border bg-background px-3 py-2.5 text-[12px] text-foreground focus:outline-none focus:border-accent transition-colors font-sans";
 
 export function AdminSettingsPanel({ onUnauthorized }: AdminSettingsPanelProps) {
   const { refresh } = useSiteSettings();
   const [form, setForm] = useState<UpdateSiteSettingsRequest | null>(null);
+  const [emailDelivery, setEmailDelivery] =
+    useState<UpdateEmailDeliverySettingsRequest | null>(null);
+  const [emailDeliveryPasswordConfigured, setEmailDeliveryPasswordConfigured] =
+    useState(false);
   const [updatedAt, setUpdatedAt] = useState<string | null>(null);
+  const [emailDeliveryUpdatedAt, setEmailDeliveryUpdatedAt] = useState<
+    string | null
+  >(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isSavingEmailDelivery, setIsSavingEmailDelivery] = useState(false);
   const [isTestingEmail, setIsTestingEmail] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [emailDeliveryError, setEmailDeliveryError] = useState<string | null>(
+    null,
+  );
   const [success, setSuccess] = useState<string | null>(null);
+  const [emailDeliverySuccess, setEmailDeliverySuccess] = useState<
+    string | null
+  >(null);
   const [testEmailResult, setTestEmailResult] = useState<{
     success: boolean;
     message: string;
@@ -40,11 +64,12 @@ export function AdminSettingsPanel({ onUnauthorized }: AdminSettingsPanelProps) 
   useEffect(() => {
     let active = true;
 
-    getAdminSiteSettings()
-      .then((settings) => {
+    Promise.all([getAdminSiteSettings(), getAdminEmailDeliverySettings()])
+      .then(([settings, deliverySettings]) => {
         if (active) {
           setForm(toUpdateRequest(settings));
           setUpdatedAt(settings.updatedAt);
+          applyEmailDeliverySettings(deliverySettings);
         }
       })
       .catch((reason: unknown) => {
@@ -70,11 +95,61 @@ export function AdminSettingsPanel({ onUnauthorized }: AdminSettingsPanelProps) 
     };
   }, [onUnauthorized]);
 
+  const applyEmailDeliverySettings = (
+    settings: AdminEmailDeliverySettings,
+  ) => {
+    setEmailDelivery({
+      provider: settings.provider,
+      gmailAddress: settings.gmailAddress,
+      senderName: settings.senderName,
+      appPassword: null,
+      clearAppPassword: false,
+    });
+    setEmailDeliveryPasswordConfigured(settings.appPasswordConfigured);
+    setEmailDeliveryUpdatedAt(settings.updatedAt);
+  };
+
   const setTextField = (field: TextFieldName, value: string) => {
     setForm((current) =>
       current ? { ...current, [field]: value || null } : current,
     );
     setSuccess(null);
+  };
+
+  const setEmailDeliveryProvider = (provider: EmailDeliveryProvider) => {
+    setEmailDelivery((current) =>
+      current ? { ...current, provider, clearAppPassword: false } : current,
+    );
+    setEmailDeliverySuccess(null);
+    setEmailDeliveryError(null);
+    setTestEmailResult(null);
+  };
+
+  const setEmailDeliveryTextField = (
+    field: EmailDeliveryTextFieldName,
+    value: string,
+  ) => {
+    setEmailDelivery((current) =>
+      current ? { ...current, [field]: value || null } : current,
+    );
+    setEmailDeliverySuccess(null);
+    setEmailDeliveryError(null);
+    setTestEmailResult(null);
+  };
+
+  const setClearAppPassword = (value: boolean) => {
+    setEmailDelivery((current) =>
+      current
+        ? {
+            ...current,
+            clearAppPassword: value,
+            appPassword: value ? null : current.appPassword,
+          }
+        : current,
+    );
+    setEmailDeliverySuccess(null);
+    setEmailDeliveryError(null);
+    setTestEmailResult(null);
   };
 
   const setEmailNotificationsEnabled = (value: boolean) => {
@@ -139,6 +214,31 @@ export function AdminSettingsPanel({ onUnauthorized }: AdminSettingsPanelProps) 
     }
   };
 
+  const handleSaveEmailDelivery = async () => {
+    if (!emailDelivery || isSavingEmailDelivery) {
+      return;
+    }
+
+    setIsSavingEmailDelivery(true);
+    setEmailDeliveryError(null);
+    setEmailDeliverySuccess(null);
+
+    try {
+      const saved = await updateAdminEmailDeliverySettings(emailDelivery);
+      applyEmailDeliverySettings(saved);
+      setEmailDeliverySuccess("Email delivery settings saved successfully.");
+    } catch (reason: unknown) {
+      if (reason instanceof ApiError && reason.status === 401) {
+        onUnauthorized();
+        return;
+      }
+
+      setEmailDeliveryError(getErrorMessage(reason));
+    } finally {
+      setIsSavingEmailDelivery(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="bg-card border border-border p-6 text-[12px] text-muted-foreground font-sans">
@@ -147,13 +247,15 @@ export function AdminSettingsPanel({ onUnauthorized }: AdminSettingsPanelProps) 
     );
   }
 
-  if (!form) {
+  if (!form || !emailDelivery) {
     return (
       <div role="alert" className="bg-card border border-destructive/30 p-6 text-[12px] text-destructive font-sans">
         {error ?? "Settings could not be loaded."}
       </div>
     );
   }
+
+  const isGmailSmtp = emailDelivery.provider === "GmailSmtp";
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
@@ -224,7 +326,7 @@ export function AdminSettingsPanel({ onUnauthorized }: AdminSettingsPanelProps) 
 
       <SettingsGroup title="Notifications">
         <p className="md:col-span-2 text-[11px] text-muted-foreground font-sans leading-relaxed">
-          New enquiry notifications will be sent to the email above. Save settings before sending a test email.
+          New enquiry notifications will be sent to the contact email above. Save contact settings before sending a test email.
         </p>
         <SettingsCheckbox
           label="Enable email notifications"
@@ -249,6 +351,80 @@ export function AdminSettingsPanel({ onUnauthorized }: AdminSettingsPanelProps) 
             {testEmailResult.message}
           </p>
         ) : null}
+      </SettingsGroup>
+
+      <SettingsGroup title="Email delivery">
+        {emailDeliveryError ? (
+          <div role="alert" className="md:col-span-2 border border-destructive/30 bg-background px-4 py-3 text-[11px] text-destructive font-sans">
+            {emailDeliveryError}
+          </div>
+        ) : null}
+        {emailDeliverySuccess ? (
+          <div role="status" className="md:col-span-2 border border-emerald-300 bg-emerald-50 px-4 py-3 text-[11px] text-emerald-700 font-sans">
+            {emailDeliverySuccess}
+          </div>
+        ) : null}
+        <p className="md:col-span-2 text-[11px] text-muted-foreground font-sans leading-relaxed">
+          Choose Configuration for developer-managed SMTP from server settings, or Gmail SMTP when the site owner manages the sender Gmail account here.
+        </p>
+        <SettingsSelect
+          label="Delivery provider"
+          value={emailDelivery.provider}
+          onChange={setEmailDeliveryProvider}
+        />
+        <SettingsField
+          label="Sender name"
+          value={emailDelivery.senderName}
+          onChange={(value) => setEmailDeliveryTextField("senderName", value)}
+        />
+        <SettingsField
+          label="Gmail address"
+          type="email"
+          disabled={!isGmailSmtp}
+          value={emailDelivery.gmailAddress}
+          onChange={(value) => setEmailDeliveryTextField("gmailAddress", value)}
+        />
+        <SettingsField
+          label={
+            emailDeliveryPasswordConfigured
+              ? "New Google App Password (leave blank to keep current)"
+              : "Google App Password"
+          }
+          type="password"
+          disabled={!isGmailSmtp || emailDelivery.clearAppPassword}
+          value={emailDelivery.appPassword}
+          onChange={(value) => setEmailDeliveryTextField("appPassword", value)}
+        />
+        <p className="text-[11px] text-muted-foreground font-sans leading-relaxed">
+          Password status: {emailDeliveryPasswordConfigured ? "configured" : "not configured"}. The saved password is encrypted on the backend and is never shown here.
+        </p>
+        <SettingsCheckbox
+          label="Clear saved App Password"
+          checked={emailDelivery.clearAppPassword}
+          onChange={setClearAppPassword}
+        />
+        <div className="md:col-span-2 border border-border bg-background p-4 text-[11px] text-muted-foreground font-sans leading-relaxed space-y-2">
+          <p className="text-foreground">Gmail App Password guide</p>
+          <p>1. Open your Google Account, then Security.</p>
+          <p>2. Turn on 2-Step Verification.</p>
+          <p>3. Open App Passwords and create a new password for this website.</p>
+          <p>4. Paste the 16-character App Password here. Do not use the normal Gmail password.</p>
+        </div>
+        <div className="md:col-span-2 flex flex-wrap items-center justify-between gap-4">
+          <p className="text-[10px] text-muted-foreground font-sans">
+            {emailDeliveryUpdatedAt
+              ? `Email delivery updated ${new Date(emailDeliveryUpdatedAt).toLocaleString()}`
+              : "Email delivery settings not saved yet"}
+          </p>
+          <button
+            type="button"
+            disabled={isSavingEmailDelivery}
+            onClick={handleSaveEmailDelivery}
+            className="border border-border bg-background px-4 py-3 text-[11px] text-foreground hover:border-accent disabled:opacity-50 transition-colors font-sans"
+          >
+            {isSavingEmailDelivery ? "Saving email delivery..." : "Save Email Delivery"}
+          </button>
+        </div>
       </SettingsGroup>
 
       <SettingsGroup title="Social links">
@@ -289,12 +465,14 @@ function SettingsField({
   onChange,
   type = "text",
   required = false,
+  disabled = false,
 }: {
   label: string;
   value: string | null;
   onChange(value: string): void;
-  type?: "text" | "email" | "tel" | "url";
+  type?: "text" | "email" | "tel" | "url" | "password";
   required?: boolean;
+  disabled?: boolean;
 }) {
   return (
     <label className="text-[11px] text-muted-foreground font-sans">
@@ -302,10 +480,35 @@ function SettingsField({
       <input
         type={type}
         required={required}
+        disabled={disabled}
         value={value ?? ""}
         onChange={(event) => onChange(event.target.value)}
-        className={inputClassName}
+        className={`${inputClassName} disabled:opacity-60`}
       />
+    </label>
+  );
+}
+
+function SettingsSelect({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: EmailDeliveryProvider;
+  onChange(value: EmailDeliveryProvider): void;
+}) {
+  return (
+    <label className="text-[11px] text-muted-foreground font-sans">
+      <span className="block mb-1.5">{label}</span>
+      <select
+        value={value}
+        onChange={(event) => onChange(event.target.value as EmailDeliveryProvider)}
+        className={inputClassName}
+      >
+        <option value="Configuration">Configuration / server secrets</option>
+        <option value="GmailSmtp">Gmail SMTP</option>
+      </select>
     </label>
   );
 }

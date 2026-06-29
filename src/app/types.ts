@@ -57,6 +57,25 @@ export interface AdminSiteSettings extends PublicSiteSettings {
   updatedAt: string;
 }
 
+
+export type EmailDeliveryProvider = "Configuration" | "GmailSmtp";
+
+export interface AdminEmailDeliverySettings {
+  provider: EmailDeliveryProvider;
+  gmailAddress: string | null;
+  senderName: string;
+  appPasswordConfigured: boolean;
+  updatedAt: string | null;
+}
+
+export interface UpdateEmailDeliverySettingsRequest {
+  provider: EmailDeliveryProvider;
+  gmailAddress: string | null;
+  senderName: string | null;
+  appPassword: string | null;
+  clearAppPassword: boolean;
+}
+
 export interface EmailNotificationResult {
   success: boolean;
   provider: "Logging" | "Smtp" | "LoggingFallback" | string;

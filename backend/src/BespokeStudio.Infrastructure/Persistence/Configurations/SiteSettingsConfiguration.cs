@@ -24,6 +24,10 @@ public sealed class SiteSettingsConfiguration : IEntityTypeConfiguration<SiteSet
         builder.Property(settings => settings.PublicPhone).HasMaxLength(50);
         builder.Property(settings => settings.ContactButtonLabel).HasMaxLength(100);
         builder.Property(settings => settings.ContactIntroText).HasMaxLength(1000);
+        builder.Property(settings => settings.EmailDeliveryProvider).HasMaxLength(40).IsRequired();
+        builder.Property(settings => settings.EmailDeliveryGmailAddress).HasMaxLength(320);
+        builder.Property(settings => settings.EmailDeliveryAppPasswordProtected).HasMaxLength(4096);
+        builder.Property(settings => settings.EmailDeliverySenderName).HasMaxLength(150).IsRequired();
         builder.Property(settings => settings.FacebookUrl).HasMaxLength(2048);
         builder.Property(settings => settings.InstagramUrl).HasMaxLength(2048);
         builder.Property(settings => settings.TikTokUrl).HasMaxLength(2048);
@@ -59,6 +63,8 @@ public sealed class SiteSettingsConfiguration : IEntityTypeConfiguration<SiteSet
             ContactIntroText = "Consultations and orders are arranged individually.",
             ServiceAreaText = "Appointments arranged individually.",
             EmailNotificationsEnabled = false,
+            EmailDeliveryProvider = "Configuration",
+            EmailDeliverySenderName = "Bespoke Sewing Studio",
             FooterText = "Bespoke Sewing Studio. All rights reserved.",
             LogoAltText = "Bespoke Sewing Studio logo",
             BrandDisplayName = "Bespoke Sewing Studio",

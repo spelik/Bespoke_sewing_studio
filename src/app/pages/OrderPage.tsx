@@ -1,5 +1,5 @@
 import { useEffect, useState, type DragEvent } from "react";
-import { Check, ChevronDown, Send, Upload } from "lucide-react";
+import { Check, ChevronDown, FileText, Image as ImageIcon, Send, Trash2, Upload } from "lucide-react";
 import {
   createOrder,
   getOrderSubmissionErrorMessage,
@@ -65,6 +65,11 @@ export function OrderPage() {
       setAttachments([]);
       setAttachmentError(getOrderSubmissionErrorMessage(error));
     }
+  }
+
+  function removeAttachment(fileToRemove: File) {
+    setAttachments((current) => current.filter((file) => file !== fileToRemove));
+    setAttachmentError(null);
   }
 
   function handleDrop(event: DragEvent<HTMLLabelElement>) {
@@ -233,7 +238,7 @@ export function OrderPage() {
                     htmlFor="order-attachments"
                     onDragOver={(event) => event.preventDefault()}
                     onDrop={handleDrop}
-                    className="border-2 border-dashed border-border hover:border-accent/50 transition-colors p-10 text-center cursor-pointer bg-secondary/20 group"
+                    className="block w-full border-2 border-dashed border-border hover:border-accent/50 transition-colors px-6 py-8 text-center cursor-pointer bg-secondary/20 group"
                   >
                     <input
                       id="order-attachments"
@@ -241,11 +246,14 @@ export function OrderPage() {
                       multiple
                       accept=".jpg,.jpeg,.png,.webp,.pdf,image/jpeg,image/png,image/webp,application/pdf"
                       className="sr-only"
-                      onChange={(event) => selectAttachments(Array.from(event.target.files ?? []))}
+                      onChange={(event) => {
+                        selectAttachments(Array.from(event.target.files ?? []));
+                        event.currentTarget.value = "";
+                      }}
                     />
                     <Upload size={22} className="mx-auto mb-3 text-muted-foreground/40 group-hover:text-accent/60 transition-colors" />
                     <p className="text-[13px] text-muted-foreground font-sans">
-                      Drag and drop images here, or{" "}
+                      Drag and drop files here, or{" "}
                       <span className="text-accent font-medium">click to browse</span>
                     </p>
                     <p className="text-[11px] text-muted-foreground/50 mt-2 font-sans">
@@ -253,13 +261,15 @@ export function OrderPage() {
                     </p>
                   </label>
                   {attachments.length > 0 ? (
-                    <ul className="mt-3 space-y-1.5" aria-label="Selected attachments">
+                    <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3" aria-label="Selected attachments">
                       {attachments.map((file) => (
-                        <li key={`${file.name}-${file.size}`} className="text-[11px] text-muted-foreground font-sans">
-                          {file.name} &middot; {(file.size / 1024).toFixed(1)} KB
-                        </li>
+                        <SelectedAttachmentPreview
+                          key={`${file.name}-${file.size}-${file.lastModified}`}
+                          file={file}
+                          onRemove={() => removeAttachment(file)}
+                        />
                       ))}
-                    </ul>
+                    </div>
                   ) : null}
                   {attachmentError ? (
                     <p role="alert" className="text-[11px] text-accent mt-3 font-sans">
@@ -325,4 +335,61 @@ export function OrderPage() {
     </div>
   );
 }
+function formatFileSize(sizeBytes: number): string {
+  return `${(sizeBytes / 1024).toFixed(1)} KB`;
+}
 
+function SelectedAttachmentPreview({
+  file,
+  onRemove,
+}: {
+  file: File;
+  onRemove(): void;
+}) {
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const isImage = file.type.startsWith("image/");
+
+  useEffect(() => {
+    if (!isImage) {
+      setPreviewUrl(null);
+      return undefined;
+    }
+
+    const objectUrl = URL.createObjectURL(file);
+    setPreviewUrl(objectUrl);
+
+    return () => URL.revokeObjectURL(objectUrl);
+  }, [file, isImage]);
+
+  return (
+    <div className="flex items-center gap-3 border border-border bg-card p-2.5 text-left font-sans">
+      <div className="h-14 w-14 shrink-0 overflow-hidden border border-border bg-secondary/40 flex items-center justify-center">
+        {previewUrl ? (
+          <img
+            src={previewUrl}
+            alt={`Preview of ${file.name}`}
+            className="h-full w-full object-cover"
+          />
+        ) : file.type === "application/pdf" ? (
+          <FileText size={18} className="text-muted-foreground/70" aria-hidden="true" />
+        ) : (
+          <ImageIcon size={18} className="text-muted-foreground/70" aria-hidden="true" />
+        )}
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-[11px] text-foreground">{file.name}</p>
+        <p className="mt-0.5 text-[9px] text-muted-foreground">
+          {file.type || "Unknown file type"} &middot; {formatFileSize(file.size)}
+        </p>
+      </div>
+      <button
+        type="button"
+        onClick={onRemove}
+        className="shrink-0 p-2 text-muted-foreground hover:text-foreground transition-colors"
+        aria-label={`Remove ${file.name}`}
+      >
+        <Trash2 size={13} />
+      </button>
+    </div>
+  );
+}

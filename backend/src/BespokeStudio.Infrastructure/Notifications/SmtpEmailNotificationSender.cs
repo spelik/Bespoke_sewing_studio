@@ -9,13 +9,27 @@ namespace BespokeStudio.Infrastructure.Notifications;
 public sealed class SmtpEmailNotificationSender(
     IOptions<EmailNotificationOptions> options) : IEmailNotificationSender
 {
-    public async Task<EmailNotificationResult> SendAsync(
+    public Task<EmailNotificationResult> SendAsync(
         string recipientEmail,
         string subject,
         string body,
+        CancellationToken cancellationToken = default) =>
+        SendAsync(
+            options.Value.Smtp,
+            recipientEmail,
+            subject,
+            body,
+            providerName: "Smtp",
+            cancellationToken);
+
+    public static async Task<EmailNotificationResult> SendAsync(
+        SmtpNotificationOptions smtp,
+        string recipientEmail,
+        string subject,
+        string body,
+        string providerName,
         CancellationToken cancellationToken = default)
     {
-        var smtp = options.Value.Smtp;
         var configurationError = smtp.GetConfigurationError();
         if (configurationError is not null)
         {
@@ -47,7 +61,7 @@ public sealed class SmtpEmailNotificationSender(
 
         return new EmailNotificationResult(
             Success: true,
-            Provider: "Smtp",
+            Provider: providerName,
             SentExternally: true,
             Message: "Email was accepted by the configured SMTP server.");
     }
