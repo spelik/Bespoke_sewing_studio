@@ -12,6 +12,7 @@ public sealed class BespokeStudioDbContext(DbContextOptions<BespokeStudioDbConte
     public DbSet<AdminAuditLogEntry> AdminAuditLogEntries => Set<AdminAuditLogEntry>();
     public DbSet<Client> Clients => Set<Client>();
     public DbSet<ContactMessage> ContactMessages => Set<ContactMessage>();
+    public DbSet<EmailDeliveryLogEntry> EmailDeliveryLogEntries => Set<EmailDeliveryLogEntry>();
     public DbSet<Order> Orders => Set<Order>();
     public DbSet<OrderAttachment> OrderAttachments => Set<OrderAttachment>();
     public DbSet<OrderNote> OrderNotes => Set<OrderNote>();

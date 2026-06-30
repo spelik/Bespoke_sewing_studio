@@ -1,4 +1,5 @@
 using BespokeStudio.Application.Abstractions;
+using BespokeStudio.Application.Contracts.EmailDeliveryLog;
 using BespokeStudio.Application.Contracts.Notifications;
 using BespokeStudio.Application.Security;
 
@@ -25,6 +26,7 @@ public static class NotificationEndpoints
     private static async Task<IResult> SendTestEmailAsync(
         ISiteSettingsService settingsService,
         IEmailNotificationSender emailSender,
+        IEmailDeliveryLogService emailDeliveryLogService,
         CancellationToken cancellationToken)
     {
         var settings = await settingsService.GetNotificationSettingsAsync(cancellationToken);
@@ -45,12 +47,29 @@ public static class NotificationEndpoints
             });
         }
 
+        const string subject = "Bespoke Sewing Studio test email";
         var result = await emailSender.SendAsync(
             settings.Email,
-            "Bespoke Sewing Studio test email",
+            subject,
             $"This is a test notification from Bespoke Sewing Studio.{Environment.NewLine}" +
             $"Generated: {DateTimeOffset.UtcNow:O}{Environment.NewLine}" +
             "If the SMTP provider is active, email delivery configuration is working.",
+            cancellationToken);
+
+        await emailDeliveryLogService.RecordAsync(
+            new EmailDeliveryLogWriteRequest(
+                "test_email",
+                settings.Email,
+                subject,
+                result.Provider,
+                result.Success ? "Sent" : "Failed",
+                result.SentExternally,
+                result.Message,
+                result.Success ? null : result.Message,
+                null,
+                null,
+                null,
+                DateTimeOffset.UtcNow),
             cancellationToken);
 
         return TypedResults.Ok(result);

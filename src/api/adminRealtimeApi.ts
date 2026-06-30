@@ -9,11 +9,12 @@ export type AdminRealtimeEventType =
   | "OrderCreated"
   | "OrderUpdated"
   | "ContactMessageCreated"
-  | "ContactMessageUpdated";
+  | "ContactMessageUpdated"
+  | "EmailDeliveryLogChanged";
 
 export interface AdminRealtimeEvent {
   eventType: AdminRealtimeEventType;
-  entity: "Order" | "ContactMessage";
+  entity: "Order" | "ContactMessage" | "EmailDeliveryLog";
   entityId: string;
   referenceNumber: string | null;
   occurredAt: string;

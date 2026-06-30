@@ -230,6 +230,7 @@ app.MapAdminAuditLogEndpoints();
 app.MapSiteSettingsEndpoints();
 app.MapNotificationEndpoints();
 app.MapEmailDeliverySettingsEndpoints();
+app.MapEmailDeliveryLogEndpoints();
 app.MapServiceOfferingEndpoints();
 app.MapPortfolioEndpoints();
 app.MapContentEndpoints();

@@ -9,4 +9,6 @@ public interface IAdminRealtimeNotifier
     Task NotifyContactMessageCreatedAsync(Guid contactMessageId, string? referenceNumber, CancellationToken cancellationToken = default);
 
     Task NotifyContactMessageUpdatedAsync(Guid contactMessageId, string? referenceNumber, CancellationToken cancellationToken = default);
+
+    Task NotifyEmailDeliveryLogChangedAsync(Guid emailDeliveryLogEntryId, string? referenceNumber, CancellationToken cancellationToken = default);
 }

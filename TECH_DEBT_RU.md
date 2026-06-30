@@ -394,3 +394,27 @@ launch не забыть production-only действия:
 
 Это checklist-документ, не новая runtime-фича.
 
+
+
+## Task 45 — Email delivery log — Done
+
+Добавлена основа Admin → Email Log для контроля email-отправок:
+
+- новая backend entity `EmailDeliveryLogEntry` и service `IEmailDeliveryLogService`;
+- protected endpoint `GET /api/admin/email-log` с фильтрами `take`, `search`, `messageType`, `status`, `recipientEmail`, `provider`;
+- логируются owner order notifications, customer order confirmations, owner contact notifications, customer contact confirmations и test email;
+- UI Admin → Email Log показывает status/type/recipient/subject/provider/related entity/result, auto-apply фильтры, CSV export и обновление через admin realtime events;
+- email bodies, SMTP credentials, Gmail App Password, JWT tokens и другие секреты не сохраняются в email log.
+
+Для этой задачи нужна EF migration `AddEmailDeliveryLog`, создаваемая локально командой:
+
+```powershell
+dotnet ef migrations add AddEmailDeliveryLog --project backend/src/BespokeStudio.Infrastructure --startup-project backend/src/BespokeStudio.Api --output-dir Persistence/Migrations
+```
+
+После генерации migration обязательно проверить, что она находится в
+`backend/src/BespokeStudio.Infrastructure/Persistence/Migrations`, содержит
+`CreateTable("EmailDeliveryLogEntries")`, имеет `.Designer.cs` и обновляет
+`BespokeStudioDbContextModelSnapshot.cs`. Затем применить `dotnet ef database update`.
+
+Future improvements: background retry queue, resend action, retention/cleanup policy, bounce/webhook integration and richer SMTP diagnostics after production provider is chosen.

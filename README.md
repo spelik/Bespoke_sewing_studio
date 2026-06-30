@@ -59,8 +59,9 @@ Current backend status:
 - admin login, Orders list/detail/status/notes and Contact Messages list/detail/status use protected backend endpoints
 - the admin sidebar exposes only backend-backed Dashboard, Orders, Contact Messages, Services, Portfolio, Content, Repeatable Content, Brand/SEO, Users, My account, Audit Log and Settings modules
 - the Admin Dashboard includes production-readiness checks for contact details, notifications, email delivery, upload security, admin API access and DNS email records
-- admin Orders, Contact Messages, Dashboard counters and sidebar badges can refresh through the protected SignalR admin-notifications hub
+- admin Orders, Contact Messages, Dashboard counters, sidebar badges and Email Log can refresh through the protected SignalR admin-notifications hub
 - the Admin **Audit Log** section lists important administrator actions from the protected backend audit log
+- the Admin **Email Log** section lists owner notifications, customer confirmations and test email attempts
 
 Local PostgreSQL and backend setup:
 
@@ -177,6 +178,21 @@ order status/note changes, contact message status changes, Site Settings, Email 
 updates. The audit log stores actor email, action, entity type, entity label,
 summary and timestamp; it intentionally does not store passwords or SMTP/Gmail
 App Password secrets.
+
+
+## Email log
+
+Sign in to Admin and select **Email Log** to review email delivery attempts for
+owner notifications, customer confirmations and test emails. The protected
+`GET /api/admin/email-log` endpoint returns the newest entries and supports
+filtering by search text, message type, status, recipient email and provider.
+The UI applies filters automatically, refreshes from admin realtime events when new email attempts are recorded and can export the visible rows to CSV.
+
+The log stores delivery metadata only: recipient email, subject, provider,
+status, result/error summary, related Order/Contact reference and timestamps.
+It intentionally does not store email bodies, SMTP credentials, Google App
+Passwords or JWT tokens.
+
 ## Backup and restore
 
 Operational PostgreSQL and uploads backup/restore procedures are documented in

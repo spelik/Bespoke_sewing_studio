@@ -35,6 +35,7 @@ import {
 import { useAuth } from "../auth/AuthContext";
 import { AdminAccountPanel } from "../components/AdminAccountPanel";
 import { AdminAuditLogPanel } from "../components/AdminAuditLogPanel";
+import { AdminEmailLogPanel } from "../components/AdminEmailLogPanel";
 import { AdminBrandSettingsPanel } from "../components/AdminBrandSettingsPanel";
 import { AdminContactMessagesPanel } from "../components/AdminContactMessagesPanel";
 import { AdminContentPanel } from "../components/AdminContentPanel";
@@ -71,6 +72,7 @@ type AdminSection =
   | "users"
   | "account"
   | "auditLog"
+  | "emailLog"
   | "settings";
 
 interface AttentionCounts {
@@ -100,6 +102,7 @@ const NAV_ITEMS: ReadonlyArray<{
   { id: "users", label: "Users", icon: Users },
   { id: "account", label: "My account", icon: UserCircle },
   { id: "auditLog", label: "Audit Log", icon: History },
+  { id: "emailLog", label: "Email Log", icon: Mail },
   { id: "settings", label: "Settings", icon: Settings },
 ];
 
@@ -115,6 +118,7 @@ const ADMIN_SECTION_HASHES: Record<AdminSection, string> = {
   users: "users",
   account: "my-account",
   auditLog: "audit-log",
+  emailLog: "email-log",
   settings: "settings",
 };
 
@@ -163,6 +167,7 @@ export function AdminPage() {
     AdminContactMessageListItem[]
   >([]);
   const [contactRefreshKey, setContactRefreshKey] = useState(0);
+  const [emailLogRefreshKey, setEmailLogRefreshKey] = useState(0);
   const [contactAttentionCounts, setContactAttentionCounts] =
     useState<AttentionCounts | null>(null);
   const [emailDeliverySettings, setEmailDeliverySettings] =
@@ -226,14 +231,19 @@ export function AdminPage() {
   );
 
   const handleAdminRealtimeEvent = useCallback(
-    (event: { entity: "Order" | "ContactMessage" }) => {
+    (event: { entity: "Order" | "ContactMessage" | "EmailDeliveryLog" }) => {
       if (event.entity === "Order") {
         void adminOrders.reload();
         return;
       }
 
-      void loadContactMessagesForDashboard();
-      setContactRefreshKey((current) => current + 1);
+      if (event.entity === "ContactMessage") {
+        void loadContactMessagesForDashboard();
+        setContactRefreshKey((current) => current + 1);
+        return;
+      }
+
+      setEmailLogRefreshKey((current) => current + 1);
     },
     [adminOrders.reload, loadContactMessagesForDashboard],
   );
@@ -558,6 +568,12 @@ export function AdminPage() {
           ) : null}
           {section === "auditLog" ? (
             <AdminAuditLogPanel onUnauthorized={logout} />
+          ) : null}
+          {section === "emailLog" ? (
+            <AdminEmailLogPanel
+              onUnauthorized={logout}
+              realtimeRefreshKey={emailLogRefreshKey}
+            />
           ) : null}
           {section === "settings" ? (
             <AdminSettingsPanel onUnauthorized={logout} />

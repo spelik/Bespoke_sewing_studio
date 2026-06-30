@@ -1,6 +1,8 @@
 using System.Text;
 using BespokeStudio.Application.Abstractions;
 using BespokeStudio.Application.Contracts.ContactMessages;
+using BespokeStudio.Application.Contracts.EmailDeliveryLog;
+using BespokeStudio.Application.Contracts.Notifications;
 using BespokeStudio.Application.Contracts.Orders;
 using Microsoft.Extensions.Logging;
 
@@ -11,6 +13,7 @@ public sealed class NotificationService(
     IContactMessageService contactMessageService,
     ISiteSettingsService siteSettingsService,
     IEmailNotificationSender emailSender,
+    IEmailDeliveryLogService emailDeliveryLogService,
     ILogger<NotificationService> logger) : INotificationService
 {
     public async Task NotifyNewOrderCreatedAsync(
@@ -30,52 +33,32 @@ public sealed class NotificationService(
 
             if (settings.EmailNotificationsEnabled && !string.IsNullOrWhiteSpace(settings.Email))
             {
-                try
-                {
-                    var result = await emailSender.SendAsync(
-                        settings.Email,
-                        $"New enquiry: {order.ServiceName} from {order.Client.FullName}",
-                        BuildOrderEmailBody(order),
-                        cancellationToken);
-
-                    if (!result.Success)
-                    {
-                        logger.LogWarning(
-                            "Email notification for order {OrderId} used {Provider}: {Message}",
-                            orderId,
-                            result.Provider,
-                            result.Message);
-                    }
-                }
-                catch (Exception exception)
-                {
-                    logger.LogError(exception, "Email notification failed for order {OrderId}.", orderId);
-                }
+                var subject = $"New enquiry: {order.ServiceName} from {order.Client.FullName}";
+                await SendAndRecordEmailAsync(
+                    messageType: "owner_order_notification",
+                    recipientEmail: settings.Email,
+                    subject: subject,
+                    body: BuildOrderEmailBody(order),
+                    relatedEntityType: "Order",
+                    relatedEntityId: order.Id.ToString(),
+                    relatedEntityLabel: order.ReferenceNumber,
+                    warningContext: $"Email notification for order {orderId}",
+                    cancellationToken: cancellationToken);
             }
 
             if (settings.CustomerConfirmationEmailsEnabled && !string.IsNullOrWhiteSpace(order.Client.Email))
             {
-                try
-                {
-                    var result = await emailSender.SendAsync(
-                        order.Client.Email,
-                        RenderOrderTemplate(settings.CustomerOrderConfirmationSubject, settings.StudioName, order),
-                        RenderOrderTemplate(settings.CustomerOrderConfirmationBody, settings.StudioName, order),
-                        cancellationToken);
-
-                    if (!result.Success)
-                    {
-                        logger.LogWarning(
-                            "Customer confirmation email for order {OrderId} used {Provider}: {Message}",
-                            orderId,
-                            result.Provider,
-                            result.Message);
-                    }
-                }
-                catch (Exception exception)
-                {
-                    logger.LogError(exception, "Customer confirmation email failed for order {OrderId}.", orderId);
-                }
+                var subject = RenderOrderTemplate(settings.CustomerOrderConfirmationSubject, settings.StudioName, order);
+                await SendAndRecordEmailAsync(
+                    messageType: "customer_order_confirmation",
+                    recipientEmail: order.Client.Email,
+                    subject: subject,
+                    body: RenderOrderTemplate(settings.CustomerOrderConfirmationBody, settings.StudioName, order),
+                    relatedEntityType: "Order",
+                    relatedEntityId: order.Id.ToString(),
+                    relatedEntityLabel: order.ReferenceNumber,
+                    warningContext: $"Customer confirmation email for order {orderId}",
+                    cancellationToken: cancellationToken);
             }
 
         }
@@ -104,62 +87,35 @@ public sealed class NotificationService(
 
             if (settings.EmailNotificationsEnabled && !string.IsNullOrWhiteSpace(settings.Email))
             {
-                try
-                {
-                    var subject = string.IsNullOrWhiteSpace(message.Subject)
-                        ? $"New contact message from {message.FullName}"
-                        : $"New contact message: {message.Subject}";
+                var subject = string.IsNullOrWhiteSpace(message.Subject)
+                    ? $"New contact message from {message.FullName}"
+                    : $"New contact message: {message.Subject}";
 
-                    var result = await emailSender.SendAsync(
-                        settings.Email,
-                        subject,
-                        BuildContactMessageEmailBody(message),
-                        cancellationToken);
-
-                    if (!result.Success)
-                    {
-                        logger.LogWarning(
-                            "Email notification for contact message {ContactMessageId} used {Provider}: {Message}",
-                            contactMessageId,
-                            result.Provider,
-                            result.Message);
-                    }
-                }
-                catch (Exception exception)
-                {
-                    logger.LogError(
-                        exception,
-                        "Email notification failed for contact message {ContactMessageId}.",
-                        contactMessageId);
-                }
+                await SendAndRecordEmailAsync(
+                    messageType: "owner_contact_notification",
+                    recipientEmail: settings.Email,
+                    subject: subject,
+                    body: BuildContactMessageEmailBody(message),
+                    relatedEntityType: "ContactMessage",
+                    relatedEntityId: message.Id.ToString(),
+                    relatedEntityLabel: message.ReferenceNumber,
+                    warningContext: $"Email notification for contact message {contactMessageId}",
+                    cancellationToken: cancellationToken);
             }
 
             if (settings.CustomerConfirmationEmailsEnabled)
             {
-                try
-                {
-                    var result = await emailSender.SendAsync(
-                        message.Email,
-                        RenderContactTemplate(settings.CustomerContactConfirmationSubject, settings.StudioName, message),
-                        RenderContactTemplate(settings.CustomerContactConfirmationBody, settings.StudioName, message),
-                        cancellationToken);
-
-                    if (!result.Success)
-                    {
-                        logger.LogWarning(
-                            "Customer confirmation email for contact message {ContactMessageId} used {Provider}: {Message}",
-                            contactMessageId,
-                            result.Provider,
-                            result.Message);
-                    }
-                }
-                catch (Exception exception)
-                {
-                    logger.LogError(
-                        exception,
-                        "Customer confirmation email failed for contact message {ContactMessageId}.",
-                        contactMessageId);
-                }
+                var subject = RenderContactTemplate(settings.CustomerContactConfirmationSubject, settings.StudioName, message);
+                await SendAndRecordEmailAsync(
+                    messageType: "customer_contact_confirmation",
+                    recipientEmail: message.Email,
+                    subject: subject,
+                    body: RenderContactTemplate(settings.CustomerContactConfirmationBody, settings.StudioName, message),
+                    relatedEntityType: "ContactMessage",
+                    relatedEntityId: message.Id.ToString(),
+                    relatedEntityLabel: message.ReferenceNumber,
+                    warningContext: $"Customer confirmation email for contact message {contactMessageId}",
+                    cancellationToken: cancellationToken);
             }
         }
         catch (Exception exception)
@@ -168,6 +124,108 @@ public sealed class NotificationService(
                 exception,
                 "Notifications could not be prepared for contact message {ContactMessageId}.",
                 contactMessageId);
+        }
+    }
+
+
+    private async Task SendAndRecordEmailAsync(
+        string messageType,
+        string recipientEmail,
+        string subject,
+        string body,
+        string? relatedEntityType,
+        string? relatedEntityId,
+        string? relatedEntityLabel,
+        string warningContext,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var result = await emailSender.SendAsync(
+                recipientEmail,
+                subject,
+                body,
+                cancellationToken);
+
+            if (!result.Success)
+            {
+                logger.LogWarning(
+                    "{WarningContext} used {Provider}: {Message}",
+                    warningContext,
+                    result.Provider,
+                    result.Message);
+            }
+
+            await RecordEmailLogAsync(
+                messageType,
+                recipientEmail,
+                subject,
+                result,
+                relatedEntityType,
+                relatedEntityId,
+                relatedEntityLabel,
+                cancellationToken);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "{WarningContext} failed.", warningContext);
+            await RecordEmailLogAsync(
+                messageType,
+                recipientEmail,
+                subject,
+                new EmailNotificationResult(
+                    Success: false,
+                    Provider: "Unknown",
+                    SentExternally: false,
+                    Message: "Email delivery threw an exception."),
+                relatedEntityType,
+                relatedEntityId,
+                relatedEntityLabel,
+                cancellationToken,
+                exception.Message);
+        }
+    }
+
+    private async Task RecordEmailLogAsync(
+        string messageType,
+        string recipientEmail,
+        string subject,
+        EmailNotificationResult result,
+        string? relatedEntityType,
+        string? relatedEntityId,
+        string? relatedEntityLabel,
+        CancellationToken cancellationToken,
+        string? errorMessage = null)
+    {
+        try
+        {
+            await emailDeliveryLogService.RecordAsync(
+                new EmailDeliveryLogWriteRequest(
+                    messageType,
+                    recipientEmail,
+                    subject,
+                    result.Provider,
+                    result.Success ? "Sent" : "Failed",
+                    result.SentExternally,
+                    result.Message,
+                    errorMessage,
+                    relatedEntityType,
+                    relatedEntityId,
+                    relatedEntityLabel,
+                    DateTimeOffset.UtcNow),
+                cancellationToken);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            logger.LogWarning(exception, "Email delivery log entry could not be saved for {MessageType}.", messageType);
         }
     }
 

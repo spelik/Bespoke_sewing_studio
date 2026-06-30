@@ -32,6 +32,12 @@ public sealed class SignalRAdminRealtimeNotifier(
         CancellationToken cancellationToken = default) =>
         BroadcastAsync("ContactMessageUpdated", "ContactMessage", contactMessageId, referenceNumber, cancellationToken);
 
+    public Task NotifyEmailDeliveryLogChangedAsync(
+        Guid emailDeliveryLogEntryId,
+        string? referenceNumber,
+        CancellationToken cancellationToken = default) =>
+        BroadcastAsync("EmailDeliveryLogChanged", "EmailDeliveryLog", emailDeliveryLogEntryId, referenceNumber, cancellationToken);
+
     private async Task BroadcastAsync(
         string eventType,
         string entity,

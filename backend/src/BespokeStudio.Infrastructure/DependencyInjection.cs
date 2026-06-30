@@ -72,6 +72,7 @@ public static class DependencyInjection
         services.AddScoped<IRepeatableContentService, RepeatableContentService>();
         services.AddScoped<ISiteSettingsService, SiteSettingsService>();
         services.AddScoped<IEmailDeliverySettingsService, EmailDeliverySettingsService>();
+        services.AddScoped<IEmailDeliveryLogService, EmailDeliveryLogService>();
         services.AddScoped<INotificationService, NotificationService>();
         services.AddScoped<LoggingEmailNotificationSender>();
         services.AddScoped<SmtpEmailNotificationSender>();

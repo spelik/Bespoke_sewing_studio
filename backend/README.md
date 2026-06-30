@@ -153,6 +153,7 @@ uploads and notification delivery.
 - Website Content CMS
 - Repeatable Content CMS
 - Email notification foundation
+- Email delivery log
 - Admin audit log
 - Admin account password change
 
@@ -214,7 +215,7 @@ The repository currently contains migrations for the initial schema, phone-only
 orders, Identity/JWT, Site Settings, contact normalisation, removal of WhatsApp
 notification fields, dynamic services/prices, Portfolio/Gallery CMS, Website
 Content CMS, Brand/SEO settings, Repeatable Content CMS, Contact Messages,
-customer confirmation email templates, human-readable request references and the admin audit log. They have been
+customer confirmation email templates, human-readable request references, the admin audit log and the email delivery log. They have been
 applied to the local development database during the corresponding tasks. Installing the matching
 CLI tool, if it is missing locally:
 
@@ -371,12 +372,12 @@ change events only, never customer data payloads or secrets.
 `/hubs/admin-notifications` is a protected SignalR hub for signed-in administrators.
 The JWT token may be supplied as an `access_token` query parameter for WebSocket
 connections; the same `AdminOnly` policy is enforced. Order creation/status/note
-changes and Contact Message creation/status changes broadcast lightweight
-`AdminDataChanged` events containing the entity type, internal ID, optional
-human-readable reference number and event timestamp. The frontend uses these
-events to reload admin lists, dashboard counters and sidebar badges. Manual
-Refresh buttons remain available as a fallback for disconnected clients or proxy
-misconfiguration.
+changes, Contact Message creation/status changes and Email Log writes broadcast
+lightweight `AdminDataChanged` events containing the entity type, internal ID,
+optional human-readable reference number and event timestamp. The frontend uses
+these events to reload admin lists, dashboard counters, sidebar badges and the
+Email Log panel. Manual Refresh buttons remain available as a fallback for
+disconnected clients or proxy misconfiguration.
 
 ## Contact Messages API
 
@@ -605,6 +606,21 @@ uses `LoggingEmailNotificationSender` and `Provider=Smtp` uses
 `SmtpEmailNotificationSender`. Missing/invalid SMTP configuration and SMTP
 delivery errors are logged and fall back to the logging provider without
 changing the successful order or contact message response.
+
+
+`GET /api/admin/email-log` is protected by the `AdminOnly` policy. It returns
+the newest email delivery attempts and supports `take`, `search`,
+`messageType`, `status`, `recipientEmail` and `provider` query filters. It is
+used by Admin → Email Log. The frontend auto-applies filters, refreshes from
+admin realtime events when entries are written and can export the visible rows
+to CSV.
+
+Email log entries are written for owner order notifications, customer order
+confirmations, owner contact notifications, customer contact confirmations and
+test emails. Only metadata is persisted: recipient, subject, provider, sent/failed
+status, external-delivery flag, result/error summary, related entity reference
+and timestamps. Email bodies, SMTP credentials, Google App Passwords and tokens
+are intentionally never stored in the email log.
 
 `POST /api/admin/notifications/test-email` is protected by the `AdminOnly`
 policy. It requires enabled email notifications and a Site Settings email, then
