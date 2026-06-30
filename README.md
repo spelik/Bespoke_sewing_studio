@@ -186,6 +186,15 @@ keep backups outside the repository. Database backups do not include physical
 upload files, and owner-managed Gmail SMTP also depends on persistent ASP.NET
 Core Data Protection keys in production.
 
+## Production launch checklist
+
+Before the first public launch or a production-domain migration, review
+`PRODUCTION_LAUNCH_CHECKLIST_RU.md`. At minimum, replace the placeholder
+`https://replace-with-production-domain.example` in `public/robots.txt` and
+`public/sitemap.xml`, set `VITE_PUBLIC_SITE_URL` to the real public origin,
+verify `/robots.txt` and `/sitemap.xml` on the production domain, and complete
+the backup, email, upload-security, HTTPS, secrets and legal-text checks.
+
 ## Site settings
 
 Sign in at `http://127.0.0.1:5173/admin` to open the Admin **Dashboard**.
@@ -349,6 +358,22 @@ also read an individual group through `GET /api/repeatable-content/groups/{group
 The Admin panel can add, edit, hide/show and archive items through protected
 `/api/admin/repeatable-content` endpoints. Typed frontend defaults in
 `src/data/siteData.ts` remain available only as an offline fallback.
+
+## Privacy and terms pages
+
+The public site includes a Privacy Policy at `/privacy` and Terms & Service
+Information at `/terms`. Footer links point to both pages. The Order and Contact
+forms link to these notices next to the user consent text, and the Order form
+explains that accepted attachments are stored so the studio can review and
+respond to the enquiry.
+
+The Privacy page uses backend-first page content and repeatable privacy sections
+where available, plus typed fallback notices for contact forms, order requests,
+uploaded files and admin/audit records. The Terms page is a static frontend page
+with plain-English service information for enquiries, consultations, guide prices,
+client materials, uploads, timings, changes and cancellations. The text is
+intended as a practical website notice and should be reviewed by the business
+owner before public launch.
 
 ## Brand and SEO settings
 

@@ -1,4 +1,5 @@
 import { useEffect, useState, type DragEvent } from "react";
+import { Link } from "react-router-dom";
 import { Check, ChevronDown, FileText, Image as ImageIcon, Send, Trash2, Upload } from "lucide-react";
 import {
   createOrder,
@@ -324,8 +325,10 @@ export function OrderPage() {
                   {consent && <Check size={10} className="text-primary-foreground" />}
                 </div>
                 <span className="text-[13px] text-muted-foreground leading-relaxed font-sans">
-                  I consent to {brand.brandDisplayName} storing my contact information and enquiry details in order to process my request. I have read and agree to the{" "}
-                  <span className="text-foreground underline underline-offset-2 cursor-pointer">Privacy Policy</span>.
+                  I consent to {brand.brandDisplayName} storing my contact information, enquiry details and accepted attachments in order to process my request. I have read and agree to the{" "}
+                  <Link to="/privacy" className="text-foreground underline underline-offset-2 hover:text-accent transition-colors">Privacy Policy</Link>{" "}
+                  and{" "}
+                  <Link to="/terms" className="text-foreground underline underline-offset-2 hover:text-accent transition-colors">Terms &amp; Service Information</Link>.
                 </span>
               </label>
             </div>
@@ -350,7 +353,7 @@ export function OrderPage() {
             </button>
 
             <p className="text-[11px] text-muted-foreground/50 text-center font-sans">
-              Your request and accepted attachments will be sent securely to {brand.brandDisplayName}.
+              Your request and accepted attachments will be sent to {brand.brandDisplayName} and stored so the studio can review and respond to your enquiry.
             </p>
           </form>
         </div>

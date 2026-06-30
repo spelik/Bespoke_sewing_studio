@@ -38,6 +38,9 @@ const ContactPage = lazy(() =>
 const PrivacyPage = lazy(() =>
   import("./pages/PrivacyPage").then((module) => ({ default: module.PrivacyPage })),
 );
+const TermsPage = lazy(() =>
+  import("./pages/TermsPage").then((module) => ({ default: module.TermsPage })),
+);
 const AdminPage = lazy(() =>
   import("./pages/AdminPage").then((module) => ({ default: module.AdminPage })),
 );
@@ -77,6 +80,7 @@ function SiteShell() {
             <Route path="/about" element={<AboutPage />} />
             <Route path="/contact" element={<ContactPage />} />
             <Route path="/privacy" element={<PrivacyPage />} />
+            <Route path="/terms" element={<TermsPage />} />
             <Route path="/admin/login" element={<AdminLoginPage />} />
             <Route element={<ProtectedAdminRoute />}>
               <Route path="/admin" element={<AdminPage />} />

@@ -58,6 +58,11 @@ const PUBLIC_ROUTE_SEO: Record<string, SeoDefinition> = {
     description:
       "Read how Bespoke Sewing Studio handles personal information submitted through contact and order request forms.",
   },
+  "/terms": {
+    title: "Terms & Service Information | Bespoke Sewing Studio",
+    description:
+      "Read practical service information for sewing enquiries, order requests, consultations and uploaded files.",
+  },
 };
 
 const ADMIN_ROBOTS = "noindex, nofollow";

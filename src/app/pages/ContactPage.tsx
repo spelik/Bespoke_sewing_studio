@@ -1,4 +1,5 @@
 import { type ChangeEvent, type FormEvent, useState } from "react";
+import { Link } from "react-router-dom";
 import { Check, Mail, MapPin, Phone } from "lucide-react";
 import {
   createContactMessage,
@@ -207,7 +208,10 @@ export function ContactPage() {
                       className="mt-1 h-3.5 w-3.5 accent-foreground"
                     />
                     <span>
-                      I agree that Bespoke Sewing Studio may use my details to respond to this enquiry.
+                      I agree that Bespoke Sewing Studio may use my details to respond to this enquiry. I have read the{" "}
+                      <Link to="/privacy" className="text-foreground underline underline-offset-2 hover:text-accent transition-colors">Privacy Policy</Link>{" "}
+                      and{" "}
+                      <Link to="/terms" className="text-foreground underline underline-offset-2 hover:text-accent transition-colors">Terms &amp; Service Information</Link>.
                     </span>
                   </label>
 

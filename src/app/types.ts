@@ -6,6 +6,7 @@ export type Page =
   | "about"
   | "contact"
   | "privacy"
+  | "terms"
   | "admin";
 
 export type OrderServiceType =
