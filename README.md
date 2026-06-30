@@ -55,9 +55,10 @@ Current backend status:
 - logo, favicon, default SEO metadata, header CTA and navigation labels/visibility are managed in Admin **Brand / SEO**
 - the public Order form submits a dynamic `serviceOfferingId` while preserving legacy enum compatibility
 - admin login, Orders list/detail/status/notes and Contact Messages list/detail/status use protected backend endpoints
-- the admin sidebar exposes only backend-backed Dashboard, Orders, Contact Messages, Services, Portfolio, Content, Repeatable Content, Brand/SEO, Users and Settings modules
+- the admin sidebar exposes only backend-backed Dashboard, Orders, Contact Messages, Services, Portfolio, Content, Repeatable Content, Brand/SEO, Users, Audit Log and Settings modules
 - the Admin Dashboard includes production-readiness checks for contact details, notifications, email delivery, upload security, admin API access and DNS email records
 - admin Orders, Contact Messages, Dashboard counters and sidebar badges can refresh through the protected SignalR admin-notifications hub
+- the Admin **Audit Log** section lists important administrator actions from the protected backend audit log
 
 Local PostgreSQL and backend setup:
 
@@ -153,6 +154,19 @@ Safety rules are enforced on the backend: an administrator cannot disable or
 delete their own current account, and the last active admin account cannot be
 disabled or deleted. Passwords are accepted only when creating or resetting a
 user and are never returned by the API.
+
+## Admin audit log
+
+Sign in to Admin and select **Audit Log** to review important administrator
+actions. The protected `GET /api/admin/audit-log` endpoint returns the newest
+audit entries and supports filtering by search text, action, entity type and
+actor email. The UI can export the visible audit entries to CSV.
+
+The first audit scope records admin user management, order status/note changes,
+contact message status changes, Site Settings, Email Delivery and Brand / SEO
+updates. The audit log stores actor email, action, entity type, entity label,
+summary and timestamp; it intentionally does not store passwords or SMTP/Gmail
+App Password secrets.
 
 ## Site settings
 

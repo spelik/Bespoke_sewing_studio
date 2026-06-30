@@ -297,3 +297,20 @@ Scope:
 - роли пока не усложнялись: все управляемые пользователи получают роль `Admin`.
 
 Миграция не потребовалась, используются существующие таблицы ASP.NET Core Identity.
+
+## Task 40 — Admin audit log — Done
+
+Добавлена защищённая вкладка Admin → Audit Log и backend audit trail:
+
+- новая таблица `AdminAuditLogEntries`;
+- protected endpoint `GET /api/admin/audit-log` с фильтрами `take`, `search`, `action`, `entityType`, `actorEmail`;
+- UI-фильтры, Refresh и Export CSV;
+- audit-записи для Admin Users create/enable/disable/reset password/delete;
+- audit-записи для Order status/note changes;
+- audit-записи для Contact Message status changes;
+- audit-записи для Site Settings, Email Delivery и Brand / SEO updates.
+
+Пароли, Gmail App Password и SMTP secrets в audit log не сохраняются.
+Следующий возможный шаг: расширить audit coverage на Services, Portfolio,
+Website Content и Repeatable Content, если это понадобится владельцу сайта.
+

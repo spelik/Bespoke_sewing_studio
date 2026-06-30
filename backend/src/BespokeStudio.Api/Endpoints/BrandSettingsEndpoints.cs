@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using System.Text.Json;
 using BespokeStudio.Application.Abstractions;
 using BespokeStudio.Application.Contracts.SiteSettings;
@@ -20,8 +21,8 @@ public static class BrandSettingsEndpoints
         endpoints.MapGet("/api/admin/brand/images/{id:guid}",OpenAdminImageAsync).RequireAuthorization(AdminAccess.PolicyName).WithTags("Admin Brand Settings").WithName("GetAdminBrandImage");
         return endpoints;
     }
-    private static async Task<IResult> UpdateAsync(UpdateBrandSettingsRequest r,ISiteSettingsService s,CancellationToken ct)
-    { var errors=BrandSettingsValidator.Validate(r); if(errors.Count>0)return Validation(errors); try{return TypedResults.Ok(await s.UpdateBrandSettingsAsync(r,ct));}catch(BrandSettingsConflictException ex){return Problem(ex.Field,ex.Message);} }
+    private static async Task<IResult> UpdateAsync(UpdateBrandSettingsRequest r,ClaimsPrincipal principal,ISiteSettingsService s,IAdminAuditLogService auditLogService,CancellationToken ct)
+    { var errors=BrandSettingsValidator.Validate(r); if(errors.Count>0)return Validation(errors); try{var settings=await s.UpdateBrandSettingsAsync(r,ct); await auditLogService.RecordAsync(AdminAuditEndpointHelpers.CreateAuditRequest(principal,"brand_settings.updated","BrandSettings",null,settings.BrandDisplayName,"Brand / SEO settings were updated."),ct); return TypedResults.Ok(settings);}catch(BrandSettingsConflictException ex){return Problem(ex.Field,ex.Message);} }
     private static async Task<IResult> UploadAsync(HttpRequest request,IUploadService s,CancellationToken ct)
     { if(!request.HasFormContentType)return Problem("file","A multipart/form-data request is required."); try{var form=await request.ReadFormAsync(ct);if(form.Files.Count!=1)return Problem("file","Select exactly one brand image.");var f=form.Files[0];await using var stream=f.OpenReadStream();return TypedResults.Ok(await s.UploadBrandImageAsync(new UploadFileRequest(f.FileName,f.ContentType,f.Length,stream),ct));}catch(InvalidDataException){return Problem("file","The upload request exceeds the configured size limit.");}catch(UploadValidationException ex){return Problem("file",ex.Message);} }
     private static async Task<IResult> OpenPublicImageAsync(Guid id,IUploadService s,CancellationToken ct){var f=await s.OpenPublicBrandImageAsync(id,ct);return f is null?TypedResults.NotFound():Results.File(f.Content,f.ContentType,enableRangeProcessing:true);}

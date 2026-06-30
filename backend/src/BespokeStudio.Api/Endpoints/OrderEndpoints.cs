@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using System.Text.Json;
 using BespokeStudio.Application.Abstractions;
 using BespokeStudio.Application.Contracts.Orders;
@@ -124,8 +125,10 @@ public static class OrderEndpoints
     private static async Task<IResult> UpdateOrderStatusAsync(
         Guid id,
         UpdateOrderStatusRequest request,
+        ClaimsPrincipal principal,
         IOrderService orderService,
         IAdminRealtimeNotifier realtimeNotifier,
+        IAdminAuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
         var errors = OrderRequestValidator.Validate(request);
@@ -141,14 +144,25 @@ public static class OrderEndpoints
         }
 
         await realtimeNotifier.NotifyOrderUpdatedAsync(order.Id, order.ReferenceNumber, cancellationToken);
+        await auditLogService.RecordAsync(
+            AdminAuditEndpointHelpers.CreateAuditRequest(
+                principal,
+                "order.status_updated",
+                "Order",
+                order.Id.ToString(),
+                order.ReferenceNumber,
+                $"Order {order.ReferenceNumber} status was set to {order.Status}."),
+            cancellationToken);
         return TypedResults.Ok(order);
     }
 
     private static async Task<IResult> AddOrderNoteAsync(
         Guid id,
         AddOrderNoteRequest request,
+        ClaimsPrincipal principal,
         IOrderService orderService,
         IAdminRealtimeNotifier realtimeNotifier,
+        IAdminAuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
         var errors = OrderRequestValidator.Validate(request);
@@ -164,6 +178,15 @@ public static class OrderEndpoints
         }
 
         await realtimeNotifier.NotifyOrderUpdatedAsync(order.Id, order.ReferenceNumber, cancellationToken);
+        await auditLogService.RecordAsync(
+            AdminAuditEndpointHelpers.CreateAuditRequest(
+                principal,
+                "order.note_added",
+                "Order",
+                order.Id.ToString(),
+                order.ReferenceNumber,
+                $"A note was added to order {order.ReferenceNumber}."),
+            cancellationToken);
         return TypedResults.Ok(order);
     }
 

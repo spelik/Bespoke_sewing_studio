@@ -9,6 +9,7 @@ namespace BespokeStudio.Infrastructure.Persistence;
 public sealed class BespokeStudioDbContext(DbContextOptions<BespokeStudioDbContext> options)
     : IdentityDbContext<AdminUser, IdentityRole<Guid>, Guid>(options)
 {
+    public DbSet<AdminAuditLogEntry> AdminAuditLogEntries => Set<AdminAuditLogEntry>();
     public DbSet<Client> Clients => Set<Client>();
     public DbSet<ContactMessage> ContactMessages => Set<ContactMessage>();
     public DbSet<Order> Orders => Set<Order>();

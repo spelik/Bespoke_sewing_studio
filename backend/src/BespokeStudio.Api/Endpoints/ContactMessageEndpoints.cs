@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using System.Text.Json;
 using BespokeStudio.Api.Configuration;
 using BespokeStudio.Application.Abstractions;
@@ -101,8 +102,10 @@ public static class ContactMessageEndpoints
     private static async Task<IResult> UpdateStatusAsync(
         Guid id,
         UpdateContactMessageStatusRequest request,
+        ClaimsPrincipal principal,
         IContactMessageService service,
         IAdminRealtimeNotifier realtimeNotifier,
+        IAdminAuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
         var errors = ContactMessageValidator.Validate(request);
@@ -118,6 +121,15 @@ public static class ContactMessageEndpoints
         }
 
         await realtimeNotifier.NotifyContactMessageUpdatedAsync(result.Id, result.ReferenceNumber, cancellationToken);
+        await auditLogService.RecordAsync(
+            AdminAuditEndpointHelpers.CreateAuditRequest(
+                principal,
+                "contact_message.status_updated",
+                "ContactMessage",
+                result.Id.ToString(),
+                result.ReferenceNumber,
+                $"Contact message {result.ReferenceNumber} status was set to {result.Status}."),
+            cancellationToken);
         return TypedResults.Ok(result);
     }
 

@@ -212,7 +212,7 @@ The repository currently contains migrations for the initial schema, phone-only
 orders, Identity/JWT, Site Settings, contact normalisation, removal of WhatsApp
 notification fields, dynamic services/prices, Portfolio/Gallery CMS, Website
 Content CMS, Brand/SEO settings, Repeatable Content CMS, Contact Messages,
-customer confirmation email templates and human-readable request references. They have been
+customer confirmation email templates, human-readable request references and the admin audit log. They have been
 applied to the local development database during the corresponding tasks. Installing the matching
 CLI tool, if it is missing locally:
 
@@ -242,6 +242,23 @@ Registering the DbContext does not open a database connection during API
 startup. The existing system endpoints and Swagger can therefore run while the
 development database is offline. No database health check or automatic
 migration is enabled yet.
+
+
+## Admin Audit Log API
+
+Admin JWT with the `Admin` role is required for `GET /api/admin/audit-log`.
+The endpoint returns newest entries first and accepts optional query parameters:
+
+- `take` from 1 to 200, default 100;
+- `search` across actor, action, entity, reference/label and summary;
+- `action`;
+- `entityType`;
+- `actorEmail`.
+
+The first audit scope records administrator user management, order status/note
+changes, contact message status changes, Site Settings updates, Email Delivery
+updates and Brand / SEO updates. The audit log intentionally stores no
+passwords, Gmail App Passwords or raw SMTP secrets.
 
 ## Admin Users API
 
@@ -709,6 +726,8 @@ Available core endpoints after startup include:
 - `/api/repeatable-content`
 - `/api/repeatable-content/groups/{groupKey}`
 - `/api/admin/contact-messages`
+- `/api/admin/users`
+- `/api/admin/audit-log`
 - `/api/site-settings/public`
 - `/api/brand-settings/public`
 

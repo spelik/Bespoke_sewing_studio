@@ -62,6 +62,7 @@ public static class DependencyInjection
             .AddDefaultTokenProviders()
             .AddEntityFrameworkStores<BespokeStudioDbContext>();
 
+        services.AddScoped<IAdminAuditLogService, AdminAuditLogService>();
         services.AddScoped<IAdminUserManagementService, AdminUserManagementService>();
         services.AddScoped<IContactMessageService, ContactMessageService>();
         services.AddScoped<IOrderService, OrderService>();

@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using System.Text.Json;
 using BespokeStudio.Application.Abstractions;
 using BespokeStudio.Application.Contracts.SiteSettings;
@@ -54,7 +55,9 @@ public static class SiteSettingsEndpoints
 
     private static async Task<IResult> UpdateSettingsAsync(
         UpdateSiteSettingsRequest request,
+        ClaimsPrincipal principal,
         ISiteSettingsService settingsService,
+        IAdminAuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
         var errors = SiteSettingsValidator.Validate(request);
@@ -64,6 +67,15 @@ public static class SiteSettingsEndpoints
         }
 
         var settings = await settingsService.UpdateSettingsAsync(request, cancellationToken);
+        await auditLogService.RecordAsync(
+            AdminAuditEndpointHelpers.CreateAuditRequest(
+                principal,
+                "site_settings.updated",
+                "SiteSettings",
+                settings.Id.ToString(),
+                settings.StudioName,
+                "Site settings were updated."),
+            cancellationToken);
         return TypedResults.Ok(settings);
     }
 

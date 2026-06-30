@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Download,
   FileText,
+  History,
   Images,
   LayoutDashboard,
   ListOrdered,
@@ -31,6 +32,7 @@ import {
   type AdminOrderStatus,
 } from "../../api/ordersApi";
 import { useAuth } from "../auth/AuthContext";
+import { AdminAuditLogPanel } from "../components/AdminAuditLogPanel";
 import { AdminBrandSettingsPanel } from "../components/AdminBrandSettingsPanel";
 import { AdminContactMessagesPanel } from "../components/AdminContactMessagesPanel";
 import { AdminContentPanel } from "../components/AdminContentPanel";
@@ -65,6 +67,7 @@ type AdminSection =
   | "repeatable"
   | "brand"
   | "users"
+  | "auditLog"
   | "settings";
 
 interface AttentionCounts {
@@ -92,27 +95,82 @@ const NAV_ITEMS: ReadonlyArray<{
   { id: "repeatable", label: "Repeatable Content", icon: ListOrdered },
   { id: "brand", label: "Brand / SEO", icon: Palette },
   { id: "users", label: "Users", icon: Users },
+  { id: "auditLog", label: "Audit Log", icon: History },
   { id: "settings", label: "Settings", icon: Settings },
 ];
+
+const ADMIN_SECTION_HASHES: Record<AdminSection, string> = {
+  dashboard: "dashboard",
+  orders: "orders",
+  contactMessages: "contact-messages",
+  services: "services",
+  portfolio: "portfolio",
+  content: "content",
+  repeatable: "repeatable-content",
+  brand: "brand-seo",
+  users: "users",
+  auditLog: "audit-log",
+  settings: "settings",
+};
+
+const ADMIN_SECTIONS_BY_HASH = Object.entries(ADMIN_SECTION_HASHES).reduce(
+  (sections, [section, hash]) => {
+    sections[hash] = section as AdminSection;
+    return sections;
+  },
+  {} as Record<string, AdminSection>,
+);
+
+function getAdminSectionFromHash(): AdminSection {
+  if (typeof window === "undefined") {
+    return "dashboard";
+  }
+
+  const hash = window.location.hash.replace(/^#\/?/, "").trim();
+  return ADMIN_SECTIONS_BY_HASH[hash] ?? "dashboard";
+}
+
+function updateAdminSectionHash(section: AdminSection) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  const nextHash = `#${ADMIN_SECTION_HASHES[section]}`;
+  if (window.location.hash === nextHash) {
+    return;
+  }
+
+  window.history.pushState(null, "", nextHash);
+}
 
 export function AdminPage() {
   const navigate = usePageNavigation();
   const { user, logout } = useAuth();
   const adminOrders = useAdminOrders(logout);
-  const [section, setSection] = useState<AdminSection>("dashboard");
+  const [section, setSection] = useState<AdminSection>(() =>
+    getAdminSectionFromHash(),
+  );
   const [orderFilter, setOrderFilter] = useState<AdminOrderStatus | "All">(
     "All",
   );
   const [orderSearchQuery, setOrderSearchQuery] = useState("");
-  const [contactMessages, setContactMessages] = useState<AdminContactMessageListItem[]>([]);
+  const [contactMessages, setContactMessages] = useState<
+    AdminContactMessageListItem[]
+  >([]);
   const [contactRefreshKey, setContactRefreshKey] = useState(0);
   const [contactAttentionCounts, setContactAttentionCounts] =
     useState<AttentionCounts | null>(null);
   const [emailDeliverySettings, setEmailDeliverySettings] =
     useState<AdminEmailDeliverySettings | null>(null);
-  const [emailDeliveryError, setEmailDeliveryError] = useState<string | null>(null);
-  const [siteSettings, setSiteSettings] = useState<AdminSiteSettings | null>(null);
-  const [siteSettingsError, setSiteSettingsError] = useState<string | null>(null);
+  const [emailDeliveryError, setEmailDeliveryError] = useState<string | null>(
+    null,
+  );
+  const [siteSettings, setSiteSettings] = useState<AdminSiteSettings | null>(
+    null,
+  );
+  const [siteSettingsError, setSiteSettingsError] = useState<string | null>(
+    null,
+  );
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const orderAttentionCounts = useMemo(
@@ -138,6 +196,29 @@ export function AdminPage() {
   useEffect(() => {
     void loadContactMessagesForDashboard();
   }, [loadContactMessagesForDashboard]);
+
+  useEffect(() => {
+    const syncSectionFromUrl = () => {
+      setSection(getAdminSectionFromHash());
+    };
+
+    window.addEventListener("hashchange", syncSectionFromUrl);
+    window.addEventListener("popstate", syncSectionFromUrl);
+
+    return () => {
+      window.removeEventListener("hashchange", syncSectionFromUrl);
+      window.removeEventListener("popstate", syncSectionFromUrl);
+    };
+  }, []);
+
+  const handleAdminSectionChange = useCallback(
+    (targetSection: AdminSection) => {
+      setSection(targetSection);
+      updateAdminSectionHash(targetSection);
+      setSidebarOpen(false);
+    },
+    [],
+  );
 
   const handleAdminRealtimeEvent = useCallback(
     (event: { entity: "Order" | "ContactMessage" }) => {
@@ -269,10 +350,7 @@ export function AdminPage() {
               <button
                 key={item.id}
                 type="button"
-                onClick={() => {
-                  setSection(item.id);
-                  setSidebarOpen(false);
-                }}
+                onClick={() => handleAdminSectionChange(item.id)}
                 className={`w-full flex items-center justify-between gap-3 px-3 py-2.5 text-[12px] font-sans transition-colors mb-0.5 ${section === item.id ? "bg-primary-foreground/12 text-primary-foreground" : "text-primary-foreground/55 hover:text-primary-foreground hover:bg-primary-foreground/6"}`}
               >
                 <span className="inline-flex items-center gap-3 min-w-0">
@@ -340,7 +418,7 @@ export function AdminPage() {
               siteSettingsError={siteSettingsError}
               isOrdersLoading={adminOrders.isLoading}
               ordersError={adminOrders.error}
-              onOpenSection={(targetSection) => setSection(targetSection)}
+              onOpenSection={handleAdminSectionChange}
               onSelectOrder={(id) => void adminOrders.selectOrder(id)}
             />
           ) : null}
@@ -464,6 +542,9 @@ export function AdminPage() {
           ) : null}
           {section === "users" ? (
             <AdminUsersPanel onUnauthorized={logout} />
+          ) : null}
+          {section === "auditLog" ? (
+            <AdminAuditLogPanel onUnauthorized={logout} />
           ) : null}
           {section === "settings" ? (
             <AdminSettingsPanel onUnauthorized={logout} />
@@ -601,8 +682,14 @@ function AdminDashboardOverview({
         <DashboardStatusCard
           icon={Mail}
           label="Email delivery"
-          title={getEmailDeliveryTitle(emailDeliverySettings, emailDeliveryError)}
-          caption={getEmailDeliveryCaption(emailDeliverySettings, emailDeliveryError)}
+          title={getEmailDeliveryTitle(
+            emailDeliverySettings,
+            emailDeliveryError,
+          )}
+          caption={getEmailDeliveryCaption(
+            emailDeliverySettings,
+            emailDeliveryError,
+          )}
           onClick={() => onOpenSection("settings")}
         />
         <DashboardStatusCard
@@ -874,7 +961,8 @@ function getRecentOrders(
   return [...orders]
     .sort(
       (first, second) =>
-        new Date(second.createdAt).getTime() - new Date(first.createdAt).getTime(),
+        new Date(second.createdAt).getTime() -
+        new Date(first.createdAt).getTime(),
     )
     .slice(0, 5);
 }
@@ -885,7 +973,8 @@ function getRecentContactMessages(
   return [...messages]
     .sort(
       (first, second) =>
-        new Date(second.createdAt).getTime() - new Date(first.createdAt).getTime(),
+        new Date(second.createdAt).getTime() -
+        new Date(first.createdAt).getTime(),
     )
     .slice(0, 5);
 }
@@ -910,17 +999,21 @@ function buildProductionReadinessItems(
   );
   const gmailReady = Boolean(
     emailDeliverySettings?.provider === "GmailSmtp" &&
-      emailDeliverySettings.gmailAddress?.trim() &&
-      emailDeliverySettings.appPasswordConfigured,
+    emailDeliverySettings.gmailAddress?.trim() &&
+    emailDeliverySettings.appPasswordConfigured,
   );
-  const configurationReady = emailDeliverySettings?.provider === "Configuration";
+  const configurationReady =
+    emailDeliverySettings?.provider === "Configuration";
 
   return [
     {
       label: "Public contact details",
-      status: !settingsUnavailable && emailConfigured && phoneConfigured ? "ready" : "warning",
+      status:
+        !settingsUnavailable && emailConfigured && phoneConfigured
+          ? "ready"
+          : "warning",
       detail: settingsUnavailable
-        ? siteSettingsError ?? "Site settings could not be loaded."
+        ? (siteSettingsError ?? "Site settings could not be loaded.")
         : emailConfigured && phoneConfigured
           ? "Public email and phone are configured."
           : "Add the public email and phone in Settings → Contact.",
@@ -941,9 +1034,12 @@ function buildProductionReadinessItems(
     },
     {
       label: "Email delivery",
-      status: !emailUnavailable && (gmailReady || configurationReady) ? "ready" : "warning",
+      status:
+        !emailUnavailable && (gmailReady || configurationReady)
+          ? "ready"
+          : "warning",
       detail: emailUnavailable
-        ? emailDeliveryError ?? "Email delivery status could not be loaded."
+        ? (emailDeliveryError ?? "Email delivery status could not be loaded.")
         : gmailReady
           ? "Gmail SMTP is configured with an App Password."
           : configurationReady
@@ -986,9 +1082,7 @@ function getEmailDeliveryTitle(
     return "Loading status...";
   }
 
-  return settings.provider === "GmailSmtp"
-    ? "Gmail SMTP"
-    : "Configuration";
+  return settings.provider === "GmailSmtp" ? "Gmail SMTP" : "Configuration";
 }
 
 function getEmailDeliveryCaption(
@@ -1011,7 +1105,6 @@ function getEmailDeliveryCaption(
 
   return "Email delivery is managed by server configuration or user-secrets.";
 }
-
 
 function exportOrdersCsv(orders: readonly AdminOrderListItem[]): void {
   downloadCsv(createCsvFileName("bespoke-orders"), orders, [

@@ -1,4 +1,5 @@
 using BespokeStudio.Application.Abstractions;
+using BespokeStudio.Application.Contracts.AdminAuditLog;
 using BespokeStudio.Application.Contracts.AdminUsers;
 using BespokeStudio.Application.Security;
 using BespokeStudio.Application.Validation;
@@ -10,7 +11,8 @@ namespace BespokeStudio.Infrastructure.Services;
 
 public sealed class AdminUserManagementService(
     UserManager<AdminUser> userManager,
-    RoleManager<IdentityRole<Guid>> roleManager) : IAdminUserManagementService
+    RoleManager<IdentityRole<Guid>> roleManager,
+    IAdminAuditLogService auditLogService) : IAdminUserManagementService
 {
     public async Task<IReadOnlyList<AdminUserResponse>> GetAllAsync(
         Guid currentUserId,
@@ -76,6 +78,15 @@ public sealed class AdminUserManagementService(
             ThrowIfFailed(roleResult, nameof(CreateAdminUserRequest.Email));
         }
 
+        await RecordAsync(
+            currentUserId,
+            "admin_user.created",
+            "AdminUser",
+            user.Id.ToString(),
+            user.Email,
+            $"Admin user {user.Email} was created.",
+            cancellationToken);
+
         var activeAdminCount = await GetActiveAdminCountAsync(cancellationToken);
         return await MapAsync(user, currentUserId, activeAdminCount);
     }
@@ -123,6 +134,15 @@ public sealed class AdminUserManagementService(
             await userManager.ResetAccessFailedCountAsync(user);
         }
 
+        await RecordAsync(
+            currentUserId,
+            request.IsDisabled ? "admin_user.disabled" : "admin_user.enabled",
+            "AdminUser",
+            user.Id.ToString(),
+            user.Email,
+            $"Admin user {user.Email} was {(request.IsDisabled ? "disabled" : "enabled")}.",
+            cancellationToken);
+
         var activeAdminCount = await GetActiveAdminCountAsync(cancellationToken);
         return await MapAsync(user, currentUserId, activeAdminCount);
     }
@@ -152,6 +172,15 @@ public sealed class AdminUserManagementService(
         ThrowIfFailed(resetResult, nameof(ResetAdminUserPasswordRequest.Password));
         await userManager.ResetAccessFailedCountAsync(user);
 
+        await RecordAsync(
+            currentUserId,
+            "admin_user.password_reset",
+            "AdminUser",
+            user.Id.ToString(),
+            user.Email,
+            $"Password was reset for admin user {user.Email}.",
+            cancellationToken);
+
         var activeAdminCount = await GetActiveAdminCountAsync(cancellationToken);
         return await MapAsync(user, currentUserId, activeAdminCount);
     }
@@ -176,9 +205,43 @@ public sealed class AdminUserManagementService(
             throw AdminUserManagementException.For("user", "You cannot delete the last active admin account.");
         }
 
+        var deletedEmail = user.Email;
+        var deletedUserId = user.Id;
         var deleteResult = await userManager.DeleteAsync(user);
         ThrowIfFailed(deleteResult, "user");
+
+        await RecordAsync(
+            currentUserId,
+            "admin_user.deleted",
+            "AdminUser",
+            deletedUserId.ToString(),
+            deletedEmail,
+            $"Admin user {deletedEmail} was deleted.",
+            cancellationToken);
+
         return true;
+    }
+
+    private async Task RecordAsync(
+        Guid currentUserId,
+        string action,
+        string entityType,
+        string? entityId,
+        string? entityLabel,
+        string summary,
+        CancellationToken cancellationToken)
+    {
+        var actor = await userManager.FindByIdAsync(currentUserId.ToString());
+        await auditLogService.RecordAsync(
+            new AdminAuditLogWriteRequest(
+                currentUserId,
+                actor?.Email ?? "unknown-admin",
+                action,
+                entityType,
+                entityId,
+                entityLabel,
+                summary),
+            cancellationToken);
     }
 
     private async Task EnsureAdminRoleAsync()

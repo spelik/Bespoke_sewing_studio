@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using System.Text.Json;
 using BespokeStudio.Application.Abstractions;
 using BespokeStudio.Application.Contracts.Notifications;
@@ -40,12 +41,23 @@ public static class EmailDeliverySettingsEndpoints
 
     private static async Task<IResult> UpdateSettingsAsync(
         UpdateEmailDeliverySettingsRequest request,
+        ClaimsPrincipal principal,
         IEmailDeliverySettingsService settingsService,
+        IAdminAuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
         try
         {
             var settings = await settingsService.UpdateAdminSettingsAsync(request, cancellationToken);
+            await auditLogService.RecordAsync(
+                AdminAuditEndpointHelpers.CreateAuditRequest(
+                    principal,
+                    "email_delivery.updated",
+                    "EmailDeliverySettings",
+                    null,
+                    settings.Provider,
+                    "Email delivery settings were updated."),
+                cancellationToken);
             return TypedResults.Ok(settings);
         }
         catch (EmailDeliverySettingsValidationException exception)
