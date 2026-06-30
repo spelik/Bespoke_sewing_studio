@@ -1,5 +1,5 @@
 import { type FormEvent, useEffect, useState } from "react";
-import { Download, FileText, Image as ImageIcon, LoaderCircle, ShieldCheck, ShieldAlert, X } from "lucide-react";
+import { Download, FileText, Image as ImageIcon, LoaderCircle, ShieldCheck, ShieldAlert, Trash2, X } from "lucide-react";
 import { ApiError } from "../../api/apiClient";
 import {
   getAdminAttachmentFile,
@@ -16,25 +16,32 @@ interface AdminOrderDetailProps {
   order: AdminOrderDetailModel | null;
   isLoading: boolean;
   isSaving: boolean;
+  deletingAttachmentId: string | null;
   onClose(): void;
   onStatusChange(status: AdminOrderStatus): Promise<void>;
   onAddNote(text: string): Promise<boolean>;
+  onDeleteAttachment(attachmentId: string): Promise<boolean>;
 }
 
 export function AdminOrderDetail({
   order,
   isLoading,
   isSaving,
+  deletingAttachmentId,
   onClose,
   onStatusChange,
   onAddNote,
+  onDeleteAttachment,
 }: AdminOrderDetailProps) {
   const [note, setNote] = useState("");
   const [downloadingAttachmentId, setDownloadingAttachmentId] = useState<string | null>(null);
+  const [deleteCandidate, setDeleteCandidate] = useState<AdminOrderDetailModel["attachments"][number] | null>(null);
   const [attachmentError, setAttachmentError] = useState<string | null>(null);
 
   useEffect(() => {
     setNote("");
+    setDeleteCandidate(null);
+    setAttachmentError(null);
   }, [order?.id]);
 
   if (!order && !isLoading) {
@@ -45,6 +52,18 @@ export function AdminOrderDetail({
     event.preventDefault();
     if (await onAddNote(note)) {
       setNote("");
+    }
+  }
+
+  async function handleConfirmDeleteAttachment() {
+    if (!deleteCandidate) {
+      return;
+    }
+
+    const wasDeleted = await onDeleteAttachment(deleteCandidate.id);
+    if (wasDeleted) {
+      setDeleteCandidate(null);
+      setAttachmentError(null);
     }
   }
 
@@ -147,10 +166,12 @@ export function AdminOrderDetail({
                       key={attachment.id}
                       attachment={attachment}
                       isDownloading={downloadingAttachmentId === attachment.uploadedFileId}
+                      isDeleting={deletingAttachmentId === attachment.id}
                       onDownload={() => void handleAttachmentDownload(
                         attachment.uploadedFileId,
                         attachment.originalFileName,
                       )}
+                      onRequestDelete={() => setDeleteCandidate(attachment)}
                     />
                   ))}
                 </div>
@@ -198,6 +219,60 @@ export function AdminOrderDetail({
           </div>
         )}
       </aside>
+
+      {deleteCandidate ? (
+        <div
+          className="absolute inset-0 z-[80] flex items-center justify-center bg-black/40 px-4 py-8"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="delete-order-attachment-title"
+        >
+          <div className="w-full max-w-md border border-border bg-card p-6 shadow-2xl">
+            <div className="flex items-start gap-3">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-destructive/30 bg-destructive/5 text-destructive">
+                <Trash2 size={16} />
+              </div>
+              <div className="min-w-0">
+                <h3
+                  id="delete-order-attachment-title"
+                  className="font-serif text-[1.2rem] font-light text-foreground"
+                >
+                  Delete attachment?
+                </h3>
+                <p className="mt-2 text-[11px] leading-5 text-muted-foreground font-sans">
+                  This will permanently remove
+                  <span className="font-medium text-foreground"> {deleteCandidate.originalFileName}</span>
+                  {' '}from this order and local storage. This action cannot be undone.
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-6 flex flex-wrap justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setDeleteCandidate(null)}
+                disabled={deletingAttachmentId === deleteCandidate.id}
+                className="px-4 py-2 text-[10px] tracking-wide border border-border bg-background hover:border-foreground disabled:opacity-50 font-sans"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleConfirmDeleteAttachment()}
+                disabled={deletingAttachmentId === deleteCandidate.id}
+                className="inline-flex items-center justify-center gap-2 px-4 py-2 text-[10px] tracking-wide border border-destructive/40 bg-destructive text-destructive-foreground hover:border-destructive disabled:opacity-50 font-sans"
+              >
+                {deletingAttachmentId === deleteCandidate.id ? (
+                  <LoaderCircle size={12} className="animate-spin" />
+                ) : (
+                  <Trash2 size={12} />
+                )}
+                Delete attachment
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -238,11 +313,15 @@ function formatFileSize(sizeBytes: number): string {
 function AdminAttachmentCard({
   attachment,
   isDownloading,
+  isDeleting,
   onDownload,
+  onRequestDelete,
 }: {
   attachment: AdminOrderDetailModel["attachments"][number];
   isDownloading: boolean;
+  isDeleting: boolean;
   onDownload(): void;
+  onRequestDelete(): void;
 }) {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isPreviewLoading, setIsPreviewLoading] = useState(false);
@@ -330,15 +409,26 @@ function AdminAttachmentCard({
           {previewFailed ? (
             <p className="mt-2 text-[9px] text-muted-foreground">Preview unavailable. Download the file to view it.</p>
           ) : null}
-          <button
-            type="button"
-            disabled={isDownloading}
-            onClick={onDownload}
-            className="mt-3 inline-flex items-center gap-1.5 text-[10px] text-accent hover:text-foreground disabled:opacity-50 transition-colors"
-          >
-            <Download size={12} />
-            {isDownloading ? "Downloading..." : "Download"}
-          </button>
+          <div className="mt-3 flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              disabled={isDownloading || isDeleting}
+              onClick={onDownload}
+              className="inline-flex items-center gap-1.5 text-[10px] text-accent hover:text-foreground disabled:opacity-50 transition-colors"
+            >
+              <Download size={12} />
+              {isDownloading ? "Downloading..." : "Download"}
+            </button>
+            <button
+              type="button"
+              disabled={isDownloading || isDeleting}
+              onClick={onRequestDelete}
+              className="inline-flex items-center gap-1.5 text-[10px] text-destructive hover:text-foreground disabled:opacity-50 transition-colors"
+            >
+              {isDeleting ? <LoaderCircle size={12} className="animate-spin" /> : <Trash2 size={12} />}
+              {isDeleting ? "Deleting..." : "Delete"}
+            </button>
+          </div>
         </div>
       </div>
     </article>

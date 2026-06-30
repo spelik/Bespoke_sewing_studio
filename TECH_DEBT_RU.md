@@ -418,3 +418,18 @@ dotnet ef migrations add AddEmailDeliveryLog --project backend/src/BespokeStudio
 `BespokeStudioDbContextModelSnapshot.cs`. Затем применить `dotnet ef database update`.
 
 Future improvements: background retry queue, resend action, retention/cleanup policy, bounce/webhook integration and richer SMTP diagnostics after production provider is chosen.
+
+
+## Task 46 — Upload cleanup / attachment management — Done
+
+Добавлено безопасное удаление вложений заявки из Admin → Orders:
+
+- protected endpoint `DELETE /api/orders/{orderId}/attachments/{attachmentId}`;
+- удаляется связь `OrderAttachments` и соответствующая metadata-запись `UploadedFiles`;
+- physical file в локальном `backend/storage/uploads` удаляется best-effort, missing file считается уже удалённым, ошибка file-system логируется;
+- endpoint возвращает обновлённый `OrderResponse`, поэтому order drawer обновляется без F5;
+- UI получил кнопку Delete на attachment card и confirmation modal в стиле админки;
+- добавляется audit log запись `order_attachment.deleted`;
+- Order realtime event отправляется после удаления, поэтому связанные admin views могут обновиться.
+
+Migration не нужна: используется существующая схема `OrderAttachments` / `UploadedFiles`. Future improvements: отдельный storage health report, scheduled cleanup для orphan/non-linked site assets, retention policy и production object storage adapter.

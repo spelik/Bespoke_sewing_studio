@@ -204,6 +204,13 @@ export function addAdminOrderNote(id: string, text: string): Promise<AdminOrderD
   });
 }
 
+export function deleteAdminOrderAttachment(
+  orderId: string,
+  attachmentId: string,
+): Promise<AdminOrderDetail> {
+  return apiClient.delete<AdminOrderDetail>(`/orders/${orderId}/attachments/${attachmentId}`);
+}
+
 export function getAdminApiErrorMessage(error: unknown): string {
   if (error instanceof ApiError) {
     const validationMessage = error.errors

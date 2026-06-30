@@ -110,7 +110,7 @@ npm.cmd run dev -- --host 127.0.0.1
 The backend must be available at the configured `VITE_API_BASE_URL` before an
 Order form submission or admin sign-in. Select up to five files in the public
 Order form across one or multiple selections; after submission, open the enquiry
-in `/admin` to download its protected attachments. `backend/storage/` is ignored by Git.
+in `/admin` to download or delete its protected attachments. Attachment deletion is Admin-only, removes the database link and attempts to remove the physical file from local storage. `backend/storage/` is ignored by Git.
 
 Public `POST /api/uploads/order-attachments` requests are limited to 10 per 10
 minutes per IP, public `POST /api/orders` requests to 5 per 10 minutes per IP,
@@ -174,7 +174,7 @@ audit entries and supports filtering by search text, action, entity type and
 actor email. The UI can export the visible audit entries to CSV.
 
 The first audit scope records admin user management, own-account password changes,
-order status/note changes, contact message status changes, Site Settings, Email Delivery and Brand / SEO
+order status/note/attachment changes, contact message status changes, Site Settings, Email Delivery and Brand / SEO
 updates. The audit log stores actor email, action, entity type, entity label,
 summary and timestamp; it intentionally does not store passwords or SMTP/Gmail
 App Password secrets.
@@ -192,6 +192,17 @@ The log stores delivery metadata only: recipient email, subject, provider,
 status, result/error summary, related Order/Contact reference and timestamps.
 It intentionally does not store email bodies, SMTP credentials, Google App
 Passwords or JWT tokens.
+
+
+## Order attachment management
+
+In Admin **Orders**, open an enquiry drawer to review attachments. Administrators
+can download a protected attachment or delete it after a styled confirmation
+dialog. Deleting an attachment removes the `OrderAttachments` link, removes the
+corresponding `UploadedFiles` metadata row, attempts to delete the physical file
+from local storage and records an `order_attachment.deleted` audit log entry.
+No migration is required for this management action because it uses the existing
+upload/order attachment tables.
 
 ## Backup and restore
 

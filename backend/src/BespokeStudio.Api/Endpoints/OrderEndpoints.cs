@@ -55,6 +55,14 @@ public static class OrderEndpoints
             .Produces(StatusCodes.Status401Unauthorized)
             .Produces(StatusCodes.Status403Forbidden);
 
+        orders.MapDelete("/{id:guid}/attachments/{attachmentId:guid}", DeleteOrderAttachmentAsync)
+            .RequireAuthorization(AdminAccess.PolicyName)
+            .WithName("DeleteOrderAttachment")
+            .Produces<OrderResponse>()
+            .Produces(StatusCodes.Status404NotFound)
+            .Produces(StatusCodes.Status401Unauthorized)
+            .Produces(StatusCodes.Status403Forbidden);
+
         return endpoints;
     }
 
@@ -187,6 +195,43 @@ public static class OrderEndpoints
                 order.ReferenceNumber,
                 $"A note was added to order {order.ReferenceNumber}."),
             cancellationToken);
+        return TypedResults.Ok(order);
+    }
+
+
+    private static async Task<IResult> DeleteOrderAttachmentAsync(
+        Guid id,
+        Guid attachmentId,
+        ClaimsPrincipal principal,
+        IUploadService uploadService,
+        IOrderService orderService,
+        IAdminRealtimeNotifier realtimeNotifier,
+        IAdminAuditLogService auditLogService,
+        CancellationToken cancellationToken)
+    {
+        var deletion = await uploadService.DeleteOrderAttachmentAsync(id, attachmentId, cancellationToken);
+        if (deletion is null)
+        {
+            return TypedResults.NotFound();
+        }
+
+        var order = await orderService.GetByIdAsync(id, cancellationToken);
+        if (order is null)
+        {
+            return TypedResults.NotFound();
+        }
+
+        await realtimeNotifier.NotifyOrderUpdatedAsync(order.Id, order.ReferenceNumber, cancellationToken);
+        await auditLogService.RecordAsync(
+            AdminAuditEndpointHelpers.CreateAuditRequest(
+                principal,
+                "order_attachment.deleted",
+                "Order",
+                order.Id.ToString(),
+                order.ReferenceNumber,
+                $"Attachment '{deletion.OriginalFileName}' was removed from order {order.ReferenceNumber}."),
+            cancellationToken);
+
         return TypedResults.Ok(order);
     }
 

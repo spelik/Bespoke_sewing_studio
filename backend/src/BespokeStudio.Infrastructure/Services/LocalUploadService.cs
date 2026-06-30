@@ -1,4 +1,5 @@
 using BespokeStudio.Application.Abstractions;
+using BespokeStudio.Application.Contracts.Orders;
 using BespokeStudio.Application.Contracts.Uploads;
 using BespokeStudio.Application.Validation;
 using BespokeStudio.Domain.Entities;
@@ -288,6 +289,53 @@ public sealed class LocalUploadService : IUploadService
         return OpenFile(metadata);
     }
 
+
+    public async Task<DeleteOrderAttachmentResult?> DeleteOrderAttachmentAsync(
+        Guid orderId,
+        Guid attachmentId,
+        CancellationToken cancellationToken = default)
+    {
+        var attachmentData = await (
+            from attachment in _dbContext.OrderAttachments
+            join file in _dbContext.UploadedFiles on attachment.UploadedFileId equals file.Id
+            join order in _dbContext.Orders on attachment.OrderId equals order.Id
+            where attachment.OrderId == orderId &&
+                attachment.Id == attachmentId &&
+                file.Purpose == UploadPurpose.OrderAttachment
+            select new
+            {
+                Attachment = attachment,
+                File = file,
+                Order = order
+            })
+            .SingleOrDefaultAsync(cancellationToken);
+
+        if (attachmentData is null)
+        {
+            return null;
+        }
+
+        var physicalPath = UploadStoragePath.ResolveFile(_storageRoot, attachmentData.File.StorageKey);
+        var originalFileName = attachmentData.File.OriginalFileName;
+        var uploadedFileId = attachmentData.File.Id;
+
+        _dbContext.OrderAttachments.Remove(attachmentData.Attachment);
+        _dbContext.UploadedFiles.Remove(attachmentData.File);
+        attachmentData.Order.UpdatedAt = DateTimeOffset.UtcNow;
+
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
+        var physicalFileDeleted = TryDelete(physicalPath);
+
+        return new DeleteOrderAttachmentResult(
+            orderId,
+            attachmentData.Order.ReferenceNumber,
+            attachmentId,
+            uploadedFileId,
+            originalFileName,
+            physicalFileDeleted);
+    }
+
     public async Task<UploadMetadataResponse?> GetMetadataAsync(
         Guid uploadedFileId,
         CancellationToken cancellationToken = default)
@@ -553,18 +601,22 @@ public sealed class LocalUploadService : IUploadService
         _ => "This file could not be accepted. Please upload a different file."
     };
 
-    private void TryDelete(string path)
+    private bool TryDelete(string path)
     {
         try
         {
-            if (File.Exists(path))
+            if (!File.Exists(path))
             {
-                File.Delete(path);
+                return true;
             }
+
+            File.Delete(path);
+            return true;
         }
         catch (Exception exception)
         {
             _logger.LogWarning(exception, "Failed to delete upload file {Path}.", path);
+            return false;
         }
     }
 

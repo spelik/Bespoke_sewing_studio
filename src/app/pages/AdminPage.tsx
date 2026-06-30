@@ -593,9 +593,11 @@ export function AdminPage() {
         order={adminOrders.selectedOrder}
         isLoading={adminOrders.isDetailLoading}
         isSaving={adminOrders.isSaving}
+        deletingAttachmentId={adminOrders.deletingAttachmentId}
         onClose={adminOrders.clearSelection}
         onStatusChange={adminOrders.changeStatus}
         onAddNote={adminOrders.addNote}
+        onDeleteAttachment={adminOrders.deleteAttachment}
       />
     </div>
   );

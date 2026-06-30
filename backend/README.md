@@ -211,6 +211,16 @@ Apply migrations to the configured development database:
 dotnet ef database update --project backend/src/BespokeStudio.Infrastructure --startup-project backend/src/BespokeStudio.Api
 ```
 
+
+
+Deleting a linked order attachment removes the `OrderAttachments` link, deletes
+the associated `UploadedFiles` metadata row, updates the order timestamp,
+attempts to delete the physical file from local storage and records an
+`order_attachment.deleted` audit entry from the API endpoint. The endpoint
+returns the updated `OrderResponse` so the admin drawer can refresh without a
+full page reload. Missing physical files are treated as already deleted, while
+file-system delete failures are logged by the upload service for follow-up.
+
 The repository currently contains migrations for the initial schema, phone-only
 orders, Identity/JWT, Site Settings, contact normalisation, removal of WhatsApp
 notification fields, dynamic services/prices, Portfolio/Gallery CMS, Website
@@ -472,7 +482,8 @@ their final folder only when accepted. Configuration is in `UploadStorage`:
 ```
 
 Administrators download linked files through protected
-`GET /api/uploads/{uploadedFileId}`. Unauthenticated access returns `401`; the
+`GET /api/uploads/{uploadedFileId}` and can remove a linked order attachment through protected
+`DELETE /api/orders/{orderId}/attachments/{attachmentId}`. Unauthenticated access returns `401`; the
 frontend obtains the file as a Bearer-authenticated blob and downloads it using
 the original filename. Files are not served from `wwwroot`.
 

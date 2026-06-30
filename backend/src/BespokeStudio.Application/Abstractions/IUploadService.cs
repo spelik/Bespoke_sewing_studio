@@ -1,3 +1,4 @@
+using BespokeStudio.Application.Contracts.Orders;
 using BespokeStudio.Application.Contracts.Uploads;
 using BespokeStudio.Domain.Enums;
 
@@ -29,6 +30,11 @@ public interface IUploadService
 
     Task<UploadDownloadResponse?> OpenOrderAttachmentAsync(
         Guid uploadedFileId,
+        CancellationToken cancellationToken = default);
+
+    Task<DeleteOrderAttachmentResult?> DeleteOrderAttachmentAsync(
+        Guid orderId,
+        Guid attachmentId,
         CancellationToken cancellationToken = default);
 
     Task<UploadMetadataResponse?> GetMetadataAsync(

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { ApiError } from "../../api/apiClient";
 import {
   addAdminOrderNote,
+  deleteAdminOrderAttachment,
   getAdminApiErrorMessage,
   getAdminOrder,
   getAdminOrders,
@@ -17,10 +18,12 @@ interface UseAdminOrdersResult {
   isLoading: boolean;
   isDetailLoading: boolean;
   isSaving: boolean;
+  deletingAttachmentId: string | null;
   error: string | null;
   selectOrder(id: string): Promise<void>;
   changeStatus(status: AdminOrderStatus): Promise<void>;
   addNote(text: string): Promise<boolean>;
+  deleteAttachment(attachmentId: string): Promise<boolean>;
   reload(): Promise<void>;
   clearSelection(): void;
 }
@@ -31,6 +34,7 @@ export function useAdminOrders(onUnauthorized: () => void): UseAdminOrdersResult
   const [isLoading, setIsLoading] = useState(true);
   const [isDetailLoading, setIsDetailLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [deletingAttachmentId, setDeletingAttachmentId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const handleError = useCallback(
@@ -137,16 +141,42 @@ export function useAdminOrders(onUnauthorized: () => void): UseAdminOrdersResult
     [handleError, selectedOrder, updateListItem],
   );
 
+
+  const deleteAttachment = useCallback(
+    async (attachmentId: string) => {
+      if (!selectedOrder) {
+        return false;
+      }
+
+      setDeletingAttachmentId(attachmentId);
+      setError(null);
+      try {
+        const updatedOrder = await deleteAdminOrderAttachment(selectedOrder.id, attachmentId);
+        setSelectedOrder(updatedOrder);
+        updateListItem(updatedOrder);
+        return true;
+      } catch (requestError) {
+        handleError(requestError);
+        return false;
+      } finally {
+        setDeletingAttachmentId(null);
+      }
+    },
+    [handleError, selectedOrder, updateListItem],
+  );
+
   return {
     orders,
     selectedOrder,
     isLoading,
     isDetailLoading,
     isSaving,
+    deletingAttachmentId,
     error,
     selectOrder,
     changeStatus,
     addNote,
+    deleteAttachment,
     reload,
     clearSelection: () => setSelectedOrder(null),
   };
