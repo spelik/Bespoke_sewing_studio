@@ -57,6 +57,7 @@ Current backend status:
 - admin login, Orders list/detail/status/notes and Contact Messages list/detail/status use protected backend endpoints
 - the admin sidebar exposes only backend-backed Dashboard, Orders, Contact Messages, Services, Portfolio, Content, Repeatable Content, Brand/SEO and Settings modules
 - the Admin Dashboard includes production-readiness checks for contact details, notifications, email delivery, upload security, admin API access and DNS email records
+- admin Orders, Contact Messages, Dashboard counters and sidebar badges can refresh through the protected SignalR admin-notifications hub
 
 Local PostgreSQL and backend setup:
 
@@ -184,7 +185,10 @@ Google Sheets, and the export respects the active search and status filter. Admi
 sidebar badges and page summary cards show new/total Orders and Contact Messages
 so the owner can quickly see requests that need attention. The Admin Dashboard
 gives a quick overview with new request counters, recent Orders, recent Contact
-Messages, email delivery mode and upload security guidance.
+Messages, email delivery mode and upload security guidance. When the admin UI is
+open, a protected SignalR/WebSocket connection listens for new Order and Contact
+Message events so Dashboard counters, sidebar badges and visible admin lists can
+refresh without a full browser reload. Manual Refresh buttons remain as a fallback.
 
 ## Contact messages
 

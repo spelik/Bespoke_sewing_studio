@@ -61,6 +61,7 @@ public static class OrderEndpoints
         CreateOrderRequest request,
         IOrderService orderService,
         INotificationService notificationService,
+        IAdminRealtimeNotifier realtimeNotifier,
         CancellationToken cancellationToken)
     {
         var errors = OrderRequestValidator.Validate(request);
@@ -73,6 +74,7 @@ public static class OrderEndpoints
         {
             var order = await orderService.CreateAsync(request, cancellationToken);
             await notificationService.NotifyNewOrderCreatedAsync(order.Id, cancellationToken);
+            await realtimeNotifier.NotifyOrderCreatedAsync(order.Id, order.ReferenceNumber, cancellationToken);
             return TypedResults.Created($"/api/orders/{order.Id}", order);
         }
         catch (OrderAttachmentValidationException exception)
@@ -123,6 +125,7 @@ public static class OrderEndpoints
         Guid id,
         UpdateOrderStatusRequest request,
         IOrderService orderService,
+        IAdminRealtimeNotifier realtimeNotifier,
         CancellationToken cancellationToken)
     {
         var errors = OrderRequestValidator.Validate(request);
@@ -132,13 +135,20 @@ public static class OrderEndpoints
         }
 
         var order = await orderService.UpdateStatusAsync(id, request, cancellationToken);
-        return order is null ? TypedResults.NotFound() : TypedResults.Ok(order);
+        if (order is null)
+        {
+            return TypedResults.NotFound();
+        }
+
+        await realtimeNotifier.NotifyOrderUpdatedAsync(order.Id, order.ReferenceNumber, cancellationToken);
+        return TypedResults.Ok(order);
     }
 
     private static async Task<IResult> AddOrderNoteAsync(
         Guid id,
         AddOrderNoteRequest request,
         IOrderService orderService,
+        IAdminRealtimeNotifier realtimeNotifier,
         CancellationToken cancellationToken)
     {
         var errors = OrderRequestValidator.Validate(request);
@@ -148,7 +158,13 @@ public static class OrderEndpoints
         }
 
         var order = await orderService.AddNoteAsync(id, request, cancellationToken);
-        return order is null ? TypedResults.NotFound() : TypedResults.Ok(order);
+        if (order is null)
+        {
+            return TypedResults.NotFound();
+        }
+
+        await realtimeNotifier.NotifyOrderUpdatedAsync(order.Id, order.ReferenceNumber, cancellationToken);
+        return TypedResults.Ok(order);
     }
 
     private static Dictionary<string, string[]> ToJsonPropertyNames(

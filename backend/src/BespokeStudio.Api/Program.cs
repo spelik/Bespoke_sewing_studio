@@ -3,6 +3,7 @@ using System.Text.Json.Serialization;
 using System.Threading.RateLimiting;
 using BespokeStudio.Api.Configuration;
 using BespokeStudio.Api.Endpoints;
+using BespokeStudio.Api.Hubs;
 using BespokeStudio.Api.Services;
 using BespokeStudio.Application.Abstractions;
 using BespokeStudio.Application.Contracts;
@@ -35,6 +36,8 @@ builder.Services
     .AddInfrastructure(builder.Configuration);
 
 builder.Services.AddHealthChecks();
+builder.Services.AddSignalR();
+builder.Services.AddSingleton<IAdminRealtimeNotifier, SignalRAdminRealtimeNotifier>();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {
@@ -137,6 +140,22 @@ builder.Services
             ValidateLifetime = true,
             ClockSkew = TimeSpan.FromMinutes(1)
         };
+        options.Events = new JwtBearerEvents
+        {
+            OnMessageReceived = context =>
+            {
+                var accessToken = context.Request.Query["access_token"];
+                var path = context.HttpContext.Request.Path;
+
+                if (!string.IsNullOrWhiteSpace(accessToken) &&
+                    path.StartsWithSegments("/hubs/admin-notifications"))
+                {
+                    context.Token = accessToken;
+                }
+
+                return Task.CompletedTask;
+            }
+        };
     });
 builder.Services.AddAuthorizationBuilder()
     .AddPolicy(AdminAccess.PolicyName, policy => policy.RequireRole(AdminAccess.RoleName));
@@ -179,6 +198,9 @@ app.UseCors(CorsSettings.PolicyName);
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseRateLimiter();
+
+app.MapHub<AdminNotificationsHub>("/hubs/admin-notifications")
+    .RequireAuthorization(AdminAccess.PolicyName);
 
 var api = app.MapGroup("/api")
     .WithTags("System");

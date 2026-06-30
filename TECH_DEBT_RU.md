@@ -270,3 +270,15 @@ Scope:
 - Added frontend-only CSV export for visible Admin Orders rows. The export respects the current status filter and search query.
 - Added frontend-only CSV export for visible Admin Contact Messages rows. The export respects the current status filter and search query.
 - CSV files include a UTF-8 BOM and escaped cells for safer opening in spreadsheet tools. Backend API and migrations were not changed.
+
+
+## Task 38 — SignalR real-time admin updates
+
+Status: Done locally after ZIP preparation; requires local verification before commit.
+
+Scope:
+
+- Added protected `/hubs/admin-notifications` SignalR hub for Admin JWT sessions.
+- Backend broadcasts lightweight `AdminDataChanged` events after new Orders, Order status/note changes, new Contact Messages and Contact Message status changes.
+- Admin frontend connects while signed in, shows live-update connection status and reloads Orders, Contact Messages, Dashboard counters and sidebar badges after realtime events.
+- Manual Refresh buttons remain as fallback. Backend persistence and migrations were not changed.

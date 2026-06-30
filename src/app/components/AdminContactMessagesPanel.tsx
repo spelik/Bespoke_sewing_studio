@@ -19,6 +19,7 @@ interface AdminContactMessagesPanelProps {
   onUnauthorized(): void;
   onCountsChange?(counts: { newCount: number; totalCount: number }): void;
   onMessagesChange?(messages: AdminContactMessageListItem[]): void;
+  realtimeRefreshKey?: number;
 }
 
 type StatusFilter = "All" | ContactMessageStatus;
@@ -41,6 +42,7 @@ export function AdminContactMessagesPanel({
   onUnauthorized,
   onCountsChange,
   onMessagesChange,
+  realtimeRefreshKey = 0,
 }: AdminContactMessagesPanelProps) {
   const [messages, setMessages] = useState<AdminContactMessageListItem[]>([]);
   const [selectedMessage, setSelectedMessage] =
@@ -55,7 +57,7 @@ export function AdminContactMessagesPanel({
 
   useEffect(() => {
     void loadMessages();
-  }, []);
+  }, [realtimeRefreshKey]);
 
   const messageCounts = useMemo(
     () => calculateMessageCounts(messages),

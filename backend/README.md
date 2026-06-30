@@ -15,6 +15,7 @@ Current status:
 - Website Content CMS manages page sections, copy, CTA data and page images
 - Repeatable Content CMS manages process steps, studio values, testimonials and privacy subsections
 - Admin Contact Messages module lists messages, filters by status and updates workflow state
+- a protected SignalR admin-notifications hub broadcasts Order and Contact Message changes to open admin sessions
 - Site Settings and Brand/Logo/SEO settings provide public contact, navigation, logo, CTA and metadata configuration
 - public Order and Contact submissions use rate limits plus lightweight honeypot/timing anti-spam checks
 - email notification foundation supports owner notifications for Orders and Contact Messages through Logging and SMTP providers; WhatsApp/SMS channels are intentionally not implemented
@@ -287,8 +288,24 @@ The public frontend Order form calls anonymous `POST /api/orders`.
 The public frontend Contact form calls anonymous `POST /api/contact-messages`.
 The admin frontend uses login, current-user, Orders list/detail/status/notes,
 Contact Messages list/detail/status, Services, Portfolio, Content, Repeatable
-Content, Site Settings and Brand/SEO endpoints.
+Content, Site Settings and Brand/SEO endpoints. Open admin sessions can also
+connect to `/hubs/admin-notifications` through SignalR/WebSocket with the Admin
+JWT token; the hub requires the same Admin policy and broadcasts lightweight
+change events only, never customer data payloads or secrets.
 
+
+
+## Admin realtime updates
+
+`/hubs/admin-notifications` is a protected SignalR hub for signed-in administrators.
+The JWT token may be supplied as an `access_token` query parameter for WebSocket
+connections; the same `AdminOnly` policy is enforced. Order creation/status/note
+changes and Contact Message creation/status changes broadcast lightweight
+`AdminDataChanged` events containing the entity type, internal ID, optional
+human-readable reference number and event timestamp. The frontend uses these
+events to reload admin lists, dashboard counters and sidebar badges. Manual
+Refresh buttons remain available as a fallback for disconnected clients or proxy
+misconfiguration.
 
 ## Contact Messages API
 

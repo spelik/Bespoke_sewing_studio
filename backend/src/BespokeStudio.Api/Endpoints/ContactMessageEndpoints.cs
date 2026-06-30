@@ -54,6 +54,7 @@ public static class ContactMessageEndpoints
         CreateContactMessageRequest request,
         IContactMessageService service,
         INotificationService notificationService,
+        IAdminRealtimeNotifier realtimeNotifier,
         CancellationToken cancellationToken)
     {
         var errors = ContactMessageValidator.Validate(request);
@@ -64,6 +65,7 @@ public static class ContactMessageEndpoints
 
         var result = await service.CreateAsync(request, cancellationToken);
         await notificationService.NotifyNewContactMessageCreatedAsync(result.Id, cancellationToken);
+        await realtimeNotifier.NotifyContactMessageCreatedAsync(result.Id, result.ReferenceNumber, cancellationToken);
 
         return TypedResults.Created($"/api/contact-messages/{result.Id}", result);
     }
@@ -100,6 +102,7 @@ public static class ContactMessageEndpoints
         Guid id,
         UpdateContactMessageStatusRequest request,
         IContactMessageService service,
+        IAdminRealtimeNotifier realtimeNotifier,
         CancellationToken cancellationToken)
     {
         var errors = ContactMessageValidator.Validate(request);
@@ -109,7 +112,13 @@ public static class ContactMessageEndpoints
         }
 
         var result = await service.UpdateStatusAsync(id, request, cancellationToken);
-        return result is null ? TypedResults.NotFound() : TypedResults.Ok(result);
+        if (result is null)
+        {
+            return TypedResults.NotFound();
+        }
+
+        await realtimeNotifier.NotifyContactMessageUpdatedAsync(result.Id, result.ReferenceNumber, cancellationToken);
+        return TypedResults.Ok(result);
     }
 
     private static Dictionary<string, string[]> ToJsonPropertyNames(IReadOnlyDictionary<string, string[]> errors) =>

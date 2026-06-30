@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Download,
   FileText,
@@ -44,6 +44,7 @@ import {
   formatAdminDate,
 } from "../components/adminOrderFormatting";
 import { useAdminOrders } from "../hooks/useAdminOrders";
+import { useAdminRealtimeUpdates } from "../hooks/useAdminRealtimeUpdates";
 import { usePageNavigation } from "../routing/usePageNavigation";
 import { createCsvFileName, downloadCsv } from "../utils/csvExport";
 import type {
@@ -100,6 +101,7 @@ export function AdminPage() {
   );
   const [orderSearchQuery, setOrderSearchQuery] = useState("");
   const [contactMessages, setContactMessages] = useState<AdminContactMessageListItem[]>([]);
+  const [contactRefreshKey, setContactRefreshKey] = useState(0);
   const [contactAttentionCounts, setContactAttentionCounts] =
     useState<AttentionCounts | null>(null);
   const [emailDeliverySettings, setEmailDeliverySettings] =
@@ -114,33 +116,42 @@ export function AdminPage() {
     [adminOrders.orders],
   );
 
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadContactAttentionCounts() {
-      try {
-        const messages = await getAdminContactMessages();
-        if (!cancelled) {
-          setContactMessages(messages);
-          setContactAttentionCounts(calculateContactAttentionCounts(messages));
-        }
-      } catch (reason: unknown) {
-        if (
-          reason instanceof ApiError &&
-          (reason.status === 401 || reason.status === 403)
-        ) {
-          logout();
-        }
+  const loadContactMessagesForDashboard = useCallback(async () => {
+    try {
+      const messages = await getAdminContactMessages();
+      setContactMessages(messages);
+      setContactAttentionCounts(calculateContactAttentionCounts(messages));
+    } catch (reason: unknown) {
+      if (
+        reason instanceof ApiError &&
+        (reason.status === 401 || reason.status === 403)
+      ) {
+        logout();
       }
     }
-
-    void loadContactAttentionCounts();
-
-    return () => {
-      cancelled = true;
-    };
   }, [logout]);
 
+  useEffect(() => {
+    void loadContactMessagesForDashboard();
+  }, [loadContactMessagesForDashboard]);
+
+  const handleAdminRealtimeEvent = useCallback(
+    (event: { entity: "Order" | "ContactMessage" }) => {
+      if (event.entity === "Order") {
+        void adminOrders.reload();
+        return;
+      }
+
+      void loadContactMessagesForDashboard();
+      setContactRefreshKey((current) => current + 1);
+    },
+    [adminOrders.reload, loadContactMessagesForDashboard],
+  );
+
+  const adminRealtime = useAdminRealtimeUpdates({
+    enabled: Boolean(user),
+    onEvent: handleAdminRealtimeEvent,
+  });
 
   useEffect(() => {
     let cancelled = false;
@@ -302,9 +313,15 @@ export function AdminPage() {
             <h1 className="font-serif text-[1.6rem] font-light text-foreground">
               {NAV_ITEMS.find((item) => item.id === section)?.label}
             </h1>
-            <p className="text-[11px] text-muted-foreground mt-1 font-sans">
-              Backend-backed studio management
-            </p>
+            <div className="flex flex-wrap items-center gap-3 mt-1">
+              <p className="text-[11px] text-muted-foreground font-sans">
+                Backend-backed studio management
+              </p>
+              <AdminLiveUpdatesStatus
+                status={adminRealtime.status}
+                lastEventAt={adminRealtime.lastEventAt}
+              />
+            </div>
           </div>
 
           {section === "dashboard" ? (
@@ -423,6 +440,7 @@ export function AdminPage() {
               onUnauthorized={logout}
               onCountsChange={setContactAttentionCounts}
               onMessagesChange={setContactMessages}
+              realtimeRefreshKey={contactRefreshKey}
             />
           ) : null}
           {section === "services" ? (
@@ -463,6 +481,37 @@ export function AdminPage() {
         onAddNote={adminOrders.addNote}
       />
     </div>
+  );
+}
+
+function AdminLiveUpdatesStatus({
+  status,
+  lastEventAt,
+}: {
+  status: "connecting" | "connected" | "disconnected";
+  lastEventAt: string | null;
+}) {
+  const statusLabel: Record<typeof status, string> = {
+    connecting: "Live updates connecting",
+    connected: "Live updates connected",
+    disconnected: "Live updates disconnected",
+  };
+  const toneClass: Record<typeof status, string> = {
+    connecting: "border-amber-200 bg-amber-50 text-amber-700",
+    connected: "border-emerald-200 bg-emerald-50 text-emerald-700",
+    disconnected: "border-slate-200 bg-slate-50 text-slate-600",
+  };
+  const eventHint = lastEventAt
+    ? ` · last update ${formatAdminDate(lastEventAt)}`
+    : "";
+
+  return (
+    <span
+      className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[9px] tracking-wide font-sans ${toneClass[status]}`}
+      title={`${statusLabel[status]}${eventHint}`}
+    >
+      {statusLabel[status]}
+    </span>
   );
 }
 
