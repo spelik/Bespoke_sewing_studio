@@ -17,6 +17,7 @@ import {
   CheckCircle2,
   AlertTriangle,
   X,
+  Users,
 } from "lucide-react";
 import { ApiError } from "../../api/apiClient";
 import { getAdminContactMessages } from "../../api/contactMessagesApi";
@@ -39,6 +40,7 @@ import { AdminPortfolioPanel } from "../components/AdminPortfolioPanel";
 import { AdminRepeatableContentPanel } from "../components/AdminRepeatableContentPanel";
 import { AdminServicesPanel } from "../components/AdminServicesPanel";
 import { AdminSettingsPanel } from "../components/AdminSettingsPanel";
+import { AdminUsersPanel } from "../components/AdminUsersPanel";
 import {
   ADMIN_STATUS_LABELS,
   formatAdminDate,
@@ -62,6 +64,7 @@ type AdminSection =
   | "content"
   | "repeatable"
   | "brand"
+  | "users"
   | "settings";
 
 interface AttentionCounts {
@@ -88,6 +91,7 @@ const NAV_ITEMS: ReadonlyArray<{
   { id: "content", label: "Content", icon: FileText },
   { id: "repeatable", label: "Repeatable Content", icon: ListOrdered },
   { id: "brand", label: "Brand / SEO", icon: Palette },
+  { id: "users", label: "Users", icon: Users },
   { id: "settings", label: "Settings", icon: Settings },
 ];
 
@@ -457,6 +461,9 @@ export function AdminPage() {
           ) : null}
           {section === "brand" ? (
             <AdminBrandSettingsPanel onUnauthorized={logout} />
+          ) : null}
+          {section === "users" ? (
+            <AdminUsersPanel onUnauthorized={logout} />
           ) : null}
           {section === "settings" ? (
             <AdminSettingsPanel onUnauthorized={logout} />

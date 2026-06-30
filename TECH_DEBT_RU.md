@@ -282,3 +282,18 @@ Scope:
 - Backend broadcasts lightweight `AdminDataChanged` events after new Orders, Order status/note changes, new Contact Messages and Contact Message status changes.
 - Admin frontend connects while signed in, shows live-update connection status and reloads Orders, Contact Messages, Dashboard counters and sidebar badges after realtime events.
 - Manual Refresh buttons remain as fallback. Backend persistence and migrations were not changed.
+
+
+## Task 39 — Admin users management — Done
+
+Добавлена вкладка Admin → Users для управления администраторами сайта:
+
+- список admin users;
+- создание нового admin user с временным паролем;
+- reset password без возврата пароля через API;
+- enable/disable доступа через Identity lockout;
+- delete admin user;
+- backend-защита от удаления/отключения текущего пользователя и последнего активного admin;
+- роли пока не усложнялись: все управляемые пользователи получают роль `Admin`.
+
+Миграция не потребовалась, используются существующие таблицы ASP.NET Core Identity.

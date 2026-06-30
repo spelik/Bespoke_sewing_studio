@@ -59,8 +59,10 @@ public static class DependencyInjection
             })
             .AddRoles<IdentityRole<Guid>>()
             .AddSignInManager()
+            .AddDefaultTokenProviders()
             .AddEntityFrameworkStores<BespokeStudioDbContext>();
 
+        services.AddScoped<IAdminUserManagementService, AdminUserManagementService>();
         services.AddScoped<IContactMessageService, ContactMessageService>();
         services.AddScoped<IOrderService, OrderService>();
         services.AddScoped<IServiceOfferingService, ServiceOfferingService>();

@@ -225,6 +225,7 @@ api.MapGet("/version", () =>
 app.MapOrderEndpoints();
 app.MapContactMessageEndpoints();
 app.MapAuthEndpoints();
+app.MapAdminUserEndpoints();
 app.MapSiteSettingsEndpoints();
 app.MapNotificationEndpoints();
 app.MapEmailDeliverySettingsEndpoints();

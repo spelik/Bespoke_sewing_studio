@@ -55,7 +55,7 @@ Current backend status:
 - logo, favicon, default SEO metadata, header CTA and navigation labels/visibility are managed in Admin **Brand / SEO**
 - the public Order form submits a dynamic `serviceOfferingId` while preserving legacy enum compatibility
 - admin login, Orders list/detail/status/notes and Contact Messages list/detail/status use protected backend endpoints
-- the admin sidebar exposes only backend-backed Dashboard, Orders, Contact Messages, Services, Portfolio, Content, Repeatable Content, Brand/SEO and Settings modules
+- the admin sidebar exposes only backend-backed Dashboard, Orders, Contact Messages, Services, Portfolio, Content, Repeatable Content, Brand/SEO, Users and Settings modules
 - the Admin Dashboard includes production-readiness checks for contact details, notifications, email delivery, upload security, admin API access and DNS email records
 - admin Orders, Contact Messages, Dashboard counters and sidebar badges can refresh through the protected SignalR admin-notifications hub
 
@@ -139,6 +139,20 @@ Deleting an unused service removes it. A service referenced by an existing
 order is archived and hidden from new enquiries instead, while the order keeps
 its stored service-name snapshot. Service image upload and drag-and-drop order
 editing are not implemented.
+
+
+## Admin users
+
+Sign in at `http://127.0.0.1:5173/admin`, then select **Users**. The
+owner can list administrator accounts, create another Admin user, reset a
+temporary password, disable/enable access, or delete an unused admin account.
+All managed users currently receive the single `Admin` role; editor/viewer roles
+are not implemented.
+
+Safety rules are enforced on the backend: an administrator cannot disable or
+delete their own current account, and the last active admin account cannot be
+disabled or deleted. Passwords are accepted only when creating or resetting a
+user and are never returned by the API.
 
 ## Site settings
 

@@ -243,6 +243,23 @@ startup. The existing system endpoints and Swagger can therefore run while the
 development database is offline. No database health check or automatic
 migration is enabled yet.
 
+## Admin Users API
+
+Admin JWT with the `Admin` role is required for all endpoints under
+`/api/admin/users`:
+
+- `GET /api/admin/users` lists admin users and safety flags.
+- `POST /api/admin/users` creates an Admin user with an email and temporary password.
+- `PATCH /api/admin/users/{id}/status` enables or disables an admin user.
+- `POST /api/admin/users/{id}/reset-password` sets a new temporary password.
+- `DELETE /api/admin/users/{id}` deletes an admin user.
+
+The implementation uses ASP.NET Core Identity users and the existing `Admin`
+role. It does not add a new migration: disabling a user is stored through
+Identity lockout fields. The API refuses to disable/delete the current session
+user and refuses to disable/delete the last active admin account. Passwords are
+never returned by the API.
+
 ## Orders API
 
 The Orders API is available under `/api/orders`. Each order has an internal GUID
