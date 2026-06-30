@@ -331,3 +331,22 @@ Website Content и Repeatable Content, если это понадобится в
 Технический нюанс: уже выданные JWT остаются действительными до истечения срока.
 Для production можно позже добавить token version/security stamp validation для
 принудительного сброса всех старых сессий после смены пароля.
+
+## Task 42 — PostgreSQL backup & restore docs — Done
+
+Добавлена документация `BACKUP_RESTORE_RU.md` для ручного backup/restore:
+
+- PostgreSQL backup через `pg_dump --format=custom`;
+- безопасный Windows dev backup через Docker Compose без PowerShell binary redirection;
+- restore dev database через `dropdb`, `createdb`, `pg_restore`;
+- отдельный backup/restore `backend/storage`;
+- production Linux варианты для Docker Compose PostgreSQL и PostgreSQL без Docker;
+- pre-deploy и post-deploy checklist;
+- предупреждения по персональным данным, storage, SMTP secrets, Google App Password и ASP.NET Core Data Protection keys;
+- проверка dump через `pg_restore --list`;
+- список того, что нельзя коммитить в Git.
+
+Код не менялся, migration не требовалась. Backup остаётся ручной процедурой;
+автоматический scheduled backup, encryption, offsite upload, restore-test job и
+retention policy пока не реализованы и зависят от будущего production-хостинга.
+

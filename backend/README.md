@@ -153,6 +153,8 @@ uploads and notification delivery.
 - Website Content CMS
 - Repeatable Content CMS
 - Email notification foundation
+- Admin audit log
+- Admin account password change
 
 ## PostgreSQL and EF Core
 
@@ -243,6 +245,41 @@ startup. The existing system endpoints and Swagger can therefore run while the
 development database is offline. No database health check or automatic
 migration is enabled yet.
 
+## Backup and restore operations
+
+Full backup/restore instructions live in `../BACKUP_RESTORE_RU.md`. The short
+version for this backend is:
+
+- create a PostgreSQL dump with `pg_dump --format=custom`;
+- back up `backend/storage` separately because database dumps store upload
+  metadata only, not physical files;
+- keep backups outside the Git repository;
+- never commit `.dump`, `.sql`, storage archives, `.env`, production appsettings
+  files, SMTP credentials or Google App Passwords;
+- preserve ASP.NET Core Data Protection keys in production when using protected
+  owner-managed Gmail SMTP settings;
+- verify every important dump with `pg_restore --list`;
+- test restore before relying on a backup procedure.
+
+Local Docker Compose backup example from the repository root:
+
+```powershell
+$stamp = Get-Date -Format "yyyyMMdd-HHmmss"
+$backupRoot = "C:\Backups\BespokeStudio\$stamp"
+New-Item -ItemType Directory -Force $backupRoot | Out-Null
+
+docker compose -f docker-compose.postgres.yml exec -T postgres pg_dump -U bespoke_user -d bespoke_studio_dev --format=custom --file=/tmp/bespoke_studio_dev.dump
+docker compose -f docker-compose.postgres.yml cp postgres:/tmp/bespoke_studio_dev.dump "$backupRoot\bespoke_studio_dev.dump"
+docker compose -f docker-compose.postgres.yml exec -T postgres rm -f /tmp/bespoke_studio_dev.dump
+
+if (Test-Path .\backend\storage) {
+    Compress-Archive -Path .\backend\storage -DestinationPath "$backupRoot\backend-storage.zip" -Force
+}
+```
+
+Local restore example is also documented in `../BACKUP_RESTORE_RU.md`. Stop the
+API before restoring, because restore recreates the development database and can
+replace local storage.
 
 ## Admin Audit Log API
 

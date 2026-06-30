@@ -175,6 +175,14 @@ order status/note changes, contact message status changes, Site Settings, Email 
 updates. The audit log stores actor email, action, entity type, entity label,
 summary and timestamp; it intentionally does not store passwords or SMTP/Gmail
 App Password secrets.
+## Backup and restore
+
+Operational PostgreSQL and uploads backup/restore procedures are documented in
+`BACKUP_RESTORE_RU.md`. Before production deploys or EF migration updates, make
+a PostgreSQL dump and a matching `backend/storage` backup, verify the dump, and
+keep backups outside the repository. Database backups do not include physical
+upload files, and owner-managed Gmail SMTP also depends on persistent ASP.NET
+Core Data Protection keys in production.
 
 ## Site settings
 
