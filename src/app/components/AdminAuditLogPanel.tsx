@@ -35,6 +35,7 @@ const KNOWN_AUDIT_ACTIONS = [
   "admin_user.disabled",
   "admin_user.password_reset",
   "admin_user.deleted",
+  "account.password_changed",
   "order.status_updated",
   "order.note_added",
   "contact_message.status_updated",

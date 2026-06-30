@@ -255,8 +255,8 @@ The endpoint returns newest entries first and accepts optional query parameters:
 - `entityType`;
 - `actorEmail`.
 
-The first audit scope records administrator user management, order status/note
-changes, contact message status changes, Site Settings updates, Email Delivery
+The first audit scope records administrator user management, own-account password
+changes, order status/note changes, contact message status changes, Site Settings updates, Email Delivery
 updates and Brand / SEO updates. The audit log intentionally stores no
 passwords, Gmail App Passwords or raw SMTP secrets.
 
@@ -320,7 +320,7 @@ customer-facing messages and admin communication.
 New-order email notifications use the logging provider by default and can use SMTP.
 The public frontend Order form calls anonymous `POST /api/orders`.
 The public frontend Contact form calls anonymous `POST /api/contact-messages`.
-The admin frontend uses login, current-user, Orders list/detail/status/notes,
+The admin frontend uses login, current-user, own-password change, Orders list/detail/status/notes,
 Contact Messages list/detail/status, Services, Portfolio, Content, Repeatable
 Content, Site Settings and Brand/SEO endpoints. Open admin sessions can also
 connect to `/hubs/admin-notifications` through SignalR/WebSocket with the Admin
@@ -642,8 +642,10 @@ implemented.
 
 Authentication uses ASP.NET Core Identity with PostgreSQL-backed users and
 roles. `POST /api/auth/login` accepts an email and password and returns a JWT.
-`GET /api/auth/me` validates a Bearer token and returns the current user. The
-`AdminOnly` policy requires the `Admin` role for Orders read/status/note routes.
+`GET /api/auth/me` validates a Bearer token and returns the current user.
+`POST /api/auth/me/password` requires the `Admin` role and lets the current admin
+change their own password by providing the current password, new password and
+confirmation. The `AdminOnly` policy requires the `Admin` role for Orders read/status/note routes.
 Invalid email and invalid password both return the same `401 Unauthorized`
 response. JWT lifetime is four hours in development.
 
@@ -718,6 +720,7 @@ Available core endpoints after startup include:
 - `/api/version`
 - `/api/auth/login`
 - `/api/auth/me`
+- `/api/auth/me/password`
 - `/api/orders`
 - `/api/contact-messages`
 - `/api/services`

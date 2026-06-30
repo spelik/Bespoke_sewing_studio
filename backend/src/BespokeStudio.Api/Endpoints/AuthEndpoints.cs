@@ -1,6 +1,9 @@
 using System.Security.Claims;
+using System.Text.Json;
 using BespokeStudio.Application.Abstractions;
 using BespokeStudio.Application.Contracts.Auth;
+using BespokeStudio.Application.Security;
+using BespokeStudio.Application.Validation;
 
 namespace BespokeStudio.Api.Endpoints;
 
@@ -23,6 +26,14 @@ public static class AuthEndpoints
             .Produces<CurrentUserResponse>()
             .Produces(StatusCodes.Status401Unauthorized);
 
+        auth.MapPost("/me/password", ChangeOwnPasswordAsync)
+            .RequireAuthorization(AdminAccess.PolicyName)
+            .WithName("ChangeOwnAdminPassword")
+            .Produces<CurrentUserResponse>()
+            .ProducesValidationProblem()
+            .Produces(StatusCodes.Status401Unauthorized)
+            .Produces(StatusCodes.Status403Forbidden);
+
         return endpoints;
     }
 
@@ -42,17 +53,61 @@ public static class AuthEndpoints
 
     private static IResult GetCurrentUser(ClaimsPrincipal principal)
     {
+        var user = GetCurrentUserFromPrincipal(principal);
+        return user is null ? TypedResults.Unauthorized() : TypedResults.Ok(user);
+    }
+
+    private static async Task<IResult> ChangeOwnPasswordAsync(
+        ChangeOwnPasswordRequest request,
+        ClaimsPrincipal principal,
+        IAuthService authService,
+        CancellationToken cancellationToken)
+    {
+        var currentUserId = GetCurrentUserId(principal);
+        if (currentUserId is null)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        try
+        {
+            var user = await authService.ChangeOwnPasswordAsync(
+                currentUserId.Value,
+                request,
+                cancellationToken);
+
+            return user is null ? TypedResults.Unauthorized() : TypedResults.Ok(user);
+        }
+        catch (AdminAccountException exception)
+        {
+            return TypedResults.ValidationProblem(ToJsonPropertyNames(exception.Errors));
+        }
+    }
+
+    private static CurrentUserResponse? GetCurrentUserFromPrincipal(ClaimsPrincipal principal)
+    {
         var idValue = principal.FindFirstValue(ClaimTypes.NameIdentifier);
         var email = principal.FindFirstValue(ClaimTypes.Email);
         if (!Guid.TryParse(idValue, out var id) || string.IsNullOrWhiteSpace(email))
         {
-            return TypedResults.Unauthorized();
+            return null;
         }
 
         var roles = principal.FindAll(ClaimTypes.Role)
             .Select(claim => claim.Value)
             .ToArray();
 
-        return TypedResults.Ok(new CurrentUserResponse(id, email, roles));
+        return new CurrentUserResponse(id, email, roles);
     }
+
+    private static Guid? GetCurrentUserId(ClaimsPrincipal principal)
+    {
+        var idValue = principal.FindFirstValue(ClaimTypes.NameIdentifier);
+        return Guid.TryParse(idValue, out var id) ? id : null;
+    }
+
+    private static Dictionary<string, string[]> ToJsonPropertyNames(IReadOnlyDictionary<string, string[]> errors) =>
+        errors.ToDictionary(
+            pair => JsonNamingPolicy.CamelCase.ConvertName(pair.Key),
+            pair => pair.Value);
 }

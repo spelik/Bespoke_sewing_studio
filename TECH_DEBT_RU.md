@@ -314,3 +314,20 @@ Scope:
 Следующий возможный шаг: расширить audit coverage на Services, Portfolio,
 Website Content и Repeatable Content, если это понадобится владельцу сайта.
 
+
+
+## Task 41 — My account / change own password — Done
+
+Добавлена вкладка Admin → My account для текущего администратора:
+
+- отображается текущий email и роли текущей сессии;
+- текущий admin может сменить собственный пароль через `POST /api/auth/me/password`;
+- смена пароля требует current password, new password и confirm new password;
+- backend использует ASP.NET Core Identity и не возвращает/не логирует пароли;
+- audit log получает запись `account.password_changed`;
+- добавлена кнопка Sign out внутри My account;
+- новая migration не потребовалась.
+
+Технический нюанс: уже выданные JWT остаются действительными до истечения срока.
+Для production можно позже добавить token version/security stamp validation для
+принудительного сброса всех старых сессий после смены пароля.

@@ -18,6 +18,7 @@ import {
   CheckCircle2,
   AlertTriangle,
   X,
+  UserCircle,
   Users,
 } from "lucide-react";
 import { ApiError } from "../../api/apiClient";
@@ -32,6 +33,7 @@ import {
   type AdminOrderStatus,
 } from "../../api/ordersApi";
 import { useAuth } from "../auth/AuthContext";
+import { AdminAccountPanel } from "../components/AdminAccountPanel";
 import { AdminAuditLogPanel } from "../components/AdminAuditLogPanel";
 import { AdminBrandSettingsPanel } from "../components/AdminBrandSettingsPanel";
 import { AdminContactMessagesPanel } from "../components/AdminContactMessagesPanel";
@@ -67,6 +69,7 @@ type AdminSection =
   | "repeatable"
   | "brand"
   | "users"
+  | "account"
   | "auditLog"
   | "settings";
 
@@ -95,6 +98,7 @@ const NAV_ITEMS: ReadonlyArray<{
   { id: "repeatable", label: "Repeatable Content", icon: ListOrdered },
   { id: "brand", label: "Brand / SEO", icon: Palette },
   { id: "users", label: "Users", icon: Users },
+  { id: "account", label: "My account", icon: UserCircle },
   { id: "auditLog", label: "Audit Log", icon: History },
   { id: "settings", label: "Settings", icon: Settings },
 ];
@@ -109,6 +113,7 @@ const ADMIN_SECTION_HASHES: Record<AdminSection, string> = {
   repeatable: "repeatable-content",
   brand: "brand-seo",
   users: "users",
+  account: "my-account",
   auditLog: "audit-log",
   settings: "settings",
 };
@@ -542,6 +547,14 @@ export function AdminPage() {
           ) : null}
           {section === "users" ? (
             <AdminUsersPanel onUnauthorized={logout} />
+          ) : null}
+          {section === "account" ? (
+            <AdminAccountPanel
+              email={user?.email ?? "Administrator"}
+              roles={user?.roles ?? []}
+              onLogout={logout}
+              onUnauthorized={logout}
+            />
           ) : null}
           {section === "auditLog" ? (
             <AdminAuditLogPanel onUnauthorized={logout} />
