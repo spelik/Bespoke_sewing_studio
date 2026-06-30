@@ -49,15 +49,23 @@ export function SiteSettingsProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  useEffect(()=>{let active=true;getPublicBrandSettings().then(value=>{if(active)setBrand(value);}).catch(()=>{});return()=>{active=false;};},[]);
-  useEffect(()=>{
-    document.title=brand.defaultMetaTitle;
-    const meta=document.querySelector<HTMLMetaElement>('meta[name="description"]')??Object.assign(document.createElement("meta"),{name:"description"});
-    meta.content=brand.defaultMetaDescription;if(!meta.parentNode)document.head.append(meta);
-    const setMeta=(property:string,content:string|null)=>{const existing=document.querySelector<HTMLMetaElement>(`meta[property="${property}"]`);if(!content){existing?.remove();return;}const node=existing??Object.assign(document.createElement("meta"),{property});node.content=content;if(!node.parentNode)document.head.append(node);};
-    setMeta("og:title",brand.defaultOgTitle??brand.defaultMetaTitle);setMeta("og:description",brand.defaultOgDescription??brand.defaultMetaDescription);setMeta("og:image",brand.defaultOgImageUrl);
-    if(brand.faviconUrl){const icon=document.querySelector<HTMLLinkElement>('link[rel~="icon"]')??Object.assign(document.createElement("link"),{rel:"icon"});icon.href=brand.faviconUrl;if(!icon.parentNode)document.head.append(icon);}
-  },[brand]);
+  useEffect(() => {
+    let active = true;
+
+    getPublicBrandSettings()
+      .then((value) => {
+        if (active) {
+          setBrand(value);
+        }
+      })
+      .catch(() => {
+        // The typed fallback keeps the public website available while the API is offline.
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const value = useMemo(() => ({ settings, brand, refresh }), [brand, refresh, settings]);
 

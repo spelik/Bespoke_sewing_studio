@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /admin/login
+
+# Replace this placeholder with the production domain before the public launch.
+Sitemap: https://replace-with-production-domain.example/sitemap.xml

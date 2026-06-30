@@ -19,9 +19,10 @@ attachments are uploaded first and linked to the created enquiry by ID.
 The UI is English-only. Header and mobile language switchers have been removed, and typed fallback/default content should remain English-only.
 
 API configuration lives in `src/config/appConfig.ts`. `VITE_API_BASE_URL`
-defaults to `http://localhost:5099/api` for local development. Copy
-`.env.example` to `.env.local` when an explicit override is needed; `.env.local`
-is ignored by Git.
+defaults to `http://localhost:5099/api` for local development. `VITE_PUBLIC_SITE_URL`
+can be set in production to the canonical public origin used for client-side
+canonical and Open Graph URLs. Copy `.env.example` to `.env.local` when an
+explicit override is needed; `.env.local` is ignored by Git.
 
 ## Backend
 
@@ -53,6 +54,7 @@ Current backend status:
 - page headings, body text, CTAs and key page images load from the Website Content CMS
 - repeatable public blocks such as process steps, studio values, testimonials and privacy subsections load from the Repeatable Content CMS
 - logo, favicon, default SEO metadata, header CTA and navigation labels/visibility are managed in Admin **Brand / SEO**
+- public routes update route-specific SEO metadata, canonical links, Open Graph/Twitter card tags and Home JSON-LD from frontend route state plus Brand/SEO settings
 - the public Order form submits a dynamic `serviceOfferingId` while preserving legacy enum compatibility
 - admin login, Orders list/detail/status/notes and Contact Messages list/detail/status use protected backend endpoints
 - the admin sidebar exposes only backend-backed Dashboard, Orders, Contact Messages, Services, Portfolio, Content, Repeatable Content, Brand/SEO, Users, My account, Audit Log and Settings modules
@@ -353,9 +355,17 @@ The Admin panel can add, edit, hide/show and archive items through protected
 Sign in to Admin and select **Brand / SEO** to upload a JPG, PNG or WebP logo,
 favicon or default Open Graph image and edit the brand name, logo alt text,
 header CTA, default title/description and navigation labels/visibility. The
-public header, footer and document metadata load these settings from the
-backend. If the backend is unavailable, the bundled logo and typed defaults
-keep the public site usable. SVG upload is intentionally disabled.
+public header, footer and default Home metadata load these settings from the
+backend. Route-specific SEO metadata, canonical links, Open Graph/Twitter card
+tags and Home `LocalBusiness`/`ProfessionalService` JSON-LD are managed by the
+frontend SEO manager. If the backend is unavailable, the bundled logo and typed
+defaults keep the public site usable. SVG upload is intentionally disabled.
+
+The static `public/robots.txt` blocks `/admin` and `/admin/login`. The static
+`public/sitemap.xml` lists public routes only. Both files intentionally contain
+a placeholder host until the production domain is chosen; replace
+`https://replace-with-production-domain.example` before public launch. Do not
+include admin routes in the sitemap.
 
 Commands:
 

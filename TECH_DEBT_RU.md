@@ -133,7 +133,7 @@
 - Header/footer logo, CTA, базовые meta/OG данные и labels/visibility навигации теперь backend-first.
 - Brand images используют отдельный `BrandAsset` purpose и публичны только при ссылке из текущих settings; order attachments остаются private.
 - SVG upload намеренно не реализован из-за security-рисков. Разрешены JPG, PNG и WebP.
-- Future debt: advanced/per-page SEO, sitemap/robots generation, image cropper/thumbnails и production CDN/object storage.
+- Task 43 закрыл базовую route-level SEO-разметку, robots.txt и sitemap.xml. Future debt: admin-editable per-page SEO, автоматическая генерация sitemap под production domain, image cropper/thumbnails и production CDN/object storage.
 
 ## Task 24 — CMS completeness audit
 
@@ -350,3 +350,18 @@ Website Content и Repeatable Content, если это понадобится в
 автоматический scheduled backup, encryption, offsite upload, restore-test job и
 retention policy пока не реализованы и зависят от будущего production-хостинга.
 
+
+
+## Task 43 — SEO / robots / sitemap / Open Graph — Done
+
+Добавлена базовая SEO-инфраструктура публичного сайта:
+
+- `SeoManager` обновляет `title`, meta description, robots, canonical, Open Graph и Twitter card tags при смене маршрута;
+- Home page использует Brand/SEO defaults из backend и добавляет JSON-LD `LocalBusiness`/`ProfessionalService`;
+- public routes получили route-specific title/description без выдуманного адреса, графика работы, WhatsApp или лишней географии;
+- `/admin` и `/admin/login` получают `noindex, nofollow`;
+- `public/robots.txt` блокирует admin routes;
+- `public/sitemap.xml` содержит только публичные страницы `/`, `/services`, `/portfolio`, `/order`, `/about`, `/contact`, `/privacy`;
+- добавлен `VITE_PUBLIC_SITE_URL` для production canonical/OG origin.
+
+Перед публичным launch нужно заменить placeholder `https://replace-with-production-domain.example` в `public/robots.txt` и `public/sitemap.xml` на реальный домен. Позже можно сделать admin-editable per-page SEO и автоматическую генерацию sitemap после выбора production-хостинга.

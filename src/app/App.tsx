@@ -15,6 +15,7 @@ import { ServicesProvider } from "./services/ServicesContext";
 import { PortfolioProvider } from "./portfolio/PortfolioContext";
 import { PageContentProvider } from "./content/PageContentContext";
 import { RepeatableContentProvider } from "./repeatableContent/RepeatableContentContext";
+import { SeoManager } from "./seo/SeoManager";
 
 const HomePage = lazy(() =>
   import("./pages/HomePage").then((module) => ({ default: module.HomePage })),
@@ -64,6 +65,7 @@ function SiteShell() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <RouteScrollReset />
+      <SeoManager />
       <Header />
       <main>
         <Suspense fallback={<RouteLoader />}>
