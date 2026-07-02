@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { ApiError } from "../../api/apiClient";
 import {
   addAdminOrderNote,
+  deleteAdminOrder,
   deleteAdminOrderAttachment,
   getAdminApiErrorMessage,
   getAdminOrder,
@@ -19,11 +20,13 @@ interface UseAdminOrdersResult {
   isDetailLoading: boolean;
   isSaving: boolean;
   deletingAttachmentId: string | null;
+  deletingOrderId: string | null;
   error: string | null;
   selectOrder(id: string): Promise<void>;
   changeStatus(status: AdminOrderStatus): Promise<void>;
   addNote(text: string): Promise<boolean>;
   deleteAttachment(attachmentId: string): Promise<boolean>;
+  deleteOrder(orderId: string): Promise<boolean>;
   reload(): Promise<void>;
   clearSelection(): void;
 }
@@ -35,6 +38,7 @@ export function useAdminOrders(onUnauthorized: () => void): UseAdminOrdersResult
   const [isDetailLoading, setIsDetailLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [deletingAttachmentId, setDeletingAttachmentId] = useState<string | null>(null);
+  const [deletingOrderId, setDeletingOrderId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const handleError = useCallback(
@@ -165,6 +169,28 @@ export function useAdminOrders(onUnauthorized: () => void): UseAdminOrdersResult
     [handleError, selectedOrder, updateListItem],
   );
 
+
+  const deleteOrder = useCallback(
+    async (orderId: string) => {
+      setDeletingOrderId(orderId);
+      setError(null);
+      try {
+        await deleteAdminOrder(orderId);
+        setOrders((currentOrders) => currentOrders.filter((order) => order.id !== orderId));
+        setSelectedOrder((currentOrder) =>
+          currentOrder?.id === orderId ? null : currentOrder,
+        );
+        return true;
+      } catch (requestError) {
+        handleError(requestError);
+        return false;
+      } finally {
+        setDeletingOrderId(null);
+      }
+    },
+    [handleError],
+  );
+
   return {
     orders,
     selectedOrder,
@@ -172,11 +198,13 @@ export function useAdminOrders(onUnauthorized: () => void): UseAdminOrdersResult
     isDetailLoading,
     isSaving,
     deletingAttachmentId,
+    deletingOrderId,
     error,
     selectOrder,
     changeStatus,
     addNote,
     deleteAttachment,
+    deleteOrder,
     reload,
     clearSelection: () => setSelectedOrder(null),
   };

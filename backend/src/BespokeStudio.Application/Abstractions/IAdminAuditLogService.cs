@@ -11,4 +11,6 @@ public interface IAdminAuditLogService
     Task RecordAsync(
         AdminAuditLogWriteRequest request,
         CancellationToken cancellationToken = default);
+
+    void AddPending(AdminAuditLogWriteRequest request);
 }

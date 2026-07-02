@@ -37,6 +37,14 @@ public static class OrderEndpoints
             .Produces(StatusCodes.Status401Unauthorized)
             .Produces(StatusCodes.Status403Forbidden);
 
+        orders.MapDelete("/{id:guid}", DeleteOrderAsync)
+            .RequireAuthorization(AdminAccess.PolicyName)
+            .WithName("DeleteOrder")
+            .Produces<DeleteOrderResult>()
+            .Produces(StatusCodes.Status404NotFound)
+            .Produces(StatusCodes.Status401Unauthorized)
+            .Produces(StatusCodes.Status403Forbidden);
+
         orders.MapPatch("/{id:guid}/status", UpdateOrderStatusAsync)
             .RequireAuthorization(AdminAccess.PolicyName)
             .WithName("UpdateOrderStatus")
@@ -128,6 +136,42 @@ public static class OrderEndpoints
     {
         var order = await orderService.GetByIdAsync(id, cancellationToken);
         return order is null ? TypedResults.NotFound() : TypedResults.Ok(order);
+    }
+
+
+    private static async Task<IResult> DeleteOrderAsync(
+        Guid id,
+        ClaimsPrincipal principal,
+        IOrderService orderService,
+        IAdminRealtimeNotifier realtimeNotifier,
+        ILoggerFactory loggerFactory,
+        CancellationToken cancellationToken)
+    {
+        var deleted = await orderService.DeleteAsync(
+            id,
+            AdminAuditEndpointHelpers.GetActor(principal),
+            cancellationToken);
+        if (deleted is null)
+        {
+            return TypedResults.NotFound();
+        }
+
+        try
+        {
+            await realtimeNotifier.NotifyOrderDeletedAsync(
+                deleted.Id,
+                deleted.ReferenceNumber,
+                CancellationToken.None);
+        }
+        catch (Exception exception)
+        {
+            loggerFactory.CreateLogger("AdminDeleteOperations").LogWarning(
+                exception,
+                "Post-commit realtime notification failed for deleted order {OrderId}.",
+                deleted.Id);
+        }
+
+        return TypedResults.Ok(deleted);
     }
 
     private static async Task<IResult> UpdateOrderStatusAsync(

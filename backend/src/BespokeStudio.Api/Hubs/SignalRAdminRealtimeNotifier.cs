@@ -20,6 +20,12 @@ public sealed class SignalRAdminRealtimeNotifier(
         CancellationToken cancellationToken = default) =>
         BroadcastAsync("OrderUpdated", "Order", orderId, referenceNumber, cancellationToken);
 
+    public Task NotifyOrderDeletedAsync(
+        Guid orderId,
+        string? referenceNumber,
+        CancellationToken cancellationToken = default) =>
+        BroadcastAsync("OrderDeleted", "Order", orderId, referenceNumber, cancellationToken);
+
     public Task NotifyContactMessageCreatedAsync(
         Guid contactMessageId,
         string? referenceNumber,
@@ -31,6 +37,12 @@ public sealed class SignalRAdminRealtimeNotifier(
         string? referenceNumber,
         CancellationToken cancellationToken = default) =>
         BroadcastAsync("ContactMessageUpdated", "ContactMessage", contactMessageId, referenceNumber, cancellationToken);
+
+    public Task NotifyContactMessageDeletedAsync(
+        Guid contactMessageId,
+        string? referenceNumber,
+        CancellationToken cancellationToken = default) =>
+        BroadcastAsync("ContactMessageDeleted", "ContactMessage", contactMessageId, referenceNumber, cancellationToken);
 
     public Task NotifyEmailDeliveryLogChangedAsync(
         Guid emailDeliveryLogEntryId,

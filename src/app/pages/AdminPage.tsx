@@ -13,11 +13,9 @@ import {
   Palette,
   Scissors,
   ShieldCheck,
-  Search,
   Settings,
   CheckCircle2,
   AlertTriangle,
-  X,
   UserCircle,
   Users,
 } from "lucide-react";
@@ -36,6 +34,14 @@ import { useAuth } from "../auth/AuthContext";
 import { AdminAccountPanel } from "../components/AdminAccountPanel";
 import { AdminAuditLogPanel } from "../components/AdminAuditLogPanel";
 import { AdminEmailLogPanel } from "../components/AdminEmailLogPanel";
+import {
+  AdminActionButton,
+  AdminConfirmDialog,
+  AdminFilterDropdown,
+  AdminPagination,
+  AdminSearchInput,
+  type AdminFilterOption,
+} from "../components/AdminUi";
 import { AdminBrandSettingsPanel } from "../components/AdminBrandSettingsPanel";
 import { AdminContactMessagesPanel } from "../components/AdminContactMessagesPanel";
 import { AdminContentPanel } from "../components/AdminContentPanel";
@@ -122,6 +128,17 @@ const ADMIN_SECTION_HASHES: Record<AdminSection, string> = {
   settings: "settings",
 };
 
+
+const ADMIN_PAGE_SIZE = 25;
+
+const ORDER_STATUS_FILTER_OPTIONS: AdminFilterOption[] = [
+  { value: "All", label: "All statuses" },
+  ...ORDER_STATUSES.map((status) => ({
+    value: status,
+    label: ADMIN_STATUS_LABELS[status],
+  })),
+];
+
 const ADMIN_SECTIONS_BY_HASH = Object.entries(ADMIN_SECTION_HASHES).reduce(
   (sections, [section, hash]) => {
     sections[hash] = section as AdminSection;
@@ -163,6 +180,9 @@ export function AdminPage() {
     "All",
   );
   const [orderSearchQuery, setOrderSearchQuery] = useState("");
+  const [orderStatusFilterOpen, setOrderStatusFilterOpen] = useState(false);
+  const [orderPage, setOrderPage] = useState(1);
+  const [orderDeleteCandidate, setOrderDeleteCandidate] = useState<AdminOrderListItem | null>(null);
   const [contactMessages, setContactMessages] = useState<
     AdminContactMessageListItem[]
   >([]);
@@ -341,6 +361,31 @@ export function AdminPage() {
     });
   }, [adminOrders.orders, orderFilter, orderSearchQuery]);
 
+  const orderTotalPages = Math.max(1, Math.ceil(filteredOrders.length / ADMIN_PAGE_SIZE));
+  const paginatedOrders = useMemo(
+    () => paginateItems(filteredOrders, orderPage, ADMIN_PAGE_SIZE),
+    [filteredOrders, orderPage],
+  );
+
+  useEffect(() => {
+    setOrderPage(1);
+  }, [orderFilter, orderSearchQuery]);
+
+  useEffect(() => {
+    setOrderPage((currentPage) => Math.min(currentPage, orderTotalPages));
+  }, [orderTotalPages]);
+
+  async function confirmOrderDelete() {
+    if (!orderDeleteCandidate) {
+      return;
+    }
+
+    const wasDeleted = await adminOrders.deleteOrder(orderDeleteCandidate.id);
+    if (wasDeleted) {
+      setOrderDeleteCandidate(null);
+    }
+  }
+
   return (
     <div className="pt-[72px] min-h-screen bg-[#F5F0E8] flex">
       <aside
@@ -452,83 +497,60 @@ export function AdminPage() {
                   },
                 ]}
               />
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div className="flex flex-wrap items-center gap-3">
-                  <label className="text-[10px] tracking-wide text-muted-foreground font-sans">
-                    Status
-                    <select
-                      value={orderFilter}
-                      onChange={(event) =>
-                        setOrderFilter(
-                          event.target.value as AdminOrderStatus | "All",
-                        )
-                      }
-                      className="ml-3 px-3 py-2 text-[10px] border border-border bg-background focus:outline-none focus:border-accent"
-                    >
-                      <option value="All">All statuses</option>
-                      {ORDER_STATUSES.map((status) => (
-                        <option key={status} value={status}>
-                          {ADMIN_STATUS_LABELS[status]}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <div className="relative w-full sm:w-[320px]">
-                    <Search
-                      size={13}
-                      className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
-                      aria-hidden="true"
-                    />
-                    <input
-                      type="text"
-                      value={orderSearchQuery}
-                      onChange={(event) =>
-                        setOrderSearchQuery(event.target.value)
-                      }
-                      placeholder="Search reference, client, email, phone, service..."
-                      className="w-full border border-border bg-background pl-8 pr-8 py-2 text-[10px] font-sans focus:outline-none focus:border-accent"
-                      aria-label="Search orders"
-                    />
-                    {orderSearchQuery ? (
-                      <button
-                        type="button"
-                        onClick={() => setOrderSearchQuery("")}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-muted-foreground hover:text-foreground"
-                        aria-label="Clear order search"
-                      >
-                        <X size={12} />
-                      </button>
-                    ) : null}
+              <div className="bg-card border border-border p-5 space-y-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-12 gap-3 items-end">
+                  <AdminFilterDropdown
+                    id="orders-status-filter"
+                    label="Status"
+                    value={orderFilter}
+                    placeholder="All statuses"
+                    options={ORDER_STATUS_FILTER_OPTIONS}
+                    allowEmpty={false}
+                    isOpen={orderStatusFilterOpen}
+                    onToggle={() =>
+                      setOrderStatusFilterOpen((current) => !current)
+                    }
+                    onClose={() => setOrderStatusFilterOpen(false)}
+                    onChange={(value) =>
+                      setOrderFilter(value as AdminOrderStatus | "All")
+                    }
+                    className="xl:col-span-2"
+                  />
+                  <AdminSearchInput
+                    label="Search"
+                    value={orderSearchQuery}
+                    onChange={setOrderSearchQuery}
+                    placeholder="Reference, client, email, phone, service..."
+                    ariaLabel="Search orders"
+                    className="xl:col-span-5"
+                  />
+                  <div className="xl:col-span-2 text-[10px] text-muted-foreground font-sans">
+                    {filteredOrders.length} visible / {adminOrders.orders.length} total
                   </div>
-                  <span className="text-[10px] text-muted-foreground font-sans">
-                    {filteredOrders.length} visible /{" "}
-                    {adminOrders.orders.length} total
-                  </span>
-                </div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => exportOrdersCsv(filteredOrders)}
-                    disabled={filteredOrders.length === 0}
-                    className="inline-flex items-center gap-2 px-4 py-2 text-[10px] tracking-wide border border-border bg-background hover:border-foreground disabled:opacity-50"
-                  >
-                    <Download size={12} aria-hidden="true" /> Export CSV
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => void adminOrders.reload()}
-                    disabled={adminOrders.isLoading}
-                    className="px-4 py-2 text-[10px] tracking-wide border border-border bg-background hover:border-foreground disabled:opacity-50"
-                  >
-                    Refresh
-                  </button>
+                  <div className="xl:col-span-3 flex flex-wrap items-center justify-start xl:justify-end gap-2">
+                    <AdminActionButton
+                      icon={<Download size={12} aria-hidden="true" />}
+                      onClick={() => exportOrdersCsv(filteredOrders)}
+                      disabled={filteredOrders.length === 0}
+                    >
+                      Export CSV
+                    </AdminActionButton>
+                  </div>
                 </div>
               </div>
               <AdminOrdersTable
-                orders={filteredOrders}
+                orders={paginatedOrders}
                 isLoading={adminOrders.isLoading}
                 emptyMessage="No enquiries match this status or search."
+                deletingOrderId={adminOrders.deletingOrderId}
                 onSelect={(id) => void adminOrders.selectOrder(id)}
+                onRequestDelete={setOrderDeleteCandidate}
+              />
+              <AdminPagination
+                currentPage={orderPage}
+                pageSize={ADMIN_PAGE_SIZE}
+                totalItems={filteredOrders.length}
+                onPageChange={setOrderPage}
               />
             </div>
           ) : null}
@@ -581,6 +603,24 @@ export function AdminPage() {
         </div>
       </main>
 
+      {orderDeleteCandidate ? (
+        <AdminConfirmDialog
+          title="Delete order?"
+          description={
+            <>
+              This will permanently remove order
+              <span className="font-medium text-foreground"> {orderDeleteCandidate.referenceNumber}</span>
+              {' '}from
+              <span className="font-medium text-foreground"> {orderDeleteCandidate.clientName}</span>.
+              Any linked attachment files and internal notes will also be removed. This action cannot be undone.
+            </>
+          }
+          confirmLabel="Delete order"
+          isBusy={adminOrders.deletingOrderId === orderDeleteCandidate.id}
+          onCancel={() => setOrderDeleteCandidate(null)}
+          onConfirm={() => void confirmOrderDelete()}
+        />
+      ) : null}
       {adminOrders.error ? (
         <div
           role="alert"
@@ -1149,6 +1189,11 @@ function exportOrdersCsv(orders: readonly AdminOrderListItem[]): void {
     { header: "Created at", value: (order) => order.createdAt },
     { header: "Message", value: (order) => order.description },
   ]);
+}
+
+function paginateItems<T>(items: readonly T[], page: number, pageSize: number): T[] {
+  const start = Math.max(0, page - 1) * pageSize;
+  return items.slice(start, start + pageSize);
 }
 
 function normalizeSearchValue(value: string | null | undefined): string {

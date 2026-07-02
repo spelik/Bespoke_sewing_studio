@@ -433,3 +433,60 @@ Future improvements: background retry queue, resend action, retention/cleanup po
 - Order realtime event отправляется после удаления, поэтому связанные admin views могут обновиться.
 
 Migration не нужна: используется существующая схема `OrderAttachments` / `UploadedFiles`. Future improvements: отдельный storage health report, scheduled cleanup для orphan/non-linked site assets, retention policy и production object storage adapter.
+
+## Task 47.1 — Final admin UI polish: filters/buttons/empty states — Done
+
+Проведена первая часть финальной шлифовки admin UI без изменения backend API и
+без migration:
+
+- добавлены общие frontend-компоненты `AdminActionButton`, `AdminSearchInput`,
+  `AdminFilterDropdown`, `AdminTableState`;
+- Admin → Orders получил кастомный dropdown статусов в стиле админки вместо
+  native browser select;
+- Admin → Orders получил единый search input, Export CSV и Refresh buttons;
+- Admin → Contact Messages получил такой же filter/search/actions layout;
+- loading/empty states в таблицах Orders и Contact Messages приведены к единому
+  визуальному стилю;
+- backend-код не менялся, migration не требуется.
+
+Оставшаяся шлифовка: пройти tablet/mobile layout, длинные значения в Settings,
+Services/Portfolio/Content формы и единый стиль внутренних drawer status selects.
+
+
+
+## Task 47.2 — Admin list deletion and pagination
+
+- Orders and Contact Messages now hide manual Refresh buttons from the main list UI because SignalR realtime updates are the primary refresh path.
+- Orders and Contact Messages now show 25 rows per page with styled pagination controls.
+- Orders and Contact Messages now have destructive delete actions with confirmation modals in the admin style.
+- Deleting an order removes linked attachment metadata/files and internal notes, then records `order.deleted` in the audit log.
+- Deleting a contact message records `contact_message.deleted` in the audit log.
+- Backend delete endpoints are Admin-only and emit realtime events so open admin sessions reload lists automatically.
+
+## Task 47.5 — Safe admin delete operations
+
+- Удаление Order теперь выполняет удаление notes, attachment links, upload metadata, самого заказа и запись `order.deleted` в одной DB-транзакции с одним `SaveChanges`.
+- Удаление Contact Message и запись `contact_message.deleted` также выполняются атомарно в одной DB-транзакции.
+- Физические файлы Order удаляются только после успешного commit как best-effort cleanup; отсутствующий или временно недоступный файл не меняет успешный API-ответ на HTTP 500.
+- SignalR delete events отправляются после commit как best-effort и при ошибке только записывают warning.
+- Migration не требуется. Защищённый ручной orphan cleanup уже существует; периодический background cleanup и production storage reconciliation остаются будущими задачами обслуживания.
+
+
+## Task 47.3 — Admin Orders/Contact fixed table columns
+
+- В таблицах Admin → Orders и Admin → Contact Messages включён `table-fixed` layout с явными `colgroup` widths.
+- Ширина столбцов больше не скачет из-за длинных email, service names, subjects или message previews.
+- Длинные значения в name/reference/contact/service/subject/message columns обрезаются через `truncate` или `line-clamp-2`, сохраняя стабильную сетку.
+- Таблицы больше не должны выходить за правый край admin content area; длинные значения читаются через drawer/details.
+
+Migration не нужна: это frontend-only UI polish.
+
+## Task 47.4 — Admin table width correction
+
+- Убраны чрезмерные `min-width` значения, из-за которых Orders/Contact Messages могли вылезать вправо за экран.
+- Столбцы переведены на процентные `colgroup` widths внутри `w-full table-fixed`, чтобы таблица занимала доступную ширину admin content area.
+- В Orders немного уменьшены Service, Created и Message columns; Message preview ограничен максимум двумя строками с обрезкой.
+- В Contact Messages применён тот же принцип для Subject/Created/Message columns.
+- Padding в table cells немного уменьшен, чтобы сохранить читаемость без горизонтального переполнения.
+
+Migration не нужна: это frontend-only UI polish.

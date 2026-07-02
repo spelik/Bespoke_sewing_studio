@@ -70,6 +70,12 @@ public sealed class AdminAuditLogService(BespokeStudioDbContext dbContext) : IAd
         AdminAuditLogWriteRequest request,
         CancellationToken cancellationToken = default)
     {
+        AddPending(request);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public void AddPending(AdminAuditLogWriteRequest request)
+    {
         var now = DateTimeOffset.UtcNow;
         var entry = new AdminAuditLogEntry
         {
@@ -86,7 +92,6 @@ public sealed class AdminAuditLogService(BespokeStudioDbContext dbContext) : IAd
         };
 
         dbContext.AdminAuditLogEntries.Add(entry);
-        await dbContext.SaveChangesAsync(cancellationToken);
     }
 
     private static string? Normalize(string? value) =>

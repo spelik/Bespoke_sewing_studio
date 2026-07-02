@@ -1,4 +1,5 @@
 using BespokeStudio.Application.Abstractions;
+using BespokeStudio.Application.Contracts.AdminAuditLog;
 using BespokeStudio.Application.Contracts.Clients;
 using BespokeStudio.Application.Contracts.Orders;
 using BespokeStudio.Application.Validation;
@@ -6,10 +7,15 @@ using BespokeStudio.Domain.Entities;
 using BespokeStudio.Domain.Enums;
 using BespokeStudio.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace BespokeStudio.Infrastructure.Services;
 
-public sealed class OrderService(BespokeStudioDbContext dbContext) : IOrderService
+public sealed class OrderService(
+    BespokeStudioDbContext dbContext,
+    IAdminAuditLogService auditLogService,
+    IUploadService uploadService,
+    ILogger<OrderService> logger) : IOrderService
 {
     public async Task<OrderResponse> CreateAsync(
         CreateOrderRequest request,
@@ -278,6 +284,85 @@ public sealed class OrderService(BespokeStudioDbContext dbContext) : IOrderServi
         await dbContext.SaveChangesAsync(cancellationToken);
 
         return await GetByIdAsync(orderId, cancellationToken);
+    }
+
+
+    public async Task<DeleteOrderResult?> DeleteAsync(
+        Guid orderId,
+        AdminAuditActor actor,
+        CancellationToken cancellationToken = default)
+    {
+        await using var transaction = await dbContext.Database
+            .BeginTransactionAsync(cancellationToken);
+
+        var orderData = await (
+            from order in dbContext.Orders
+            join client in dbContext.Clients.AsNoTracking() on order.ClientId equals client.Id
+            where order.Id == orderId
+            select new
+            {
+                Order = order,
+                ClientName = client.FullName
+            })
+            .SingleOrDefaultAsync(cancellationToken);
+
+        if (orderData is null)
+        {
+            return null;
+        }
+
+        var attachmentData = await (
+            from attachment in dbContext.OrderAttachments
+            join file in dbContext.UploadedFiles
+                on attachment.UploadedFileId equals file.Id
+            where attachment.OrderId == orderId
+            select new { Attachment = attachment, File = file })
+            .ToArrayAsync(cancellationToken);
+
+        var notes = await dbContext.OrderNotes
+            .Where(note => note.OrderId == orderId)
+            .ToArrayAsync(cancellationToken);
+
+        var storageKeys = attachmentData
+            .Select(item => item.File.StorageKey)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        var result = new DeleteOrderResult(
+            orderData.Order.Id,
+            orderData.Order.ReferenceNumber,
+            orderData.ClientName);
+
+        dbContext.OrderAttachments.RemoveRange(attachmentData.Select(item => item.Attachment));
+        dbContext.UploadedFiles.RemoveRange(attachmentData.Select(item => item.File));
+        dbContext.OrderNotes.RemoveRange(notes);
+        dbContext.Orders.Remove(orderData.Order);
+
+        auditLogService.AddPending(new AdminAuditLogWriteRequest(
+            actor.UserId,
+            actor.Email,
+            "order.deleted",
+            "Order",
+            result.Id.ToString(),
+            result.ReferenceNumber,
+            $"Order {result.ReferenceNumber} from {result.ClientName} was deleted with {attachmentData.Length} attachment(s)."));
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+
+        try
+        {
+            await uploadService.DeletePhysicalFilesBestEffortAsync(storageKeys);
+        }
+        catch (Exception exception)
+        {
+            logger.LogWarning(
+                exception,
+                "Post-commit physical cleanup failed for deleted order {OrderId}.",
+                orderId);
+        }
+
+        return result;
     }
 
     private static OrderResponse MapOrderResponse(

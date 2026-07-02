@@ -1,4 +1,5 @@
 using BespokeStudio.Application.Abstractions;
+using BespokeStudio.Application.Contracts.AdminAuditLog;
 using BespokeStudio.Application.Contracts.ContactMessages;
 using BespokeStudio.Domain.Entities;
 using BespokeStudio.Infrastructure.Persistence;
@@ -6,7 +7,9 @@ using Microsoft.EntityFrameworkCore;
 
 namespace BespokeStudio.Infrastructure.Services;
 
-public sealed class ContactMessageService(BespokeStudioDbContext dbContext) : IContactMessageService
+public sealed class ContactMessageService(
+    BespokeStudioDbContext dbContext,
+    IAdminAuditLogService auditLogService) : IContactMessageService
 {
     public async Task<ContactMessageResponse> CreateAsync(
         CreateContactMessageRequest request,
@@ -90,6 +93,46 @@ public sealed class ContactMessageService(BespokeStudioDbContext dbContext) : IC
         await dbContext.SaveChangesAsync(cancellationToken);
 
         return ToResponse(message);
+    }
+
+
+    public async Task<DeleteContactMessageResult?> DeleteAsync(
+        Guid id,
+        AdminAuditActor actor,
+        CancellationToken cancellationToken = default)
+    {
+        await using var transaction = await dbContext.Database
+            .BeginTransactionAsync(cancellationToken);
+
+        var message = await dbContext.ContactMessages
+            .SingleOrDefaultAsync(candidate => candidate.Id == id, cancellationToken);
+
+        if (message is null)
+        {
+            return null;
+        }
+
+        var result = new DeleteContactMessageResult(
+            message.Id,
+            message.ReferenceNumber,
+            message.FullName,
+            message.Email);
+
+        dbContext.ContactMessages.Remove(message);
+
+        auditLogService.AddPending(new AdminAuditLogWriteRequest(
+            actor.UserId,
+            actor.Email,
+            "contact_message.deleted",
+            "ContactMessage",
+            result.Id.ToString(),
+            result.ReferenceNumber,
+            $"Contact message {result.ReferenceNumber} from {result.FullName} was deleted."));
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+
+        return result;
     }
 
     private static ContactMessageResponse ToResponse(ContactMessage message) => new(

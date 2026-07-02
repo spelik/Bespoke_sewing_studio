@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
-import { Download, Eye, LoaderCircle, Mail, Search, X } from "lucide-react";
+import { Download, Eye, LoaderCircle, Mail, Trash2, X } from "lucide-react";
 import { ApiError } from "../../api/apiClient";
 import {
   CONTACT_MESSAGE_STATUSES,
+  deleteAdminContactMessage,
   getAdminContactMessage,
   getAdminContactMessages,
   updateAdminContactMessageStatus,
@@ -13,6 +14,15 @@ import type {
   ContactMessageStatus,
 } from "../types";
 import { createCsvFileName, downloadCsv } from "../utils/csvExport";
+import {
+  AdminActionButton,
+  AdminConfirmDialog,
+  AdminFilterDropdown,
+  AdminPagination,
+  AdminSearchInput,
+  AdminTableState,
+  type AdminFilterOption,
+} from "./AdminUi";
 import { formatAdminDate } from "./adminOrderFormatting";
 
 interface AdminContactMessagesPanelProps {
@@ -30,6 +40,17 @@ const STATUS_LABELS: Readonly<Record<ContactMessageStatus, string>> = {
   Replied: "Replied",
   Archived: "Archived",
 };
+
+
+const CONTACT_MESSAGES_PAGE_SIZE = 25;
+
+const STATUS_FILTER_OPTIONS: AdminFilterOption[] = [
+  { value: "All", label: "All statuses" },
+  ...CONTACT_MESSAGE_STATUSES.map((status) => ({
+    value: status,
+    label: STATUS_LABELS[status],
+  })),
+];
 
 const STATUS_COLORS: Readonly<Record<ContactMessageStatus, string>> = {
   New: "bg-rose-100 text-rose-700",
@@ -49,9 +70,13 @@ export function AdminContactMessagesPanel({
     useState<AdminContactMessageDetail | null>(null);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("All");
   const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilterOpen, setStatusFilterOpen] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [deleteCandidate, setDeleteCandidate] = useState<AdminContactMessageListItem | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isDetailLoading, setIsDetailLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [deletingMessageId, setDeletingMessageId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
@@ -87,6 +112,20 @@ export function AdminContactMessagesPanel({
         .some((value) => value.includes(normalizedQuery));
     });
   }, [messages, searchQuery, statusFilter]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredMessages.length / CONTACT_MESSAGES_PAGE_SIZE));
+  const paginatedMessages = useMemo(
+    () => paginateItems(filteredMessages, currentPage, CONTACT_MESSAGES_PAGE_SIZE),
+    [filteredMessages, currentPage],
+  );
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, statusFilter]);
+
+  useEffect(() => {
+    setCurrentPage((page) => Math.min(page, totalPages));
+  }, [totalPages]);
 
   async function loadMessages() {
     setIsLoading(true);
@@ -158,6 +197,35 @@ export function AdminContactMessagesPanel({
     }
   }
 
+
+  async function confirmDeleteMessage() {
+    if (!deleteCandidate) {
+      return;
+    }
+
+    setDeletingMessageId(deleteCandidate.id);
+    setError(null);
+    setMessage(null);
+    try {
+      await deleteAdminContactMessage(deleteCandidate.id);
+      setMessages((current) => {
+        const updatedMessages = current.filter((item) => item.id !== deleteCandidate.id);
+        onCountsChange?.(calculateMessageCounts(updatedMessages));
+        onMessagesChange?.(updatedMessages);
+        return updatedMessages;
+      });
+      setSelectedMessage((current) =>
+        current?.id === deleteCandidate.id ? null : current,
+      );
+      setDeleteCandidate(null);
+      setMessage(`Contact message ${deleteCandidate.referenceNumber} was deleted.`);
+    } catch (reason: unknown) {
+      handleRequestError(reason);
+    } finally {
+      setDeletingMessageId(null);
+    }
+  }
+
   function handleRequestError(reason: unknown) {
     if (
       reason instanceof ApiError &&
@@ -182,14 +250,6 @@ export function AdminContactMessagesPanel({
             as read, replied or archived.
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => void loadMessages()}
-          disabled={isLoading}
-          className="px-4 py-2 text-[10px] tracking-wide border border-border bg-background hover:border-foreground disabled:opacity-50 font-sans"
-        >
-          Refresh
-        </button>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -204,62 +264,42 @@ export function AdminContactMessagesPanel({
         />
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-3">
-          <label className="text-[10px] tracking-wide text-muted-foreground font-sans">
-            Status
-            <select
-              value={statusFilter}
-              onChange={(event) =>
-                setStatusFilter(event.target.value as StatusFilter)
-              }
-              className="ml-3 px-3 py-2 text-[10px] border border-border bg-background focus:outline-none focus:border-accent"
-            >
-              <option value="All">All statuses</option>
-              {CONTACT_MESSAGE_STATUSES.map((status) => (
-                <option key={status} value={status}>
-                  {STATUS_LABELS[status]}
-                </option>
-              ))}
-            </select>
-          </label>
-          <div className="relative w-full sm:w-[320px]">
-            <Search
-              size={13}
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
-              aria-hidden="true"
-            />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(event) => setSearchQuery(event.target.value)}
-              placeholder="Search reference, sender, email, subject..."
-              className="w-full border border-border bg-background pl-8 pr-8 py-2 text-[10px] font-sans focus:outline-none focus:border-accent"
-              aria-label="Search contact messages"
-            />
-            {searchQuery ? (
-              <button
-                type="button"
-                onClick={() => setSearchQuery("")}
-                className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-muted-foreground hover:text-foreground"
-                aria-label="Clear contact message search"
-              >
-                <X size={12} />
-              </button>
-            ) : null}
-          </div>
-          <span className="text-[10px] text-muted-foreground font-sans">
+      <div className="bg-card border border-border p-5 space-y-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-12 gap-3 items-end">
+          <AdminFilterDropdown
+            id="contact-message-status-filter"
+            label="Status"
+            value={statusFilter}
+            placeholder="All statuses"
+            options={STATUS_FILTER_OPTIONS}
+            allowEmpty={false}
+            isOpen={statusFilterOpen}
+            onToggle={() => setStatusFilterOpen((current) => !current)}
+            onClose={() => setStatusFilterOpen(false)}
+            onChange={(value) => setStatusFilter(value as StatusFilter)}
+            className="xl:col-span-2"
+          />
+          <AdminSearchInput
+            label="Search"
+            value={searchQuery}
+            onChange={setSearchQuery}
+            placeholder="Reference, sender, email, subject..."
+            ariaLabel="Search contact messages"
+            className="xl:col-span-5"
+          />
+          <div className="xl:col-span-2 text-[10px] text-muted-foreground font-sans">
             {filteredMessages.length} visible / {messages.length} total
-          </span>
+          </div>
+          <div className="xl:col-span-3 flex flex-wrap items-center justify-start xl:justify-end gap-2">
+            <AdminActionButton
+              icon={<Download size={12} aria-hidden="true" />}
+              onClick={() => exportContactMessagesCsv(filteredMessages)}
+              disabled={filteredMessages.length === 0}
+            >
+              Export CSV
+            </AdminActionButton>
+          </div>
         </div>
-        <button
-          type="button"
-          onClick={() => exportContactMessagesCsv(filteredMessages)}
-          disabled={filteredMessages.length === 0}
-          className="inline-flex items-center gap-2 px-4 py-2 text-[10px] tracking-wide border border-border bg-background hover:border-foreground disabled:opacity-50 font-sans"
-        >
-          <Download size={12} aria-hidden="true" /> Export CSV
-        </button>
       </div>
 
       {error ? (
@@ -280,11 +320,38 @@ export function AdminContactMessagesPanel({
       ) : null}
 
       <ContactMessagesTable
-        messages={filteredMessages}
+        messages={paginatedMessages}
         isLoading={isLoading}
+        deletingMessageId={deletingMessageId}
         onSelect={(id) => void selectMessage(id)}
+        onRequestDelete={setDeleteCandidate}
+      />
+      <AdminPagination
+        currentPage={currentPage}
+        pageSize={CONTACT_MESSAGES_PAGE_SIZE}
+        totalItems={filteredMessages.length}
+        onPageChange={setCurrentPage}
       />
 
+
+      {deleteCandidate ? (
+        <AdminConfirmDialog
+          title="Delete contact message?"
+          description={
+            <>
+              This will permanently remove message
+              <span className="font-medium text-foreground"> {deleteCandidate.referenceNumber}</span>
+              {' '}from
+              <span className="font-medium text-foreground"> {deleteCandidate.fullName}</span>.
+              This action cannot be undone.
+            </>
+          }
+          confirmLabel="Delete message"
+          isBusy={deletingMessageId === deleteCandidate.id}
+          onCancel={() => setDeleteCandidate(null)}
+          onConfirm={() => void confirmDeleteMessage()}
+        />
+      ) : null}
       <ContactMessageDetailDrawer
         message={selectedMessage}
         isLoading={isDetailLoading}
@@ -331,15 +398,28 @@ function AttentionSummaryCard({
 function ContactMessagesTable({
   messages,
   isLoading,
+  deletingMessageId,
   onSelect,
+  onRequestDelete,
 }: {
   messages: AdminContactMessageListItem[];
   isLoading: boolean;
+  deletingMessageId: string | null;
   onSelect(id: string): void;
+  onRequestDelete(message: AdminContactMessageListItem): void;
 }) {
   return (
-    <div className="bg-card border border-border overflow-x-auto">
-      <table className="w-full min-w-[900px]">
+    <div className="bg-card border border-border overflow-hidden">
+      <table className="w-full table-fixed">
+        <colgroup>
+          <col className="w-[18%]" />
+          <col className="w-[18%]" />
+          <col className="w-[14%]" />
+          <col className="w-[17%]" />
+          <col className="w-[10%]" />
+          <col className="w-[10%]" />
+          <col className="w-[13%]" />
+        </colgroup>
         <thead>
           <tr className="border-b border-border bg-secondary/40">
             {[
@@ -349,11 +429,11 @@ function ContactMessagesTable({
               "Message",
               "Created",
               "Status",
-              "",
+              "Actions",
             ].map((heading) => (
               <th
                 key={heading || "actions"}
-                className="px-5 py-3 text-left text-[10px] tracking-wider text-muted-foreground font-sans font-normal"
+                className="px-3 py-3 text-left text-[10px] tracking-wider text-muted-foreground font-sans font-normal"
               >
                 {heading}
               </th>
@@ -363,21 +443,15 @@ function ContactMessagesTable({
         <tbody>
           {isLoading ? (
             <tr>
-              <td
-                colSpan={7}
-                className="px-5 py-10 text-center text-[11px] text-muted-foreground"
-              >
-                Loading contact messages...
+              <td colSpan={7}>
+                <AdminTableState message="Loading contact messages..." isLoading />
               </td>
             </tr>
           ) : null}
           {!isLoading && messages.length === 0 ? (
             <tr>
-              <td
-                colSpan={7}
-                className="px-5 py-10 text-center text-[11px] text-muted-foreground"
-              >
-                No contact messages match this status or search.
+              <td colSpan={7}>
+                <AdminTableState message="No contact messages match this status or search." />
               </td>
             </tr>
           ) : null}
@@ -387,46 +461,70 @@ function ContactMessagesTable({
                   key={item.id}
                   className="border-b border-border/40 hover:bg-secondary/25 transition-colors"
                 >
-                  <td className="px-5 py-3.5 text-[12px] text-foreground font-sans">
-                    <div className="flex items-center gap-2">
+                  <td className="px-3 py-3.5 text-[12px] text-foreground font-sans min-w-0">
+                    <div className="flex min-w-0 items-center gap-2">
                       {item.status === "New" ? (
-                        <Mail size={12} className="text-accent" />
+                        <Mail size={12} className="shrink-0 text-accent" />
                       ) : null}
-                      <span>{item.fullName}</span>
+                      <span className="truncate">{item.fullName}</span>
                     </div>
-                    <div className="text-[9px] text-muted-foreground font-mono mt-0.5">
+                    <div className="truncate text-[9px] text-muted-foreground font-mono mt-0.5">
                       {item.referenceNumber}
                     </div>
                   </td>
-                  <td className="px-5 py-3.5 text-[10px] text-muted-foreground font-sans max-w-[180px]">
+                  <td className="px-3 py-3.5 text-[10px] text-muted-foreground font-sans min-w-0">
                     <div className="truncate">{item.email}</div>
                     <div className="truncate mt-0.5">
                       {item.phone ?? "No phone"}
                     </div>
                   </td>
-                  <td className="px-5 py-3.5 text-[11px] text-muted-foreground font-sans max-w-[180px]">
-                    <span className="line-clamp-2">
+                  <td className="px-3 py-3.5 text-[11px] text-muted-foreground font-sans min-w-0">
+                    <span
+                      className="line-clamp-2 overflow-hidden break-words"
+                      title={item.subject ?? "No subject"}
+                    >
                       {item.subject ?? "No subject"}
                     </span>
                   </td>
-                  <td className="px-5 py-3.5 text-[10px] text-muted-foreground font-sans max-w-[260px]">
-                    <p className="line-clamp-2">{item.messagePreview}</p>
+                  <td className="px-3 py-3.5 text-[10px] text-muted-foreground font-sans min-w-0">
+                    <p
+                      className="line-clamp-2 overflow-hidden break-words"
+                      title={item.messagePreview}
+                    >
+                      {item.messagePreview}
+                    </p>
                   </td>
-                  <td className="px-5 py-3.5 text-[10px] text-muted-foreground font-sans whitespace-nowrap">
+                  <td className="px-3 py-3.5 text-[10px] text-muted-foreground font-sans whitespace-nowrap">
                     {formatAdminDate(item.createdAt)}
                   </td>
-                  <td className="px-5 py-3.5">
+                  <td className="px-3 py-3.5">
                     <StatusBadge status={item.status} />
                   </td>
-                  <td className="px-5 py-3.5">
-                    <button
-                      type="button"
-                      onClick={() => onSelect(item.id)}
-                      className="inline-flex items-center gap-1.5 text-[10px] text-muted-foreground hover:text-foreground transition-colors"
-                      aria-label={`View contact message ${item.referenceNumber} from ${item.fullName}`}
-                    >
-                      <Eye size={13} /> View
-                    </button>
+                  <td className="px-3 py-3.5">
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                      <button
+                        type="button"
+                        onClick={() => onSelect(item.id)}
+                        className="inline-flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+                        aria-label={`View contact message ${item.referenceNumber} from ${item.fullName}`}
+                      >
+                        <Eye size={13} /> View
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onRequestDelete(item)}
+                        disabled={deletingMessageId === item.id}
+                        className="inline-flex items-center gap-1 text-[10px] text-destructive hover:text-foreground disabled:opacity-50 transition-colors"
+                        aria-label={`Delete contact message ${item.referenceNumber} from ${item.fullName}`}
+                      >
+                        {deletingMessageId === item.id ? (
+                          <LoaderCircle size={13} className="animate-spin" />
+                        ) : (
+                          <Trash2 size={13} />
+                        )}
+                        Delete
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))
@@ -628,6 +726,11 @@ function exportContactMessagesCsv(
     { header: "Created at", value: (message) => message.createdAt },
     { header: "Message preview", value: (message) => message.messagePreview },
   ]);
+}
+
+function paginateItems<T>(items: readonly T[], page: number, pageSize: number): T[] {
+  const start = Math.max(0, page - 1) * pageSize;
+  return items.slice(start, start + pageSize);
 }
 
 function normalizeSearchValue(value: string | null | undefined): string {

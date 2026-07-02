@@ -1,4 +1,5 @@
 using BespokeStudio.Application.Contracts.ContactMessages;
+using BespokeStudio.Application.Contracts.AdminAuditLog;
 
 namespace BespokeStudio.Application.Abstractions;
 
@@ -8,4 +9,5 @@ public interface IContactMessageService
     Task<IReadOnlyList<ContactMessageListItemResponse>> GetAllAsync(int take, CancellationToken cancellationToken = default);
     Task<ContactMessageResponse?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
     Task<ContactMessageResponse?> UpdateStatusAsync(Guid id, UpdateContactMessageStatusRequest request, CancellationToken cancellationToken = default);
+    Task<DeleteContactMessageResult?> DeleteAsync(Guid id, AdminAuditActor actor, CancellationToken cancellationToken = default);
 }

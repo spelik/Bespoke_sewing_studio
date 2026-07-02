@@ -5,6 +5,17 @@ namespace BespokeStudio.Api.Endpoints;
 
 internal static class AdminAuditEndpointHelpers
 {
+    public static AdminAuditActor GetActor(ClaimsPrincipal principal)
+    {
+        var idValue = principal.FindFirstValue(ClaimTypes.NameIdentifier);
+        var actorUserId = Guid.TryParse(idValue, out var parsedId) ? parsedId : (Guid?)null;
+        var actorEmail = principal.FindFirstValue(ClaimTypes.Email)
+            ?? principal.Identity?.Name
+            ?? "unknown-admin";
+
+        return new AdminAuditActor(actorUserId, actorEmail);
+    }
+
     public static AdminAuditLogWriteRequest CreateAuditRequest(
         ClaimsPrincipal principal,
         string action,
@@ -14,15 +25,11 @@ internal static class AdminAuditEndpointHelpers
         string summary,
         string? metadataJson = null)
     {
-        var idValue = principal.FindFirstValue(ClaimTypes.NameIdentifier);
-        var actorUserId = Guid.TryParse(idValue, out var parsedId) ? parsedId : (Guid?)null;
-        var actorEmail = principal.FindFirstValue(ClaimTypes.Email)
-            ?? principal.Identity?.Name
-            ?? "unknown-admin";
+        var actor = GetActor(principal);
 
         return new AdminAuditLogWriteRequest(
-            actorUserId,
-            actorEmail,
+            actor.UserId,
+            actor.Email,
             action,
             entityType,
             entityId,

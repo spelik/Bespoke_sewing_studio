@@ -48,6 +48,13 @@ public static class ContactMessageEndpoints
             .Produces(StatusCodes.Status401Unauthorized)
             .Produces(StatusCodes.Status403Forbidden);
 
+        admin.MapDelete("/{id:guid}", DeleteAsync)
+            .WithName("DeleteAdminContactMessage")
+            .Produces<DeleteContactMessageResult>()
+            .Produces(StatusCodes.Status404NotFound)
+            .Produces(StatusCodes.Status401Unauthorized)
+            .Produces(StatusCodes.Status403Forbidden);
+
         return endpoints;
     }
 
@@ -130,6 +137,42 @@ public static class ContactMessageEndpoints
                 result.ReferenceNumber,
                 $"Contact message {result.ReferenceNumber} status was set to {result.Status}."),
             cancellationToken);
+        return TypedResults.Ok(result);
+    }
+
+
+    private static async Task<IResult> DeleteAsync(
+        Guid id,
+        ClaimsPrincipal principal,
+        IContactMessageService service,
+        IAdminRealtimeNotifier realtimeNotifier,
+        ILoggerFactory loggerFactory,
+        CancellationToken cancellationToken)
+    {
+        var result = await service.DeleteAsync(
+            id,
+            AdminAuditEndpointHelpers.GetActor(principal),
+            cancellationToken);
+        if (result is null)
+        {
+            return TypedResults.NotFound();
+        }
+
+        try
+        {
+            await realtimeNotifier.NotifyContactMessageDeletedAsync(
+                result.Id,
+                result.ReferenceNumber,
+                CancellationToken.None);
+        }
+        catch (Exception exception)
+        {
+            loggerFactory.CreateLogger("AdminDeleteOperations").LogWarning(
+                exception,
+                "Post-commit realtime notification failed for deleted contact message {ContactMessageId}.",
+                result.Id);
+        }
+
         return TypedResults.Ok(result);
     }
 

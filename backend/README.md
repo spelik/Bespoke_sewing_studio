@@ -124,7 +124,7 @@ upload purpose and upload scan status.
 
 Orders and Contact Messages store human-readable request references separately
 from their internal GUID primary keys. Public/customer-facing references use
-`BSS-ORD-YYYY-000001` for orders and `BSS-CON-YYYY-000001` for contact messages.
+`BSS-ORD-YYYY-000001` for orders and `BSS-CON-YYYY-000001` for contact messages. Admin-only delete endpoints are intended for test, spam or obsolete records. Order/contact deletion and the corresponding audit entry are committed in one database transaction. Linked order-file metadata is removed in that transaction; physical files are deleted best-effort after commit. SignalR deletion events are also best-effort after commit and cannot change a successful deletion into an HTTP 500 response.
 
 The domain does not reference EF Core, database attributes, `DbContext`, or a
 storage provider. Email, phone, and money value objects remain a future design
@@ -142,8 +142,8 @@ uploads and notification delivery.
 
 ## Implemented modules
 
-- Orders and client records
-- Contact messages
+- Orders and client records, including Admin-only enquiry deletion for test/obsolete requests
+- Contact messages, including Admin-only message deletion
 - Order attachments and upload cleanup
 - Administrator authentication with Identity/JWT
 - Site Settings
@@ -220,6 +220,14 @@ attempts to delete the physical file from local storage and records an
 returns the updated `OrderResponse` so the admin drawer can refresh without a
 full page reload. Missing physical files are treated as already deleted, while
 file-system delete failures are logged by the upload service for follow-up.
+
+Full order deletion differs from individual attachment deletion: it collects all
+linked storage keys first, removes the order, notes, attachment links, upload
+metadata and `order.deleted` audit entry with one `SaveChanges` inside one
+transaction, then attempts physical cleanup after commit. Contact-message
+deletion similarly commits the message removal and `contact_message.deleted`
+audit entry atomically. Post-commit physical cleanup and SignalR notifications
+are warning-logged best-effort operations.
 
 The repository currently contains migrations for the initial schema, phone-only
 orders, Identity/JWT, Site Settings, contact normalisation, removal of WhatsApp

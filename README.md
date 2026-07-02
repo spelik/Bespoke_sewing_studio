@@ -60,6 +60,7 @@ Current backend status:
 - the admin sidebar exposes only backend-backed Dashboard, Orders, Contact Messages, Services, Portfolio, Content, Repeatable Content, Brand/SEO, Users, My account, Audit Log and Settings modules
 - the Admin Dashboard includes production-readiness checks for contact details, notifications, email delivery, upload security, admin API access and DNS email records
 - admin Orders, Contact Messages, Dashboard counters, sidebar badges and Email Log can refresh through the protected SignalR admin-notifications hub
+- admin Orders and Contact Messages lists use styled filters, fixed-width tables, client-side 25-item pagination and destructive delete confirmation dialogs
 - the Admin **Audit Log** section lists important administrator actions from the protected backend audit log
 - the Admin **Email Log** section lists owner notifications, customer confirmations and test email attempts
 
@@ -110,7 +111,7 @@ npm.cmd run dev -- --host 127.0.0.1
 The backend must be available at the configured `VITE_API_BASE_URL` before an
 Order form submission or admin sign-in. Select up to five files in the public
 Order form across one or multiple selections; after submission, open the enquiry
-in `/admin` to download or delete its protected attachments. Attachment deletion is Admin-only, removes the database link and attempts to remove the physical file from local storage. `backend/storage/` is ignored by Git.
+in `/admin` to download or delete its protected attachments. Attachment deletion is Admin-only, removes the database link and attempts to remove the physical file from local storage. Admins can also delete test/obsolete order enquiries. Full order and contact-message deletion commits the database rows and audit entry in one transaction; order files are cleaned up best-effort only after that commit, so missing or locked physical files do not turn a successful database deletion into a failed API response. `backend/storage/` is ignored by Git.
 
 Public `POST /api/uploads/order-attachments` requests are limited to 10 per 10
 minutes per IP, public `POST /api/orders` requests to 5 per 10 minutes per IP,
@@ -204,6 +205,14 @@ from local storage and records an `order_attachment.deleted` audit log entry.
 No migration is required for this management action because it uses the existing
 upload/order attachment tables.
 
+## Admin list layout
+
+Admin **Orders** and **Contact Messages** use fixed-width table layouts with
+short previews for long fields. Service/subject and message preview columns are
+limited to two lines in the list view so the table does not shift or overflow
+when rows contain long text. Full message/order details remain available by
+opening the drawer.
+
 ## Backup and restore
 
 Operational PostgreSQL and uploads backup/restore procedures are documented in
@@ -271,6 +280,11 @@ Messages, email delivery mode and upload security guidance. When the admin UI is
 open, a protected SignalR/WebSocket connection listens for new Order and Contact
 Message events so Dashboard counters, sidebar badges and visible admin lists can
 refresh without a full browser reload. Manual Refresh buttons remain as a fallback.
+
+Orders and Contact Messages use shared admin UI controls for filter dropdowns,
+search fields, action buttons and table empty/loading states. This keeps the
+core request-management screens visually aligned with Audit Log and Email Log
+without changing backend APIs.
 
 ## Contact messages
 

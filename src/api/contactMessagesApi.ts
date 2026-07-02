@@ -19,6 +19,13 @@ interface CreateContactMessageApiRequest {
   formLoadedAt: string;
 }
 
+export interface DeleteContactMessageResponse {
+  id: string;
+  referenceNumber: string;
+  fullName: string;
+  email: string;
+}
+
 export const CONTACT_MESSAGE_STATUSES: readonly ContactMessageStatus[] = [
   "New",
   "Read",
@@ -46,7 +53,7 @@ export function createContactMessage(
   );
 }
 
-export function getAdminContactMessages(take = 100): Promise<AdminContactMessageListItem[]> {
+export function getAdminContactMessages(take = 200): Promise<AdminContactMessageListItem[]> {
   return apiClient.get<AdminContactMessageListItem[]>(`/admin/contact-messages?take=${take}`);
 }
 
@@ -63,6 +70,12 @@ export function updateAdminContactMessageStatus(
     `/admin/contact-messages/${id}/status`,
     request,
   );
+}
+
+export function deleteAdminContactMessage(
+  id: string,
+): Promise<DeleteContactMessageResponse> {
+  return apiClient.delete<DeleteContactMessageResponse>(`/admin/contact-messages/${id}`);
 }
 
 export function getContactMessageSubmissionErrorMessage(error: unknown): string {

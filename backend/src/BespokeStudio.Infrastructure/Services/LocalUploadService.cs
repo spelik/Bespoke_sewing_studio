@@ -336,6 +336,28 @@ public sealed class LocalUploadService : IUploadService
             physicalFileDeleted);
     }
 
+    public Task DeletePhysicalFilesBestEffortAsync(
+        IReadOnlyCollection<string> storageKeys)
+    {
+        foreach (var storageKey in storageKeys.Distinct(StringComparer.OrdinalIgnoreCase))
+        {
+            try
+            {
+                var physicalPath = UploadStoragePath.ResolveFile(_storageRoot, storageKey);
+                TryDelete(physicalPath);
+            }
+            catch (Exception exception)
+            {
+                _logger.LogWarning(
+                    exception,
+                    "Failed to resolve or delete upload file {StorageKey} during post-commit cleanup.",
+                    storageKey);
+            }
+        }
+
+        return Task.CompletedTask;
+    }
+
     public async Task<UploadMetadataResponse?> GetMetadataAsync(
         Guid uploadedFileId,
         CancellationToken cancellationToken = default)

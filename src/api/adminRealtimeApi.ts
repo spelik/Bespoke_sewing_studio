@@ -8,8 +8,10 @@ export type AdminRealtimeStatus = "connecting" | "connected" | "disconnected";
 export type AdminRealtimeEventType =
   | "OrderCreated"
   | "OrderUpdated"
+  | "OrderDeleted"
   | "ContactMessageCreated"
   | "ContactMessageUpdated"
+  | "ContactMessageDeleted"
   | "EmailDeliveryLogChanged";
 
 export interface AdminRealtimeEvent {

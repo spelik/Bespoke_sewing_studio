@@ -102,6 +102,12 @@ export interface AdminOrderAttachment {
   scannedAt: string | null;
 }
 
+export interface DeleteOrderResponse {
+  id: string;
+  referenceNumber: string;
+  clientName: string;
+}
+
 export interface AdminOrderDetail {
   id: string;
   referenceNumber: string;
@@ -180,8 +186,8 @@ export function getAdminAttachmentFile(uploadedFileId: string): Promise<Blob> {
   return apiClient.getBlob(`/uploads/${uploadedFileId}`);
 }
 
-export function getAdminOrders(): Promise<AdminOrderListItem[]> {
-  return apiClient.get<AdminOrderListItem[]>("/orders");
+export function getAdminOrders(take = 200): Promise<AdminOrderListItem[]> {
+  return apiClient.get<AdminOrderListItem[]>(`/orders?take=${take}`);
 }
 
 export function getAdminOrder(id: string): Promise<AdminOrderDetail> {
@@ -202,6 +208,12 @@ export function addAdminOrderNote(id: string, text: string): Promise<AdminOrderD
   return apiClient.post<{ text: string }, AdminOrderDetail>(`/orders/${id}/notes`, {
     text: text.trim(),
   });
+}
+
+export function deleteAdminOrder(
+  orderId: string,
+): Promise<DeleteOrderResponse> {
+  return apiClient.delete<DeleteOrderResponse>(`/orders/${orderId}`);
 }
 
 export function deleteAdminOrderAttachment(
