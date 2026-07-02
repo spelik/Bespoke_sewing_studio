@@ -37,9 +37,6 @@ public interface IUploadService
         Guid attachmentId,
         CancellationToken cancellationToken = default);
 
-    Task DeletePhysicalFilesBestEffortAsync(
-        IReadOnlyCollection<string> storageKeys);
-
     Task<UploadMetadataResponse?> GetMetadataAsync(
         Guid uploadedFileId,
         CancellationToken cancellationToken = default);

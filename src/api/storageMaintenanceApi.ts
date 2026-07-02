@@ -24,6 +24,28 @@ export interface StorageScanResult {
   scannedAt: string;
   orphanPhysicalFiles: OrphanPhysicalFile[];
   missingPhysicalFiles: MissingPhysicalFile[];
+  cleanupJobs: StorageCleanupJobSummary;
+}
+
+export interface StorageCleanupJobSummary {
+  pendingCount: number;
+  processingCount: number;
+  failedCount: number;
+  succeededCount: number;
+  skippedCount: number;
+  failedJobs: FailedStorageCleanupJob[];
+}
+
+export interface FailedStorageCleanupJob {
+  id: string;
+  storageKey: string;
+  reason: string;
+  attempts: number;
+  maxAttempts: number;
+  lastError: string | null;
+  nextAttemptAt: string | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface StorageCleanupFailure {

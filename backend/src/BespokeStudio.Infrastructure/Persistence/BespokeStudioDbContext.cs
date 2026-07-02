@@ -24,6 +24,7 @@ public sealed class BespokeStudioDbContext(DbContextOptions<BespokeStudioDbConte
     public DbSet<ServicePriceOption> ServicePriceOptions => Set<ServicePriceOption>();
     public DbSet<SiteSettings> SiteSettings => Set<SiteSettings>();
     public DbSet<UploadedFileMetadata> UploadedFiles => Set<UploadedFileMetadata>();
+    public DbSet<UploadFileDeletionJob> UploadFileDeletionJobs => Set<UploadFileDeletionJob>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

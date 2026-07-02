@@ -1,5 +1,6 @@
 using BespokeStudio.Application.Abstractions;
 using BespokeStudio.Application.Contracts.Orders;
+using BespokeStudio.Application.Contracts.Storage;
 using BespokeStudio.Application.Contracts.Uploads;
 using BespokeStudio.Application.Validation;
 using BespokeStudio.Domain.Entities;
@@ -28,6 +29,7 @@ public sealed class LocalUploadService : IUploadService
     private readonly UploadStorageOptions _options;
     private readonly IMalwareScanner _malwareScanner;
     private readonly ILogger<LocalUploadService> _logger;
+    private readonly IUploadFileDeletionScheduler _fileDeletionScheduler;
     private readonly string _storageRoot;
 
     public LocalUploadService(
@@ -35,11 +37,13 @@ public sealed class LocalUploadService : IUploadService
         IOptions<UploadStorageOptions> options,
         IHostEnvironment environment,
         IMalwareScanner malwareScanner,
+        IUploadFileDeletionScheduler fileDeletionScheduler,
         ILogger<LocalUploadService> logger)
     {
         _dbContext = dbContext;
         _options = options.Value;
         _malwareScanner = malwareScanner;
+        _fileDeletionScheduler = fileDeletionScheduler;
         _logger = logger;
         _storageRoot = UploadStoragePath.ResolveRoot(_options, environment);
     }
@@ -295,6 +299,9 @@ public sealed class LocalUploadService : IUploadService
         Guid attachmentId,
         CancellationToken cancellationToken = default)
     {
+        await using var transaction = await _dbContext.Database
+            .BeginTransactionAsync(cancellationToken);
+
         var attachmentData = await (
             from attachment in _dbContext.OrderAttachments
             join file in _dbContext.UploadedFiles on attachment.UploadedFileId equals file.Id
@@ -315,17 +322,25 @@ public sealed class LocalUploadService : IUploadService
             return null;
         }
 
-        var physicalPath = UploadStoragePath.ResolveFile(_storageRoot, attachmentData.File.StorageKey);
         var originalFileName = attachmentData.File.OriginalFileName;
         var uploadedFileId = attachmentData.File.Id;
+
+        await _fileDeletionScheduler.ScheduleAsync(
+            new ScheduleUploadFileDeletionRequest(
+                attachmentData.File.StorageKey,
+                attachmentData.File.OriginalFileName,
+                attachmentData.File.SizeBytes,
+                "OrderAttachment",
+                attachmentId,
+                "order_attachment.deleted"),
+            cancellationToken);
 
         _dbContext.OrderAttachments.Remove(attachmentData.Attachment);
         _dbContext.UploadedFiles.Remove(attachmentData.File);
         attachmentData.Order.UpdatedAt = DateTimeOffset.UtcNow;
 
         await _dbContext.SaveChangesAsync(cancellationToken);
-
-        var physicalFileDeleted = TryDelete(physicalPath);
+        await transaction.CommitAsync(cancellationToken);
 
         return new DeleteOrderAttachmentResult(
             orderId,
@@ -333,29 +348,7 @@ public sealed class LocalUploadService : IUploadService
             attachmentId,
             uploadedFileId,
             originalFileName,
-            physicalFileDeleted);
-    }
-
-    public Task DeletePhysicalFilesBestEffortAsync(
-        IReadOnlyCollection<string> storageKeys)
-    {
-        foreach (var storageKey in storageKeys.Distinct(StringComparer.OrdinalIgnoreCase))
-        {
-            try
-            {
-                var physicalPath = UploadStoragePath.ResolveFile(_storageRoot, storageKey);
-                TryDelete(physicalPath);
-            }
-            catch (Exception exception)
-            {
-                _logger.LogWarning(
-                    exception,
-                    "Failed to resolve or delete upload file {StorageKey} during post-commit cleanup.",
-                    storageKey);
-            }
-        }
-
-        return Task.CompletedTask;
+            PhysicalFileDeletionScheduled: true);
     }
 
     public async Task<UploadMetadataResponse?> GetMetadataAsync(

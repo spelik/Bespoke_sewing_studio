@@ -6,4 +6,4 @@ public sealed record DeleteOrderAttachmentResult(
     Guid AttachmentId,
     Guid UploadedFileId,
     string OriginalFileName,
-    bool PhysicalFileDeleted);
+    bool PhysicalFileDeletionScheduled);

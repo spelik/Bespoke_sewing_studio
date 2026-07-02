@@ -83,7 +83,7 @@ export function AdminStoragePanel({ onUnauthorized }: { onUnauthorized(): void }
               Upload storage health
             </h2>
             <p className="mt-1 max-w-2xl font-sans text-[10px] leading-5 text-muted-foreground">
-              Compare database upload metadata with local physical files. Missing database files are report-only.
+              Normal order-file deletion is automatic through the cleanup queue. Use this page for diagnostics and emergency orphan cleanup.
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -142,9 +142,65 @@ export function AdminStoragePanel({ onUnauthorized }: { onUnauthorized(): void }
         </div>
       ) : null}
 
+      <section className="border border-border bg-card">
+        <div className="border-b border-border p-5">
+          <h2 className="font-serif text-[1.05rem] font-light text-foreground">
+            Automatic cleanup jobs
+          </h2>
+          <p className="mt-1 font-sans text-[10px] text-muted-foreground">
+            The background worker processes queued order-file deletions and retries temporary failures automatically.
+          </p>
+        </div>
+        <div className="grid grid-cols-2 gap-3 p-5 lg:grid-cols-4">
+          {[
+            { label: "Pending", value: scan?.cleanupJobs.pendingCount ?? "—" },
+            { label: "Processing", value: scan?.cleanupJobs.processingCount ?? "—" },
+            { label: "Failed", value: scan?.cleanupJobs.failedCount ?? "—" },
+            {
+              label: "Completed",
+              value: scan
+                ? scan.cleanupJobs.succeededCount + scan.cleanupJobs.skippedCount
+                : "—",
+            },
+          ].map((item) => (
+            <div key={item.label} className="border border-border bg-background p-4">
+              <div className="font-sans text-[9px] uppercase tracking-[0.16em] text-muted-foreground">
+                {item.label}
+              </div>
+              <div className="mt-2 font-serif text-[1.25rem] font-light text-foreground">
+                {item.value}
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <StorageFilesTable
+        title="Failed automatic cleanup jobs"
+        description="Failures remain visible here with safe retry information; the worker retries jobs while attempts remain."
+        isLoading={isScanning && !scan}
+        emptyMessage="No failed automatic cleanup jobs were found."
+        columns={[
+          { label: "Relative path", width: "w-[24%]" },
+          { label: "Reason", width: "w-[16%]" },
+          { label: "Attempts", width: "w-[10%]" },
+          { label: "Last error", width: "w-[24%]" },
+          { label: "Next retry", width: "w-[13%]" },
+          { label: "Updated", width: "w-[13%]" },
+        ]}
+        rows={(scan?.cleanupJobs.failedJobs ?? []).map((job) => [
+          job.storageKey,
+          job.reason,
+          `${job.attempts}/${job.maxAttempts}`,
+          job.lastError ?? "No error detail",
+          job.nextAttemptAt ? formatAdminDate(job.nextAttemptAt) : "No retries left",
+          formatAdminDate(job.updatedAt),
+        ])}
+      />
+
       <StorageFilesTable
         title="Orphan physical files"
-        description="Physical files under the configured upload root with no UploadedFiles metadata row."
+        description="Diagnostic fallback: physical files under the configured upload root with no UploadedFiles metadata row."
         isLoading={isScanning && !scan}
         emptyMessage="No orphan physical files were found."
         columns={[

@@ -24,4 +24,16 @@ internal static class UploadStoragePath
 
         return candidate;
     }
+
+    public static string NormalizeAndValidateStorageKey(string storageRoot, string storageKey)
+    {
+        if (string.IsNullOrWhiteSpace(storageKey) || Path.IsPathRooted(storageKey))
+        {
+            throw new InvalidOperationException("Upload storage key must be a non-empty relative path.");
+        }
+
+        var physicalPath = ResolveFile(storageRoot, storageKey);
+        return Path.GetRelativePath(storageRoot, physicalPath)
+            .Replace(Path.DirectorySeparatorChar, '/');
+    }
 }

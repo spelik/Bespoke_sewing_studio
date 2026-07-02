@@ -51,6 +51,16 @@ public static class DependencyInjection
             .ValidateOnStart();
 
         services
+            .AddOptions<UploadDeletionOptions>()
+            .Bind(configuration.GetSection(UploadDeletionOptions.SectionName))
+            .Validate(options => options.PollIntervalSeconds is >= 5 and <= 3600, "UploadDeletion:PollIntervalSeconds must be between 5 and 3600.")
+            .Validate(options => options.BatchSize is >= 1 and <= 200, "UploadDeletion:BatchSize must be between 1 and 200.")
+            .Validate(options => options.MaxAttempts is >= 1 and <= 20, "UploadDeletion:MaxAttempts must be between 1 and 20.")
+            .Validate(options => options.BaseRetrySeconds is >= 5 and <= 86400, "UploadDeletion:BaseRetrySeconds must be between 5 and 86400.")
+            .Validate(options => options.ProcessingTimeoutMinutes is >= 1 and <= 1440, "UploadDeletion:ProcessingTimeoutMinutes must be between 1 and 1440.")
+            .ValidateOnStart();
+
+        services
             .AddIdentityCore<AdminUser>(options =>
             {
                 options.User.RequireUniqueEmail = true;
@@ -81,6 +91,9 @@ public static class DependencyInjection
         services.AddScoped<IUploadService, LocalUploadService>();
         services.AddScoped<IUploadCleanupService, UploadCleanupService>();
         services.AddScoped<IStorageMaintenanceService, StorageMaintenanceService>();
+        services.AddScoped<IUploadFileDeletionScheduler, UploadFileDeletionScheduler>();
+        services.AddScoped<IUploadFileDeletionProcessor, UploadFileDeletionProcessor>();
+        services.AddHostedService<UploadFileDeletionWorker>();
 
         return services;
     }

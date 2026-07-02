@@ -42,8 +42,9 @@ Current backend status:
 - the public Order form accepts JPG, PNG, WebP and PDF attachments up to 5 MB each
 - attachment metadata, including upload scan status, is stored in PostgreSQL; development files are stored under `backend/storage/uploads`
 - public upload, order creation and Contact form endpoints use configurable per-IP rate limits and lightweight honeypot/timing anti-spam checks
-- administrators can manually remove expired orphan uploads through a protected cleanup endpoint
-- Admin **Storage** compares database upload metadata with local files, reports missing/orphan files and safely deletes unreferenced physical files after confirmation
+- order and attachment deletion schedules DB-backed physical-file cleanup jobs; a hosted worker processes them automatically with retry/backoff
+- administrators can manually remove expired orphan uploads through a protected fallback cleanup endpoint
+- Admin **Storage** shows automatic cleanup job health, compares database metadata with local files and provides diagnostic orphan cleanup
 - public contact, social and footer settings load from `GET /api/site-settings/public`
 - the Admin **Settings** section edits public contact and notification settings
 - the Admin **Contact Messages** section lists Contact form messages and manages their workflow status
@@ -112,7 +113,7 @@ npm.cmd run dev -- --host 127.0.0.1
 The backend must be available at the configured `VITE_API_BASE_URL` before an
 Order form submission or admin sign-in. Select up to five files in the public
 Order form across one or multiple selections; after submission, open the enquiry
-in `/admin` to download or delete its protected attachments. Attachment deletion is Admin-only, removes the database link and attempts to remove the physical file from local storage. Admins can also delete test/obsolete order enquiries. Full order and contact-message deletion commits the database rows and audit entry in one transaction; order files are cleaned up best-effort only after that commit, so missing or locked physical files do not turn a successful database deletion into a failed API response. `backend/storage/` is ignored by Git.
+in `/admin` to download or delete its protected attachments. Attachment deletion is Admin-only: the database link, metadata and a safe relative-path deletion job are committed together, then a hosted worker removes the physical file independently. Full order deletion queues one job per attachment in the same transaction as the order, notes, metadata and audit deletion. Filesystem failures therefore cannot turn a successful delete request into HTTP 500. `backend/storage/` is ignored by Git.
 
 Public `POST /api/uploads/order-attachments` requests are limited to 10 per 10
 minutes per IP, public `POST /api/orders` requests to 5 per 10 minutes per IP,
@@ -125,7 +126,8 @@ records are saved.
 An upload that is not linked to an order and is older than the configured
 `UploadStorage:OrphanCleanupAgeMinutes` TTL (120 minutes by default) can be
 removed by an administrator through `POST /api/uploads/cleanup-orphans` using
-an Admin JWT. Cleanup is manual at this stage. Local uploads are written to a
+an Admin JWT. This manual cleanup is a diagnostic/emergency fallback; ordinary
+order-file deletion is automatic through the DB-backed deletion queue. Local uploads are written to a
 quarantine folder first, validated by file signature, optionally scanned through
 configured ClamAV/command-line malware scanning, and moved to final storage only
 when accepted. The default development scanner provider is `Disabled`; production
@@ -201,10 +203,10 @@ Passwords or JWT tokens.
 In Admin **Orders**, open an enquiry drawer to review attachments. Administrators
 can download a protected attachment or delete it after a styled confirmation
 dialog. Deleting an attachment removes the `OrderAttachments` link, removes the
-corresponding `UploadedFiles` metadata row, attempts to delete the physical file
-from local storage and records an `order_attachment.deleted` audit log entry.
-No migration is required for this management action because it uses the existing
-upload/order attachment tables.
+corresponding `UploadedFiles` metadata row, schedules a physical-file deletion
+job in the same transaction and records an `order_attachment.deleted` audit log
+entry. The background worker treats missing files as completed and retries safe
+filesystem failures with backoff.
 
 ## Admin list layout
 

@@ -124,7 +124,7 @@ upload purpose and upload scan status.
 
 Orders and Contact Messages store human-readable request references separately
 from their internal GUID primary keys. Public/customer-facing references use
-`BSS-ORD-YYYY-000001` for orders and `BSS-CON-YYYY-000001` for contact messages. Admin-only delete endpoints are intended for test, spam or obsolete records. Order/contact deletion and the corresponding audit entry are committed in one database transaction. Linked order-file metadata is removed in that transaction; physical files are deleted best-effort after commit. SignalR deletion events are also best-effort after commit and cannot change a successful deletion into an HTTP 500 response.
+`BSS-ORD-YYYY-000001` for orders and `BSS-CON-YYYY-000001` for contact messages. Admin-only delete endpoints are intended for test, spam or obsolete records. Order/contact deletion and the corresponding audit entry are committed in one database transaction. Linked order-file metadata and one `UploadFileDeletionJobs` row per attachment are committed together; a hosted worker removes physical files later. SignalR deletion events remain best-effort after commit.
 
 The domain does not reference EF Core, database attributes, `DbContext`, or a
 storage provider. Email, phone, and money value objects remain a future design
@@ -214,20 +214,18 @@ dotnet ef database update --project backend/src/BespokeStudio.Infrastructure --s
 
 
 Deleting a linked order attachment removes the `OrderAttachments` link, deletes
-the associated `UploadedFiles` metadata row, updates the order timestamp,
-attempts to delete the physical file from local storage and records an
-`order_attachment.deleted` audit entry from the API endpoint. The endpoint
+the associated `UploadedFiles` metadata row, updates the order timestamp and
+adds a safe relative-path deletion job in the same transaction. The endpoint
+records an `order_attachment.deleted` audit entry and
 returns the updated `OrderResponse` so the admin drawer can refresh without a
-full page reload. Missing physical files are treated as already deleted, while
-file-system delete failures are logged by the upload service for follow-up.
+full page reload. API success never depends on immediate filesystem deletion.
 
 Full order deletion differs from individual attachment deletion: it collects all
 linked storage keys first, removes the order, notes, attachment links, upload
-metadata and `order.deleted` audit entry with one `SaveChanges` inside one
-transaction, then attempts physical cleanup after commit. Contact-message
+metadata, deletion jobs and `order.deleted` audit entry with one `SaveChanges`
+inside one transaction. Contact-message
 deletion similarly commits the message removal and `contact_message.deleted`
-audit entry atomically. Post-commit physical cleanup and SignalR notifications
-are warning-logged best-effort operations.
+audit entry atomically. SignalR notifications are warning-logged best-effort operations.
 
 The repository currently contains migrations for the initial schema, phone-only
 orders, Identity/JWT, Site Settings, contact normalisation, removal of WhatsApp
@@ -573,9 +571,28 @@ Invoke-RestMethod http://localhost:5099/api/uploads/cleanup-orphans `
 
 The response reports scanned candidates, deleted metadata, deleted physical
 files, missing physical files, and skipped candidates. The endpoint returns
-`401/403` without a valid Admin JWT. There is no scheduled background cleanup
-yet. Production object storage, deep content inspection and image processing are
+`401/403` without a valid Admin JWT. This endpoint handles old unlinked metadata
+as a manual fallback; it is separate from automatic deletion jobs. There is no
+scheduled full storage reconciliation yet. Production object storage, deep content inspection and image processing are
 outside the current local-storage implementation.
+
+### Automatic upload deletion outbox
+
+Migration `AddUploadFileDeletionOutbox` adds `UploadFileDeletionJobs`. Order and
+single-attachment deletion store only validated relative storage keys and create
+jobs inside the same database transaction that removes attachment metadata.
+No absolute filesystem path is stored or returned.
+
+`UploadFileDeletionWorker` creates a DI scope every cycle, atomically claims due
+Pending/Failed jobs, marks them Processing and deletes only paths verified under
+the configured upload root. Missing files become Skipped; successful deletions
+become Succeeded. Failures store a generic safe error, increment Attempts and
+use exponential retry backoff up to `MaxAttempts`. Interrupted Processing jobs
+are recovered after the configured timeout. Automatic successes use structured
+server logging rather than noisy per-file Admin Audit Log records.
+
+Configuration is under `UploadDeletion`: `PollIntervalSeconds`, `BatchSize`,
+`MaxAttempts`, `BaseRetrySeconds` and `ProcessingTimeoutMinutes`.
 
 ### Admin storage maintenance
 
@@ -594,7 +611,9 @@ files encountered during cleanup are treated as already cleaned. Database rows
 whose physical files are missing are report-only and are never automatically
 removed by this endpoint. Every cleanup writes audit action
 `storage.orphan_cleanup` with deleted/skipped/failed totals and deleted bytes.
-Cleanup remains a manual admin operation; there is no scheduled background job.
+Manual orphan cleanup remains a diagnostic/emergency operation. Normal order-file
+cleanup is automatic; the page also shows Pending, Processing, Failed and
+completed deletion-job counts plus safe failed-job retry details.
 
 ## Site Settings API
 

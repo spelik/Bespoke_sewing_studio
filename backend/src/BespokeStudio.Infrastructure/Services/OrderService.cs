@@ -2,20 +2,19 @@ using BespokeStudio.Application.Abstractions;
 using BespokeStudio.Application.Contracts.AdminAuditLog;
 using BespokeStudio.Application.Contracts.Clients;
 using BespokeStudio.Application.Contracts.Orders;
+using BespokeStudio.Application.Contracts.Storage;
 using BespokeStudio.Application.Validation;
 using BespokeStudio.Domain.Entities;
 using BespokeStudio.Domain.Enums;
 using BespokeStudio.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
 
 namespace BespokeStudio.Infrastructure.Services;
 
 public sealed class OrderService(
     BespokeStudioDbContext dbContext,
     IAdminAuditLogService auditLogService,
-    IUploadService uploadService,
-    ILogger<OrderService> logger) : IOrderService
+    IUploadFileDeletionScheduler fileDeletionScheduler) : IOrderService
 {
     public async Task<OrderResponse> CreateAsync(
         CreateOrderRequest request,
@@ -323,15 +322,23 @@ public sealed class OrderService(
             .Where(note => note.OrderId == orderId)
             .ToArrayAsync(cancellationToken);
 
-        var storageKeys = attachmentData
-            .Select(item => item.File.StorageKey)
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToArray();
-
         var result = new DeleteOrderResult(
             orderData.Order.Id,
             orderData.Order.ReferenceNumber,
             orderData.ClientName);
+
+        foreach (var item in attachmentData)
+        {
+            await fileDeletionScheduler.ScheduleAsync(
+                new ScheduleUploadFileDeletionRequest(
+                    item.File.StorageKey,
+                    item.File.OriginalFileName,
+                    item.File.SizeBytes,
+                    "Order",
+                    orderId,
+                    "order.deleted"),
+                cancellationToken);
+        }
 
         dbContext.OrderAttachments.RemoveRange(attachmentData.Select(item => item.Attachment));
         dbContext.UploadedFiles.RemoveRange(attachmentData.Select(item => item.File));
@@ -349,18 +356,6 @@ public sealed class OrderService(
 
         await dbContext.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
-
-        try
-        {
-            await uploadService.DeletePhysicalFilesBestEffortAsync(storageKeys);
-        }
-        catch (Exception exception)
-        {
-            logger.LogWarning(
-                exception,
-                "Post-commit physical cleanup failed for deleted order {OrderId}.",
-                orderId);
-        }
 
         return result;
     }

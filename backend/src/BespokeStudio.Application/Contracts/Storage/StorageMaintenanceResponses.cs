@@ -9,7 +9,27 @@ public sealed record StorageScanResponse(
     int MissingPhysicalFileCount,
     DateTimeOffset ScannedAt,
     IReadOnlyList<OrphanPhysicalFileResponse> OrphanPhysicalFiles,
-    IReadOnlyList<MissingPhysicalFileResponse> MissingPhysicalFiles);
+    IReadOnlyList<MissingPhysicalFileResponse> MissingPhysicalFiles,
+    StorageCleanupJobSummaryResponse CleanupJobs);
+
+public sealed record StorageCleanupJobSummaryResponse(
+    int PendingCount,
+    int ProcessingCount,
+    int FailedCount,
+    int SucceededCount,
+    int SkippedCount,
+    IReadOnlyList<FailedStorageCleanupJobResponse> FailedJobs);
+
+public sealed record FailedStorageCleanupJobResponse(
+    Guid Id,
+    string StorageKey,
+    string Reason,
+    int Attempts,
+    int MaxAttempts,
+    string? LastError,
+    DateTimeOffset? NextAttemptAt,
+    DateTimeOffset CreatedAt,
+    DateTimeOffset UpdatedAt);
 
 public sealed record OrphanPhysicalFileResponse(
     string RelativePath,

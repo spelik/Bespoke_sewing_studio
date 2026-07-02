@@ -1,6 +1,7 @@
 using BespokeStudio.Application.Abstractions;
 using BespokeStudio.Application.Contracts.AdminAuditLog;
 using BespokeStudio.Application.Contracts.Storage;
+using BespokeStudio.Domain.Enums;
 using BespokeStudio.Infrastructure.Persistence;
 using BespokeStudio.Infrastructure.Storage;
 using Microsoft.EntityFrameworkCore;
@@ -64,6 +65,27 @@ public sealed class StorageMaintenanceService : IStorageMaintenanceService
         var relatedInfo = await LoadRelatedInfoAsync(
             missingFiles.Select(file => file.Id).ToArray(),
             cancellationToken);
+        var jobCounts = await _dbContext.UploadFileDeletionJobs
+            .AsNoTracking()
+            .GroupBy(job => job.Status)
+            .Select(group => new { Status = group.Key, Count = group.Count() })
+            .ToDictionaryAsync(item => item.Status, item => item.Count, cancellationToken);
+        var failedJobs = await _dbContext.UploadFileDeletionJobs
+            .AsNoTracking()
+            .Where(job => job.Status == UploadFileDeletionJobStatus.Failed)
+            .OrderByDescending(job => job.UpdatedAt)
+            .Take(MaxListedItems)
+            .Select(job => new FailedStorageCleanupJobResponse(
+                job.Id,
+                job.StorageKey,
+                job.Reason,
+                job.Attempts,
+                job.MaxAttempts,
+                job.LastError,
+                job.NextAttemptAt,
+                job.CreatedAt,
+                job.UpdatedAt))
+            .ToArrayAsync(cancellationToken);
 
         return new StorageScanResponse(
             DatabaseFileCount: databaseFiles.Length,
@@ -88,7 +110,14 @@ public sealed class StorageMaintenanceService : IStorageMaintenanceService
                     GetSafeDisplayStorageKey(file.Id, file.StorageKey),
                     file.Purpose,
                     relatedInfo.GetValueOrDefault(file.Id)))
-                .ToArray());
+                .ToArray(),
+            CleanupJobs: new StorageCleanupJobSummaryResponse(
+                PendingCount: GetJobCount(jobCounts, UploadFileDeletionJobStatus.Pending),
+                ProcessingCount: GetJobCount(jobCounts, UploadFileDeletionJobStatus.Processing),
+                FailedCount: GetJobCount(jobCounts, UploadFileDeletionJobStatus.Failed),
+                SucceededCount: GetJobCount(jobCounts, UploadFileDeletionJobStatus.Succeeded),
+                SkippedCount: GetJobCount(jobCounts, UploadFileDeletionJobStatus.Skipped),
+                FailedJobs: failedJobs));
     }
 
     public async Task<StorageCleanupResponse> DeleteOrphansAsync(
@@ -315,6 +344,11 @@ public sealed class StorageMaintenanceService : IStorageMaintenanceService
 
     private static string NormalizeStorageKey(string storageKey) =>
         storageKey.Replace('\\', '/');
+
+    private static int GetJobCount(
+        IReadOnlyDictionary<UploadFileDeletionJobStatus, int> counts,
+        UploadFileDeletionJobStatus status) =>
+        counts.GetValueOrDefault(status);
 
     private sealed record DatabaseFileSnapshot(
         Guid Id,

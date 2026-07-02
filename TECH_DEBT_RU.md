@@ -490,6 +490,15 @@ Migration не нужна: это frontend-only UI polish.
 - Cleanup требует confirmation dialog и записывает `storage.orphan_cleanup` в Audit Log.
 - Migration не требуется. Остаются ручной запуск cleanup, отсутствие scheduled background maintenance и отсутствие автоматического исправления missing metadata/production object storage reconciliation.
 
+## Task 57 — Upload deletion outbox / automatic background cleanup — Done
+
+- Добавлена таблица `UploadFileDeletionJobs` и migration `AddUploadFileDeletionOutbox`.
+- Удаление одного OrderAttachment и целого Order создаёт deletion jobs в той же DB-транзакции, где удаляются links/metadata; delete API больше не выполняет физическое удаление.
+- Hosted `UploadFileDeletionWorker` автоматически обрабатывает due jobs, безопасно проверяет relative storage path, считает attempts и применяет exponential retry/backoff.
+- Missing physical file завершается как `Skipped`; ошибки сохраняют только безопасный текст без absolute server path.
+- Admin → Storage показывает Pending/Processing/Failed/completed counts и таблицу failed jobs. Ручной orphan cleanup остаётся диагностическим fallback.
+- Остаются ограничения: filesystem не участвует в distributed transaction с PostgreSQL, scheduled full reconciliation отсутствует, production object storage adapter ещё не реализован.
+
 ## Task 47.4 — Admin table width correction
 
 - Убраны чрезмерные `min-width` значения, из-за которых Orders/Contact Messages могли вылезать вправо за экран.
