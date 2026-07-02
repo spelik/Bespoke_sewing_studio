@@ -577,6 +577,25 @@ files, missing physical files, and skipped candidates. The endpoint returns
 yet. Production object storage, deep content inspection and image processing are
 outside the current local-storage implementation.
 
+### Admin storage maintenance
+
+Admin → Storage uses protected `GET /api/admin/storage/scan` to compare all
+`UploadedFiles` metadata rows with files under the configured local upload root.
+The response contains full summary counts and sizes plus limited lists of orphan
+physical files and missing physical files. API responses expose only safe
+relative storage keys, never absolute server paths. Related Order, Portfolio,
+Content or Site Settings information is included for missing files when available.
+
+Protected `POST /api/admin/storage/delete-orphans` re-scans current physical
+files and rechecks database references before every deletion. It accepts no file
+path from the client, skips reparse-point entries, normalises every candidate
+through the configured upload root and cannot delete outside that root. Missing
+files encountered during cleanup are treated as already cleaned. Database rows
+whose physical files are missing are report-only and are never automatically
+removed by this endpoint. Every cleanup writes audit action
+`storage.orphan_cleanup` with deleted/skipped/failed totals and deleted bytes.
+Cleanup remains a manual admin operation; there is no scheduled background job.
+
 ## Site Settings API
 
 Site settings use one strongly typed singleton row rather than a generic

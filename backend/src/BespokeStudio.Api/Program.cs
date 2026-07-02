@@ -227,6 +227,7 @@ app.MapContactMessageEndpoints();
 app.MapAuthEndpoints();
 app.MapAdminUserEndpoints();
 app.MapAdminAuditLogEndpoints();
+app.MapStorageMaintenanceEndpoints();
 app.MapSiteSettingsEndpoints();
 app.MapNotificationEndpoints();
 app.MapEmailDeliverySettingsEndpoints();

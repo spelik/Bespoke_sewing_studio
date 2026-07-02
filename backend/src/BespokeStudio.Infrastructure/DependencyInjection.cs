@@ -80,6 +80,7 @@ public static class DependencyInjection
         services.AddScoped<IMalwareScanner, ConfiguredMalwareScanner>();
         services.AddScoped<IUploadService, LocalUploadService>();
         services.AddScoped<IUploadCleanupService, UploadCleanupService>();
+        services.AddScoped<IStorageMaintenanceService, StorageMaintenanceService>();
 
         return services;
     }

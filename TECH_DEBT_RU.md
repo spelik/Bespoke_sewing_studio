@@ -481,6 +481,15 @@ Services/Portfolio/Content формы и единый стиль внутрен�
 
 Migration не нужна: это frontend-only UI polish.
 
+## Task 48 — Upload orphan cleanup / storage maintenance — Done
+
+- Добавлен защищённый Admin → Storage (`/admin#storage`) с сохранением секции после F5.
+- `GET /api/admin/storage/scan` сверяет `UploadedFiles` с физическими файлами локального upload root и показывает DB/physical counts, общий размер, orphan physical files и missing physical files.
+- `POST /api/admin/storage/delete-orphans` не принимает пути от клиента, повторно проверяет DB-ссылки и удаляет только файлы внутри настроенного upload root.
+- Absolute server paths не возвращаются; missing DB files остаются report-only.
+- Cleanup требует confirmation dialog и записывает `storage.orphan_cleanup` в Audit Log.
+- Migration не требуется. Остаются ручной запуск cleanup, отсутствие scheduled background maintenance и отсутствие автоматического исправления missing metadata/production object storage reconciliation.
+
 ## Task 47.4 — Admin table width correction
 
 - Убраны чрезмерные `min-width` значения, из-за которых Orders/Contact Messages могли вылезать вправо за экран.

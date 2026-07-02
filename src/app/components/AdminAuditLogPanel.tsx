@@ -42,6 +42,7 @@ const KNOWN_AUDIT_ACTIONS = [
   "site_settings.updated",
   "email_delivery_settings.updated",
   "brand_settings.updated",
+  "storage.orphan_cleanup",
 ] as const;
 
 const KNOWN_ENTITY_TYPES = [
@@ -51,6 +52,7 @@ const KNOWN_ENTITY_TYPES = [
   "SiteSettings",
   "EmailDeliverySettings",
   "BrandSettings",
+  "Storage",
 ] as const;
 
 type AuditFilterDropdownId = "action" | "entityType" | "take";

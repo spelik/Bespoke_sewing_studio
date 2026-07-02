@@ -43,6 +43,7 @@ Current backend status:
 - attachment metadata, including upload scan status, is stored in PostgreSQL; development files are stored under `backend/storage/uploads`
 - public upload, order creation and Contact form endpoints use configurable per-IP rate limits and lightweight honeypot/timing anti-spam checks
 - administrators can manually remove expired orphan uploads through a protected cleanup endpoint
+- Admin **Storage** compares database upload metadata with local files, reports missing/orphan files and safely deletes unreferenced physical files after confirmation
 - public contact, social and footer settings load from `GET /api/site-settings/public`
 - the Admin **Settings** section edits public contact and notification settings
 - the Admin **Contact Messages** section lists Contact form messages and manages their workflow status
@@ -57,7 +58,7 @@ Current backend status:
 - public routes update route-specific SEO metadata, canonical links, Open Graph/Twitter card tags and Home JSON-LD from frontend route state plus Brand/SEO settings
 - the public Order form submits a dynamic `serviceOfferingId` while preserving legacy enum compatibility
 - admin login, Orders list/detail/status/notes and Contact Messages list/detail/status use protected backend endpoints
-- the admin sidebar exposes only backend-backed Dashboard, Orders, Contact Messages, Services, Portfolio, Content, Repeatable Content, Brand/SEO, Users, My account, Audit Log and Settings modules
+- the admin sidebar exposes only backend-backed Dashboard, Orders, Contact Messages, Services, Portfolio, Content, Repeatable Content, Brand/SEO, Users, My account, Audit Log, Email Log, Storage and Settings modules
 - the Admin Dashboard includes production-readiness checks for contact details, notifications, email delivery, upload security, admin API access and DNS email records
 - admin Orders, Contact Messages, Dashboard counters, sidebar badges and Email Log can refresh through the protected SignalR admin-notifications hub
 - admin Orders and Contact Messages lists use styled filters, fixed-width tables, client-side 25-item pagination and destructive delete confirmation dialogs

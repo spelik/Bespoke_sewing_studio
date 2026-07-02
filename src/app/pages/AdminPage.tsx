@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Download,
   FileText,
+  HardDrive,
   History,
   Images,
   LayoutDashboard,
@@ -51,6 +52,7 @@ import { AdminPortfolioPanel } from "../components/AdminPortfolioPanel";
 import { AdminRepeatableContentPanel } from "../components/AdminRepeatableContentPanel";
 import { AdminServicesPanel } from "../components/AdminServicesPanel";
 import { AdminSettingsPanel } from "../components/AdminSettingsPanel";
+import { AdminStoragePanel } from "../components/AdminStoragePanel";
 import { AdminUsersPanel } from "../components/AdminUsersPanel";
 import {
   ADMIN_STATUS_LABELS,
@@ -79,6 +81,7 @@ type AdminSection =
   | "account"
   | "auditLog"
   | "emailLog"
+  | "storage"
   | "settings";
 
 interface AttentionCounts {
@@ -109,6 +112,7 @@ const NAV_ITEMS: ReadonlyArray<{
   { id: "account", label: "My account", icon: UserCircle },
   { id: "auditLog", label: "Audit Log", icon: History },
   { id: "emailLog", label: "Email Log", icon: Mail },
+  { id: "storage", label: "Storage", icon: HardDrive },
   { id: "settings", label: "Settings", icon: Settings },
 ];
 
@@ -125,6 +129,7 @@ const ADMIN_SECTION_HASHES: Record<AdminSection, string> = {
   account: "my-account",
   auditLog: "audit-log",
   emailLog: "email-log",
+  storage: "storage",
   settings: "settings",
 };
 
@@ -596,6 +601,9 @@ export function AdminPage() {
               onUnauthorized={logout}
               realtimeRefreshKey={emailLogRefreshKey}
             />
+          ) : null}
+          {section === "storage" ? (
+            <AdminStoragePanel onUnauthorized={logout} />
           ) : null}
           {section === "settings" ? (
             <AdminSettingsPanel onUnauthorized={logout} />
