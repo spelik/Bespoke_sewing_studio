@@ -1,4 +1,5 @@
 using System.IdentityModel.Tokens.Jwt;
+using System.Net;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
@@ -250,6 +251,134 @@ public sealed class JwtAuthService(
         return activeTokens.Count;
     }
 
+    public async Task<IReadOnlyList<AdminSessionResponse>> GetSessionsAsync(
+        Guid userId,
+        string? currentRefreshToken,
+        CancellationToken cancellationToken)
+    {
+        var tokens = await dbContext.AdminRefreshTokens
+            .AsNoTracking()
+            .Where(token => token.UserId == userId)
+            .OrderByDescending(token => token.CreatedAtUtc)
+            .ToListAsync(cancellationToken);
+        var currentTokenId = FindCurrentTokenId(tokens, currentRefreshToken);
+        var now = DateTimeOffset.UtcNow;
+
+        return tokens
+            .GroupBy(token => token.TokenFamilyId)
+            .Select(family =>
+            {
+                var latest = family.OrderByDescending(token => token.CreatedAtUtc).First();
+                var isCurrent = currentTokenId.HasValue && family.Any(token => token.Id == currentTokenId.Value);
+                var isRevoked = latest.RevokedAtUtc.HasValue;
+                var isExpired = latest.ExpiresAtUtc <= now;
+                var status = isCurrent && !isRevoked && !isExpired
+                    ? "Current"
+                    : isRevoked
+                        ? "Revoked"
+                        : isExpired
+                            ? "Expired"
+                            : "Active";
+
+                return new AdminSessionResponse(
+                    latest.Id,
+                    family.Min(token => token.CreatedAtUtc),
+                    latest.ExpiresAtUtc,
+                    family.Max(token => token.LastUsedAtUtc),
+                    latest.RevokedAtUtc,
+                    isCurrent,
+                    isRevoked,
+                    SanitizeForDisplay(latest.UserAgent, 180),
+                    MaskIpAddress(latest.CreatedByIp),
+                    SanitizeForDisplay(latest.RevocationReason, 100),
+                    status);
+            })
+            .OrderByDescending(session => session.IsCurrent)
+            .ThenBy(session => session.Status is "Active" ? 0 : 1)
+            .ThenByDescending(session => session.CreatedAtUtc)
+            .ToArray();
+    }
+
+    public async Task<AdminSessionRevocationResult?> RevokeSessionAsync(
+        Guid userId,
+        Guid sessionId,
+        string? currentRefreshToken,
+        AdminAuditActor actor,
+        string? ipAddress,
+        CancellationToken cancellationToken)
+    {
+        var token = await dbContext.AdminRefreshTokens
+            .SingleOrDefaultAsync(
+                candidate => candidate.Id == sessionId && candidate.UserId == userId,
+                cancellationToken);
+        if (token is null)
+        {
+            return null;
+        }
+
+        var currentTokenId = await FindCurrentTokenIdAsync(userId, currentRefreshToken, cancellationToken);
+        var isCurrent = currentTokenId == token.Id;
+        var now = DateTimeOffset.UtcNow;
+        var revoked = !token.RevokedAtUtc.HasValue && token.ExpiresAtUtc > now;
+        if (revoked)
+        {
+            token.RevokedAtUtc = now;
+            token.RevokedByIp = Trim(ipAddress, 64);
+            token.RevocationReason = "session_revoked";
+            auditLogService.AddPending(new AdminAuditLogWriteRequest(
+                actor.UserId,
+                actor.Email,
+                "auth.session_revoked",
+                "AdminSession",
+                token.Id.ToString(),
+                isCurrent ? "Current session" : "Admin session",
+                $"An admin session was revoked; current session: {isCurrent}."));
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+
+        return new AdminSessionRevocationResult(token.Id, revoked, isCurrent);
+    }
+
+    public async Task<AdminOtherSessionsRevocationResult?> RevokeOtherSessionsAsync(
+        Guid userId,
+        string? currentRefreshToken,
+        AdminAuditActor actor,
+        string? ipAddress,
+        CancellationToken cancellationToken)
+    {
+        var currentTokenId = await FindCurrentTokenIdAsync(userId, currentRefreshToken, cancellationToken);
+        if (!currentTokenId.HasValue)
+        {
+            return null;
+        }
+
+        var now = DateTimeOffset.UtcNow;
+        var otherTokens = await dbContext.AdminRefreshTokens
+            .Where(token =>
+                token.UserId == userId &&
+                token.Id != currentTokenId.Value &&
+                token.RevokedAtUtc == null &&
+                token.ExpiresAtUtc > now)
+            .ToListAsync(cancellationToken);
+        foreach (var token in otherTokens)
+        {
+            token.RevokedAtUtc = now;
+            token.RevokedByIp = Trim(ipAddress, 64);
+            token.RevocationReason = "other_sessions_revoked";
+        }
+
+        auditLogService.AddPending(new AdminAuditLogWriteRequest(
+            actor.UserId,
+            actor.Email,
+            "auth.other_sessions_revoked",
+            "AdminUser",
+            userId.ToString(),
+            actor.Email,
+            $"Other active admin sessions were revoked; count: {otherTokens.Count}."));
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return new AdminOtherSessionsRevocationResult(otherTokens.Count);
+    }
+
     private AuthTokenResponse CreateAccessToken(AdminUser user, string[] roles, string fallbackEmail)
     {
         var expiresAt = DateTimeOffset.UtcNow.AddMinutes(_jwtSettings.AccessTokenMinutes);
@@ -321,6 +450,64 @@ public sealed class JwtAuthService(
 
     private static string HashRefreshToken(string token) =>
         Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(token)));
+
+    private async Task<Guid?> FindCurrentTokenIdAsync(
+        Guid userId,
+        string? currentRefreshToken,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(currentRefreshToken))
+        {
+            return null;
+        }
+
+        var tokenHash = HashRefreshToken(currentRefreshToken);
+        return await dbContext.AdminRefreshTokens
+            .Where(token => token.UserId == userId && token.TokenHash == tokenHash)
+            .Select(token => (Guid?)token.Id)
+            .SingleOrDefaultAsync(cancellationToken);
+    }
+
+    private static Guid? FindCurrentTokenId(
+        IReadOnlyCollection<AdminRefreshToken> tokens,
+        string? currentRefreshToken)
+    {
+        if (string.IsNullOrWhiteSpace(currentRefreshToken))
+        {
+            return null;
+        }
+
+        var tokenHash = HashRefreshToken(currentRefreshToken);
+        return tokens.FirstOrDefault(token => token.TokenHash == tokenHash)?.Id;
+    }
+
+    private static string? SanitizeForDisplay(string? value, int maxLength)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return null;
+        }
+
+        var sanitized = new string(value.Trim().Where(character => !char.IsControl(character)).ToArray());
+        return sanitized[..Math.Min(sanitized.Length, maxLength)];
+    }
+
+    private static string? MaskIpAddress(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value) || !IPAddress.TryParse(value, out var address))
+        {
+            return null;
+        }
+
+        if (address.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)
+        {
+            var bytes = address.GetAddressBytes();
+            return $"{bytes[0]}.{bytes[1]}.{bytes[2]}.xxx";
+        }
+
+        var segments = address.ToString().Split(':', StringSplitOptions.RemoveEmptyEntries);
+        return segments.Length == 0 ? null : $"{string.Join(':', segments.Take(4))}:*";
+    }
 
     private static string? Trim(string? value, int maxLength) =>
         string.IsNullOrWhiteSpace(value) ? null : value.Trim()[..Math.Min(value.Trim().Length, maxLength)];

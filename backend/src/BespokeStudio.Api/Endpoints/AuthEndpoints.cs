@@ -6,6 +6,7 @@ using BespokeStudio.Application.Security;
 using BespokeStudio.Application.Validation;
 using BespokeStudio.Api.Configuration;
 using Microsoft.Extensions.Options;
+using BespokeStudio.Application.Contracts.AdminAuditLog;
 
 namespace BespokeStudio.Api.Endpoints;
 
@@ -44,6 +45,29 @@ public static class AuthEndpoints
             .WithName("ChangeOwnAdminPassword")
             .Produces<CurrentUserResponse>()
             .ProducesValidationProblem()
+            .Produces(StatusCodes.Status401Unauthorized)
+            .Produces(StatusCodes.Status403Forbidden);
+
+        auth.MapGet("/sessions", GetSessionsAsync)
+            .RequireAuthorization(AdminAccess.PolicyName)
+            .WithName("GetAdminSessions")
+            .Produces<IReadOnlyList<AdminSessionResponse>>()
+            .Produces(StatusCodes.Status401Unauthorized)
+            .Produces(StatusCodes.Status403Forbidden);
+
+        auth.MapPost("/sessions/{id:guid}/revoke", RevokeSessionAsync)
+            .RequireAuthorization(AdminAccess.PolicyName)
+            .WithName("RevokeAdminSession")
+            .Produces<AdminSessionRevocationResult>()
+            .Produces(StatusCodes.Status404NotFound)
+            .Produces(StatusCodes.Status401Unauthorized)
+            .Produces(StatusCodes.Status403Forbidden);
+
+        auth.MapPost("/sessions/revoke-others", RevokeOtherSessionsAsync)
+            .RequireAuthorization(AdminAccess.PolicyName)
+            .WithName("RevokeOtherAdminSessions")
+            .Produces<AdminOtherSessionsRevocationResult>()
+            .ProducesProblem(StatusCodes.Status400BadRequest)
             .Produces(StatusCodes.Status401Unauthorized)
             .Produces(StatusCodes.Status403Forbidden);
 
@@ -173,6 +197,100 @@ public static class AuthEndpoints
 
         return new CurrentUserResponse(id, email, roles);
     }
+
+    private static async Task<IResult> GetSessionsAsync(
+        ClaimsPrincipal principal,
+        HttpContext httpContext,
+        IAuthService authService,
+        IOptions<RefreshTokenSettings> refreshTokenSettings,
+        CancellationToken cancellationToken)
+    {
+        var currentUserId = GetCurrentUserId(principal);
+        if (!currentUserId.HasValue)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        httpContext.Request.Cookies.TryGetValue(
+            refreshTokenSettings.Value.CookieName,
+            out var currentRefreshToken);
+        var sessions = await authService.GetSessionsAsync(
+            currentUserId.Value,
+            currentRefreshToken,
+            cancellationToken);
+        return TypedResults.Ok(sessions);
+    }
+
+    private static async Task<IResult> RevokeSessionAsync(
+        Guid id,
+        ClaimsPrincipal principal,
+        HttpContext httpContext,
+        IAuthService authService,
+        IOptions<RefreshTokenSettings> refreshTokenSettings,
+        CancellationToken cancellationToken)
+    {
+        var currentUserId = GetCurrentUserId(principal);
+        if (!currentUserId.HasValue)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        var settings = refreshTokenSettings.Value;
+        httpContext.Request.Cookies.TryGetValue(settings.CookieName, out var currentRefreshToken);
+        var result = await authService.RevokeSessionAsync(
+            currentUserId.Value,
+            id,
+            currentRefreshToken,
+            GetAuditActor(principal),
+            GetIpAddress(httpContext),
+            cancellationToken);
+        if (result is null)
+        {
+            return TypedResults.NotFound();
+        }
+
+        if (result.IsCurrent)
+        {
+            DeleteRefreshCookie(httpContext, settings);
+        }
+
+        return TypedResults.Ok(result);
+    }
+
+    private static async Task<IResult> RevokeOtherSessionsAsync(
+        ClaimsPrincipal principal,
+        HttpContext httpContext,
+        IAuthService authService,
+        IOptions<RefreshTokenSettings> refreshTokenSettings,
+        CancellationToken cancellationToken)
+    {
+        var currentUserId = GetCurrentUserId(principal);
+        if (!currentUserId.HasValue)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        httpContext.Request.Cookies.TryGetValue(
+            refreshTokenSettings.Value.CookieName,
+            out var currentRefreshToken);
+        var result = await authService.RevokeOtherSessionsAsync(
+            currentUserId.Value,
+            currentRefreshToken,
+            GetAuditActor(principal),
+            GetIpAddress(httpContext),
+            cancellationToken);
+        return result is null
+            ? TypedResults.Problem(
+                title: "Current session is unavailable.",
+                detail: "Sign in again before revoking other sessions.",
+                statusCode: StatusCodes.Status400BadRequest)
+            : TypedResults.Ok(result);
+    }
+
+    private static AdminAuditActor GetAuditActor(ClaimsPrincipal principal) =>
+        new(
+            GetCurrentUserId(principal),
+            principal.FindFirstValue(ClaimTypes.Email) ?? "unknown-admin");
 
     private static Guid? GetCurrentUserId(ClaimsPrincipal principal)
     {

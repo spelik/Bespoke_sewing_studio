@@ -80,6 +80,9 @@
 - проверить, что смена собственного пароля отзывает все refresh sessions, очищает cookie, отклоняет старый JWT и требует повторный вход;
 - проверить, что disable admin user отзывает все refresh sessions и сразу отклоняет его старый JWT/refresh;
 - проверить audit actions `auth.login_succeeded`, `auth.login_failed`, `auth.logout`, `auth.refresh_failed`, `auth.refresh_reuse_detected`, `auth.sessions_revoked`;
+- проверить Admin → My account → Active sessions: current marker, safe browser/masked IP, revoke одной session и revoke остальных;
+- проверить, что revoke current session очищает refresh cookie и выводит пользователя из admin;
+- проверить audit actions `auth.session_revoked` и `auth.other_sessions_revoked`;
 - убедиться, что raw refresh/access tokens отсутствуют в logs, Git и browser storage;
 - убедиться, что passwords, raw tokens, token hashes и cookie values отсутствуют в audit log;
 

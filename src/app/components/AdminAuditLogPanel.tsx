@@ -42,6 +42,8 @@ const KNOWN_AUDIT_ACTIONS = [
   "auth.refresh_failed",
   "auth.refresh_reuse_detected",
   "auth.sessions_revoked",
+  "auth.session_revoked",
+  "auth.other_sessions_revoked",
   "order.status_updated",
   "order.note_added",
   "contact_message.status_updated",
@@ -54,6 +56,7 @@ const KNOWN_AUDIT_ACTIONS = [
 const KNOWN_ENTITY_TYPES = [
   "AdminUser",
   "Authentication",
+  "AdminSession",
   "Order",
   "ContactMessage",
   "SiteSettings",
@@ -295,9 +298,8 @@ export function AdminAuditLogPanel({ onUnauthorized }: AdminAuditLogPanelProps) 
         ) : null}
 
         <div className="p-5">
-          <div className="mb-3 flex flex-wrap items-center justify-between gap-2 text-[10px] text-muted-foreground font-sans">
-            <span>{entries.length} audit entr{entries.length === 1 ? "y" : "ies"}</span>
-            <span>Newest first</span>
+          <div className="mb-3 text-[10px] text-muted-foreground font-sans">
+            Showing {entries.length} audit entr{entries.length === 1 ? "y" : "ies"} · Sorted newest first
           </div>
 
           {isLoading ? (
@@ -313,8 +315,15 @@ export function AdminAuditLogPanel({ onUnauthorized }: AdminAuditLogPanelProps) 
           ) : null}
 
           {entries.length > 0 ? (
-            <div className="overflow-x-auto border border-border">
-              <table className="w-full text-left text-[11px] font-sans">
+            <div className="min-w-0 max-w-full overflow-hidden border border-border">
+              <table className="w-full table-fixed text-left text-[11px] font-sans">
+                <colgroup>
+                  <col className="w-[14%]" />
+                  <col className="w-[18%]" />
+                  <col className="w-[18%]" />
+                  <col className="w-[20%]" />
+                  <col className="w-[30%]" />
+                </colgroup>
                 <thead className="bg-muted/40 text-muted-foreground uppercase tracking-wide text-[9px]">
                   <tr>
                     <th className="px-3 py-2 font-medium">Time</th>
@@ -327,28 +336,28 @@ export function AdminAuditLogPanel({ onUnauthorized }: AdminAuditLogPanelProps) 
                 <tbody className="divide-y divide-border">
                   {entries.map((entry) => (
                     <tr key={entry.id} className="align-top">
-                      <td className="px-3 py-3 whitespace-nowrap text-muted-foreground">
+                      <td className="min-w-0 whitespace-normal break-words px-3 py-3 text-muted-foreground [overflow-wrap:anywhere]">
                         {formatAdminDate(entry.createdAt)}
                       </td>
-                      <td className="px-3 py-3 min-w-[180px]">
-                        <div className="font-medium text-foreground truncate">
+                      <td className="min-w-0 whitespace-normal break-words px-3 py-3 [overflow-wrap:anywhere]">
+                        <div className="min-w-0 whitespace-normal break-words font-medium text-foreground [overflow-wrap:anywhere]">
                           {entry.actorEmail}
                         </div>
                       </td>
-                      <td className="px-3 py-3 min-w-[180px]">
-                        <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-1 text-[9px] text-slate-700">
-                          <History size={10} /> {entry.action}
+                      <td className="min-w-0 whitespace-normal break-words px-3 py-3 [overflow-wrap:anywhere]">
+                        <span className="inline-flex max-w-full flex-wrap items-center gap-1 whitespace-normal break-words rounded-full bg-slate-100 px-2 py-1 text-[9px] text-slate-700 [overflow-wrap:anywhere]">
+                          <History size={10} className="shrink-0" /> {entry.action}
                         </span>
                       </td>
-                      <td className="px-3 py-3 min-w-[170px] text-muted-foreground">
-                        <div className="text-foreground">{entry.entityType}</div>
+                      <td className="min-w-0 whitespace-normal break-words px-3 py-3 text-muted-foreground [overflow-wrap:anywhere]">
+                        <div className="min-w-0 whitespace-normal break-words text-foreground [overflow-wrap:anywhere]">{entry.entityType}</div>
                         {entry.entityLabel ? (
-                          <div className="mt-1 text-[9px] font-mono text-muted-foreground">
+                          <div className="mt-1 min-w-0 whitespace-normal break-words text-[9px] font-mono text-muted-foreground [overflow-wrap:anywhere]">
                             {entry.entityLabel}
                           </div>
                         ) : null}
                       </td>
-                      <td className="px-3 py-3 min-w-[280px] text-foreground">
+                      <td className="min-w-0 whitespace-normal break-words px-3 py-3 text-foreground [overflow-wrap:anywhere]">
                         {entry.summary}
                       </td>
                     </tr>

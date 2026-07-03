@@ -817,6 +817,19 @@ frontend origins. Production refresh requires HTTPS. Missing, invalid, expired,
 revoked and reused refresh attempts return a generic `401`, clear the cookie and
 write a safe audit event. Raw tokens and hashes are never logged or written to audit.
 
+Admin session management endpoints require the `AdminOnly` policy:
+
+- `GET /api/auth/sessions` returns one safe logical session per refresh-token family;
+- `POST /api/auth/sessions/{id}/revoke` revokes only a session owned by the current user;
+- `POST /api/auth/sessions/revoke-others` revokes every other active refresh session and returns `revokedCount`.
+
+The current session is identified by hashing the HttpOnly refresh cookie and matching
+that hash to the current user's token record. A missing cookie still permits listing
+sessions without a current marker; revoke-others returns `400` until the user signs in
+again. Revoking the current session expires the cookie. Responses expose no token,
+token hash or cookie value; user-agent text is bounded and IP addresses are masked.
+Manual revocation writes `auth.session_revoked` or `auth.other_sessions_revoked` audit actions.
+
 Authentication uses ASP.NET Core Identity with PostgreSQL-backed users and
 roles. `POST /api/auth/login` accepts an email and password and returns a JWT.
 Issued JWTs contain an Identity security-stamp claim. Bearer validation loads the

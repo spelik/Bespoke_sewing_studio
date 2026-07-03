@@ -30,6 +30,26 @@ public interface IAuthService
         string? ipAddress,
         CancellationToken cancellationToken);
 
+    Task<IReadOnlyList<AdminSessionResponse>> GetSessionsAsync(
+        Guid userId,
+        string? currentRefreshToken,
+        CancellationToken cancellationToken);
+
+    Task<AdminSessionRevocationResult?> RevokeSessionAsync(
+        Guid userId,
+        Guid sessionId,
+        string? currentRefreshToken,
+        AdminAuditActor actor,
+        string? ipAddress,
+        CancellationToken cancellationToken);
+
+    Task<AdminOtherSessionsRevocationResult?> RevokeOtherSessionsAsync(
+        Guid userId,
+        string? currentRefreshToken,
+        AdminAuditActor actor,
+        string? ipAddress,
+        CancellationToken cancellationToken);
+
     Task<CurrentUserResponse?> ChangeOwnPasswordAsync(
         Guid currentUserId,
         ChangeOwnPasswordRequest request,

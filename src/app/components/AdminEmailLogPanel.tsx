@@ -336,7 +336,7 @@ export function AdminEmailLogPanel({
 
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="text-[10px] text-muted-foreground font-sans">
-              Filters apply automatically. New email attempts refresh through live updates. Showing {entries.length} entries.
+              Filters apply automatically · Showing {entries.length} email entr{entries.length === 1 ? "y" : "ies"} · Live updates enabled
             </p>
             {activeFilterCount > 0 ? (
               <button
@@ -357,8 +357,18 @@ export function AdminEmailLogPanel({
           </div>
         ) : null}
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-[11px] font-sans">
+        <div className="min-w-0 max-w-full overflow-hidden">
+          <table className="w-full table-fixed text-left text-[11px] font-sans">
+            <colgroup>
+              <col className="w-[9%]" />
+              <col className="w-[8%]" />
+              <col className="w-[12%]" />
+              <col className="w-[13%]" />
+              <col className="w-[15%]" />
+              <col className="w-[9%]" />
+              <col className="w-[11%]" />
+              <col className="w-[23%]" />
+            </colgroup>
             <thead className="bg-muted/50 text-[9px] uppercase tracking-[0.2em] text-muted-foreground">
               <tr>
                 <th className="px-4 py-3 font-normal">Time</th>
@@ -430,38 +440,38 @@ function EmailLogRow({ entry }: { entry: EmailDeliveryLogEntry }) {
 
   return (
     <tr className="border-t border-border align-top hover:bg-muted/30">
-      <td className="px-4 py-3 whitespace-nowrap text-muted-foreground">
+      <td className="min-w-0 whitespace-normal break-words px-4 py-3 text-muted-foreground [overflow-wrap:anywhere]">
         {formatAdminDate(entry.createdAt)}
       </td>
-      <td className="px-4 py-3 whitespace-nowrap">
-        <span className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-1 text-[9px] ${statusClass}`}>
-          <StatusIcon size={11} aria-hidden="true" /> {entry.status}
+      <td className="min-w-0 whitespace-normal break-words px-4 py-3 [overflow-wrap:anywhere]">
+        <span className={`inline-flex max-w-full flex-wrap items-center gap-1.5 whitespace-normal break-words rounded-full border px-2 py-1 text-[9px] [overflow-wrap:anywhere] ${statusClass}`}>
+          <StatusIcon size={11} className="shrink-0" aria-hidden="true" /> {entry.status}
         </span>
       </td>
-      <td className="px-4 py-3 min-w-[170px]">
-        <span className="text-foreground">{formatMessageTypeLabel(entry.messageType)}</span>
-        <span className="mt-1 block font-mono text-[9px] text-muted-foreground">
+      <td className="min-w-0 whitespace-normal break-words px-4 py-3 [overflow-wrap:anywhere]">
+        <span className="whitespace-normal break-words text-foreground [overflow-wrap:anywhere]">{formatMessageTypeLabel(entry.messageType)}</span>
+        <span className="mt-1 block min-w-0 whitespace-normal break-words font-mono text-[9px] text-muted-foreground [overflow-wrap:anywhere]">
           {entry.messageType}
         </span>
       </td>
-      <td className="px-4 py-3 min-w-[190px] break-all text-muted-foreground">
+      <td className="min-w-0 whitespace-normal break-words px-4 py-3 text-muted-foreground [overflow-wrap:anywhere]">
         {entry.recipientEmail}
       </td>
-      <td className="px-4 py-3 min-w-[240px] text-foreground">{entry.subject}</td>
-      <td className="px-4 py-3 whitespace-nowrap">
-        <span className="text-foreground">{entry.provider}</span>
-        <span className="mt-1 block text-[9px] text-muted-foreground">
+      <td className="min-w-0 whitespace-normal break-words px-4 py-3 text-foreground [overflow-wrap:anywhere]">{entry.subject}</td>
+      <td className="min-w-0 whitespace-normal break-words px-4 py-3 [overflow-wrap:anywhere]">
+        <span className="whitespace-normal break-words text-foreground [overflow-wrap:anywhere]">{entry.provider}</span>
+        <span className="mt-1 block min-w-0 whitespace-normal break-words text-[9px] text-muted-foreground [overflow-wrap:anywhere]">
           {entry.sentExternally ? "External SMTP" : "Not external"}
         </span>
       </td>
-      <td className="px-4 py-3 min-w-[160px] text-muted-foreground">
+      <td className="min-w-0 whitespace-normal break-words px-4 py-3 text-muted-foreground [overflow-wrap:anywhere]">
         <span className="block text-foreground">{entry.relatedEntityType ?? "—"}</span>
         <span className="block font-mono text-[9px]">{relatedLabel}</span>
       </td>
-      <td className="px-4 py-3 min-w-[260px] text-muted-foreground">
-        <span className="block">{entry.resultMessage}</span>
+      <td className="min-w-0 whitespace-normal break-words px-4 py-3 text-muted-foreground [overflow-wrap:anywhere]">
+        <span className="block min-w-0 whitespace-normal break-words [overflow-wrap:anywhere]">{entry.resultMessage}</span>
         {entry.errorMessage ? (
-          <span className="mt-1 block text-destructive">{entry.errorMessage}</span>
+          <span className="mt-1 block min-w-0 whitespace-normal break-words text-destructive [overflow-wrap:anywhere]">{entry.errorMessage}</span>
         ) : null}
       </td>
     </tr>

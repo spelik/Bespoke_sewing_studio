@@ -13,6 +13,30 @@ export interface LoginResponse {
   user: AdminUser;
 }
 
+export interface AdminSession {
+  id: string;
+  createdAtUtc: string;
+  expiresAtUtc: string;
+  lastUsedAtUtc: string | null;
+  revokedAtUtc: string | null;
+  isCurrent: boolean;
+  isRevoked: boolean;
+  userAgent: string | null;
+  createdByIp: string | null;
+  revocationReason: string | null;
+  status: "Current" | "Active" | "Revoked" | "Expired";
+}
+
+export interface AdminSessionRevocationResult {
+  sessionId: string;
+  revoked: boolean;
+  isCurrent: boolean;
+}
+
+export interface AdminOtherSessionsRevocationResult {
+  revokedCount: number;
+}
+
 interface LoginRequest {
   email: string;
   password: string;
@@ -37,6 +61,24 @@ export function logout(): Promise<void> {
 
 export function getMe(): Promise<AdminUser> {
   return apiClient.get<AdminUser>("/auth/me");
+}
+
+export function getSessions(): Promise<AdminSession[]> {
+  return apiClient.get<AdminSession[]>("/auth/sessions");
+}
+
+export function revokeSession(sessionId: string): Promise<AdminSessionRevocationResult> {
+  return apiClient.post<Record<string, never>, AdminSessionRevocationResult>(
+    `/auth/sessions/${sessionId}/revoke`,
+    {},
+  );
+}
+
+export function revokeOtherSessions(): Promise<AdminOtherSessionsRevocationResult> {
+  return apiClient.post<Record<string, never>, AdminOtherSessionsRevocationResult>(
+    "/auth/sessions/revoke-others",
+    {},
+  );
 }
 
 export function changeOwnPassword(

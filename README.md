@@ -36,7 +36,7 @@ Current backend status:
 - migrations are applied explicitly with `dotnet ef database update`
 - Orders/enquiries API now persists data in PostgreSQL
 - ASP.NET Core Identity, short-lived JWT Bearer access tokens and rotating HttpOnly refresh cookies protect administration routes
-- `/api/auth/login`, `/api/auth/refresh`, `/api/auth/logout` and `/api/auth/me` provide persistent revocable admin sessions
+- `/api/auth/login`, `/api/auth/refresh`, `/api/auth/logout`, `/api/auth/me` and protected `/api/auth/sessions` endpoints provide persistent revocable admin sessions
 - the public Order form calls `POST /api/orders`
 - the public Contact form calls `POST /api/contact-messages` and persists messages in PostgreSQL
 - the public Order form accepts JPG, PNG, WebP and PDF attachments up to 5 MB each
@@ -176,6 +176,12 @@ entry without storing the old or new password. A successful password change upda
 the security stamp, revokes all refresh sessions, clears the cookie and signs the
 administrator out so they must use the new password.
 
+The same **My account** page lists logical refresh-session families with current,
+active, revoked or expired status, safe browser/device details and masked IP data.
+An administrator can revoke one session or all other sessions. Revoking the current
+session clears its HttpOnly cookie and signs the browser out. Raw refresh tokens,
+hashes and cookie values are never returned to the UI.
+
 ## Admin audit log
 
 Sign in to Admin and select **Audit Log** to review important administrator
@@ -184,7 +190,7 @@ audit entries and supports filtering by search text, action, entity type and
 actor email. The UI can export the visible audit entries to CSV.
 
 The audit scope records login success/failure, logout, failed/reused refresh,
-session revocation, admin user management, own-account password changes,
+individual/other-session revocation, admin user management, own-account password changes,
 order status/note/attachment changes, contact message status changes, Site Settings, Email Delivery and Brand / SEO
 updates. The audit log stores actor email, action, entity type, entity label,
 summary and timestamp; it intentionally does not store passwords, access/refresh
