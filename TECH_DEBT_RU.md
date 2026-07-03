@@ -2,6 +2,8 @@
 
 ## Закрыто
 
+- Task 52 — Admin modal accessibility: общий `AdminConfirmDialog` получил ARIA-связи, безопасный начальный фокус, focus trap для Tab/Shift+Tab, закрытие по Escape вне loading state и возврат фокуса к вызвавшему элементу.
+
 - Admin-managed Gmail SMTP добавлен в Settings: владелец может выбрать Gmail SMTP, ввести Gmail address и Google App Password, пароль хранится как protected value на backend и никогда не возвращается в API.
 
 - Production Email/SMTP checklist зафиксирован как обязательный pre-production блок: реальная SMTP-отправка, секреты вне Git, Gmail App Password, проверки test email/contact/order delivery, SPF/DKIM/DMARC, мониторинг, retry/background queue и ротация credentials.

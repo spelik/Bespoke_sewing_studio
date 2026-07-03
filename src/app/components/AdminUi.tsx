@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { useEffect, useRef } from "react";
+import { useEffect, useId, useLayoutEffect, useRef } from "react";
 import { LoaderCircle, Search, X } from "lucide-react";
 
 export interface AdminFilterOption {
@@ -246,41 +246,134 @@ export function AdminConfirmDialog({
   onConfirm,
 }: {
   title: string;
-  description: ReactNode;
+  description?: ReactNode;
   confirmLabel: string;
-  cancelLabel?: string;
+  cancelLabel?: string | null;
   isBusy?: boolean;
   onCancel(): void;
   onConfirm(): void;
 }) {
+  const dialogRef = useRef<HTMLDivElement | null>(null);
+  const openerRef = useRef<HTMLElement | null>(null);
+  const titleId = useId();
+  const descriptionId = useId();
+
+  useLayoutEffect(() => {
+    openerRef.current =
+      document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null;
+
+    const initialFocus = dialogRef.current?.querySelector<HTMLElement>(
+      cancelLabel
+        ? '[data-admin-dialog-cancel="true"] button'
+        : '[data-admin-dialog-confirm="true"] button',
+    );
+    initialFocus?.focus();
+
+    return () => {
+      if (openerRef.current?.isConnected) {
+        openerRef.current.focus();
+      }
+    };
+  }, []);
+
+  function handleKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      if (!isBusy) {
+        onCancel();
+      }
+      return;
+    }
+
+    if (
+      event.key === "Enter" &&
+      !(event.target as HTMLElement).closest(
+        '[data-admin-dialog-confirm="true"]',
+      )
+    ) {
+      event.preventDefault();
+      return;
+    }
+
+    if (event.key !== "Tab") {
+      return;
+    }
+
+    const focusableElements = Array.from(
+      dialogRef.current?.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      ) ?? [],
+    ).filter((element) => !element.hasAttribute("hidden"));
+
+    if (focusableElements.length === 0) {
+      event.preventDefault();
+      dialogRef.current?.focus();
+      return;
+    }
+
+    const firstElement = focusableElements[0]!;
+    const lastElement = focusableElements[focusableElements.length - 1]!;
+    const activeElement = document.activeElement;
+
+    if (event.shiftKey && activeElement === firstElement) {
+      event.preventDefault();
+      lastElement.focus();
+    } else if (!event.shiftKey && activeElement === lastElement) {
+      event.preventDefault();
+      firstElement.focus();
+    } else if (!dialogRef.current?.contains(activeElement)) {
+      event.preventDefault();
+      firstElement.focus();
+    }
+  }
+
   return (
     <div
       className="fixed inset-0 z-[90] flex items-center justify-center bg-black/40 px-4 py-8"
       role="dialog"
       aria-modal="true"
-      aria-labelledby="admin-confirm-dialog-title"
+      aria-labelledby={titleId}
+      aria-describedby={description ? descriptionId : undefined}
+      onKeyDown={handleKeyDown}
     >
-      <div className="w-full max-w-md border border-border bg-card p-6 shadow-2xl">
+      <div
+        ref={dialogRef}
+        className="w-full max-w-md border border-border bg-card p-6 shadow-2xl"
+        tabIndex={-1}
+      >
         <h3
-          id="admin-confirm-dialog-title"
+          id={titleId}
           className="font-serif text-[1.2rem] font-light text-foreground"
         >
           {title}
         </h3>
-        <div className="mt-2 text-[11px] leading-5 text-muted-foreground font-sans">
-          {description}
-        </div>
-        <div className="mt-6 flex flex-wrap justify-end gap-2">
-          <AdminActionButton disabled={isBusy} onClick={onCancel}>
-            {cancelLabel}
-          </AdminActionButton>
-          <AdminActionButton
-            variant="danger"
-            isLoading={isBusy}
-            onClick={onConfirm}
+        {description ? (
+          <div
+            id={descriptionId}
+            className="mt-2 text-[11px] leading-5 text-muted-foreground font-sans"
           >
-            {confirmLabel}
-          </AdminActionButton>
+            {description}
+          </div>
+        ) : null}
+        <div className="mt-6 flex flex-wrap justify-end gap-2">
+          {cancelLabel ? (
+            <span data-admin-dialog-cancel="true">
+              <AdminActionButton disabled={isBusy} onClick={onCancel}>
+                {cancelLabel}
+              </AdminActionButton>
+            </span>
+          ) : null}
+          <span data-admin-dialog-confirm="true">
+            <AdminActionButton
+              variant="danger"
+              isLoading={isBusy}
+              onClick={onConfirm}
+            >
+              {confirmLabel}
+            </AdminActionButton>
+          </span>
         </div>
       </div>
     </div>

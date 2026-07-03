@@ -62,7 +62,7 @@ Current backend status:
 - the admin sidebar exposes only backend-backed Dashboard, Orders, Contact Messages, Services, Portfolio, Content, Repeatable Content, Brand/SEO, Users, My account, Audit Log, Email Log, Storage and Settings modules
 - the Admin Dashboard includes production-readiness checks for contact details, notifications, email delivery, upload security, admin API access and DNS email records
 - admin Orders, Contact Messages, Dashboard counters, sidebar badges and Email Log can refresh through the protected SignalR admin-notifications hub
-- admin Orders and Contact Messages lists use styled filters, fixed-width tables, client-side 25-item pagination and destructive delete confirmation dialogs
+- admin Orders and Contact Messages lists use styled filters, fixed-width tables, client-side 25-item pagination and shared destructive confirmation dialogs with keyboard focus management and ARIA labelling
 - the Admin **Audit Log** section lists important administrator actions from the protected backend audit log
 - the Admin **Email Log** section lists owner notifications, customer confirmations and test email attempts
 
