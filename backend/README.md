@@ -40,8 +40,9 @@ Health endpoints are anonymous and intentionally expose only an overall status:
 Readiness returns HTTP `503` when PostgreSQL is unavailable. Health responses do not
 contain connection strings, exception messages, stack traces or other secrets.
 
-Forwarded headers are processed before exception handling, HTTPS redirection, CORS,
-authentication and rate limiting. The API accepts `X-Forwarded-For`,
+Forwarded headers are processed first, followed by security response headers, HSTS
+(non-Development), exception handling, HTTPS redirection, CORS, authentication and
+rate limiting. The API accepts `X-Forwarded-For`,
 `X-Forwarded-Proto` and `X-Forwarded-Host` only from the framework defaults
 (loopback) or explicitly configured trusted proxies/networks. Configure the exact
 deployment topology; do not trust arbitrary internet clients:
@@ -605,6 +606,48 @@ Rejected requests return `429 Too Many Requests`, a JSON problem response, and
 a `Retry-After` header. When the API is deployed behind a reverse proxy, trusted
 forwarded-header configuration must be added before remote IP partitioning can
 represent the original client address reliably.
+
+### Login rate limit
+
+`POST /api/auth/login` has its own per-remote-IP fixed-window rate limit
+(`10` attempts per `15` minutes by default), configured through
+`RateLimiting:AuthLoginPermitLimit` and `RateLimiting:AuthLoginWindowMinutes`.
+This complements ASP.NET Core Identity account lockout: lockout protects a single
+account, while the login rate limit slows password spraying and credential
+stuffing from a single address. The limit is not applied to `POST /api/auth/refresh`
+or to other admin endpoints, so normal session refresh and admin work are not
+affected. Rejected requests return `429 Too Many Requests` with the same generic
+problem response as other limited endpoints, so it does not reveal whether an
+email exists. Because partitioning uses the remote IP, correct forwarded-header
+configuration is required behind a reverse proxy.
+
+### Security response headers
+
+All responses include baseline security headers, applied via
+`Response.OnStarting` so they are present on success, error (Problem Details) and
+`429` responses:
+
+- `X-Content-Type-Options: nosniff`
+- `Referrer-Policy: strict-origin-when-cross-origin`
+- `X-Frame-Options: DENY`
+- `Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=()`
+- `Content-Security-Policy` (baseline, toggled by `SecurityHeaders:EnableContentSecurityPolicy`)
+
+HTTP Strict Transport Security (`app.UseHsts()`) is enabled outside Development,
+before HTTPS redirection, and Development is left untouched so localhost is not
+pinned to HTTPS.
+
+The baseline CSP is `default-src 'self'` with `frame-ancestors 'none'`,
+`base-uri 'self'`, `form-action 'self'`, `object-src 'none'`,
+`img-src 'self' data: blob:`, `font-src 'self' data:`,
+`style-src 'self' 'unsafe-inline'`, `script-src 'self'` and `connect-src 'self'`.
+This backend serves the JSON API and admin-served files only; it does not serve
+the SPA HTML, so this CSP governs API responses. The host that serves the
+frontend (Vite in development, static host/reverse proxy in production) must set
+its own document CSP, including `connect-src` entries for the API origin and the
+SignalR `wss:`/`ws:` endpoint. Set `SecurityHeaders:EnableContentSecurityPolicy`
+to `false` to disable only the CSP header (other security headers stay on) if a
+future single-origin deployment needs a different policy.
 
 ### Orphan upload cleanup
 

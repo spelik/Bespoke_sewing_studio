@@ -19,9 +19,11 @@ public static class AuthEndpoints
 
         auth.MapPost("/login", LoginAsync)
             .AllowAnonymous()
+            .RequireRateLimiting(RateLimitPolicies.AuthLogin)
             .WithName("Login")
             .Produces<AuthTokenResponse>()
-            .Produces(StatusCodes.Status401Unauthorized);
+            .Produces(StatusCodes.Status401Unauthorized)
+            .Produces(StatusCodes.Status429TooManyRequests);
 
         auth.MapPost("/refresh", RefreshAsync)
             .AllowAnonymous()

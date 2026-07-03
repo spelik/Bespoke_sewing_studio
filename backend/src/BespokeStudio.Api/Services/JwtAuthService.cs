@@ -13,6 +13,7 @@ using BespokeStudio.Infrastructure.Authentication;
 using BespokeStudio.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 
@@ -24,7 +25,8 @@ public sealed class JwtAuthService(
     BespokeStudioDbContext dbContext,
     IAdminAuditLogService auditLogService,
     IOptions<JwtSettings> jwtSettings,
-    IOptions<RefreshTokenSettings> refreshTokenSettings) : IAuthService
+    IOptions<RefreshTokenSettings> refreshTokenSettings,
+    ILogger<JwtAuthService> logger) : IAuthService
 {
     private readonly JwtSettings _jwtSettings = jwtSettings.Value;
     private readonly RefreshTokenSettings _refreshTokenSettings = refreshTokenSettings.Value;
@@ -575,15 +577,33 @@ public sealed class JwtAuthService(
             cancellationToken);
     }
 
-    private Task RecordAuthEventAsync(
+    private async Task RecordAuthEventAsync(
         AdminUser? user,
         string? attemptedEmail,
         string action,
         string summary,
-        CancellationToken cancellationToken) =>
-        auditLogService.RecordAsync(
-            CreateAuthEvent(user, attemptedEmail, action, summary),
-            cancellationToken);
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            await auditLogService.RecordAsync(
+                CreateAuthEvent(user, attemptedEmail, action, summary),
+                cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            // A rejected authentication attempt must always surface a generic 401, never a 500.
+            // If persisting the audit trail fails, log it safely (no credentials/tokens/cookies) and continue.
+            logger.LogWarning(
+                exception,
+                "Failed to persist authentication audit event {AuditAction}; returning generic rejection.",
+                action);
+        }
+    }
 
     private static AdminAuditLogWriteRequest CreateAuthEvent(
         AdminUser? user,

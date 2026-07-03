@@ -90,6 +90,10 @@
 
 - задать точные `ForwardedHeaders__KnownProxies` и/или `ForwardedHeaders__KnownNetworks` для proxy, который напрямую подключается к Kestrel;
 - проверить, что `X-Forwarded-Proto` корректно восстанавливает HTTPS scheme, `X-Forwarded-For` — реальный client IP, а headers от недоверенного адреса игнорируются;
+- проверить, что в production ответах присутствуют security headers: `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, `X-Frame-Options: DENY`, `Permissions-Policy` и `Content-Security-Policy` (`curl.exe -i` по любому endpoint);
+- убедиться, что HSTS (`Strict-Transport-Security`) отдаётся вне Development и что HTTPS redirection работает;
+- проверить, что baseline CSP не ломает публичный сайт, admin, portfolio/service/uploaded images, downloads и SignalR realtime; помнить, что этот backend не отдаёт SPA HTML — document CSP (включая `connect-src` для API и `wss:`/`ws:` SignalR) задаёт хост фронтенда/reverse proxy;
+- проверить login rate limit: несколько неверных попыток `POST /api/auth/login` с одного IP приводят к `429`; нормальный вход не заблокирован в пределах окна; `/api/auth/refresh` и admin API не затронуты; за reverse proxy лимит опирается на корректные Forwarded Headers (реальный client IP);
 - задать `DataProtection__KeysPath` для persistent ASP.NET Core Data Protection keys; без него production startup намеренно завершается ошибкой;
 - убедиться, что keys path находится вне repository и release/deployment directory, закрыт правами API process identity и включён в защищённый backup;
 

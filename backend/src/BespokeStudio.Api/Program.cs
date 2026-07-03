@@ -52,6 +52,9 @@ var forwardedHeadersSettings = builder.Configuration
 var dataProtectionSettings = builder.Configuration
     .GetSection(DataProtectionSettings.SectionName)
     .Get<DataProtectionSettings>() ?? new DataProtectionSettings();
+var securityHeadersSettings = builder.Configuration
+    .GetSection(SecurityHeadersSettings.SectionName)
+    .Get<SecurityHeadersSettings>() ?? new SecurityHeadersSettings();
 
 ValidateForwardedHeadersSettings(forwardedHeadersSettings);
 ConfigureDataProtection(builder, dataProtectionSettings);
@@ -123,6 +126,8 @@ builder.Services
     .Validate(settings => settings.PublicOrderPermitLimit > 0, "RateLimiting:PublicOrderPermitLimit must be positive.")
     .Validate(settings => settings.PublicContactPermitLimit > 0, "RateLimiting:PublicContactPermitLimit must be positive.")
     .Validate(settings => settings.WindowMinutes is >= 1 and <= 1440, "RateLimiting:WindowMinutes must be between 1 and 1440.")
+    .Validate(settings => settings.AuthLoginPermitLimit > 0, "RateLimiting:AuthLoginPermitLimit must be positive.")
+    .Validate(settings => settings.AuthLoginWindowMinutes is >= 1 and <= 1440, "RateLimiting:AuthLoginWindowMinutes must be between 1 and 1440.")
     .ValidateOnStart();
 builder.Services.AddRateLimiter(options =>
 {
@@ -168,6 +173,12 @@ builder.Services.AddRateLimiter(options =>
             rateLimitingSettings.PublicContactPermitLimit,
             rateLimitingSettings.WindowMinutes,
             RateLimitPolicies.PublicContact));
+    options.AddPolicy(RateLimitPolicies.AuthLogin, context =>
+        CreateFixedWindowPartition(
+            context,
+            rateLimitingSettings.AuthLoginPermitLimit,
+            rateLimitingSettings.AuthLoginWindowMinutes,
+            RateLimitPolicies.AuthLogin));
 });
 
 builder.Services
@@ -294,10 +305,33 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseForwardedHeaders();
+
+app.Use(async (context, next) =>
+{
+    context.Response.OnStarting(() =>
+    {
+        var headers = context.Response.Headers;
+        headers["X-Content-Type-Options"] = "nosniff";
+        headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
+        headers["X-Frame-Options"] = "DENY";
+        headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=(), payment=()";
+        if (securityHeadersSettings.EnableContentSecurityPolicy &&
+            !string.IsNullOrWhiteSpace(securityHeadersSettings.ContentSecurityPolicy))
+        {
+            headers["Content-Security-Policy"] = securityHeadersSettings.ContentSecurityPolicy;
+        }
+
+        return Task.CompletedTask;
+    });
+
+    await next();
+});
+
 app.UseExceptionHandler();
 
 if (!app.Environment.IsDevelopment())
 {
+    app.UseHsts();
     app.UseHttpsRedirection();
 }
 

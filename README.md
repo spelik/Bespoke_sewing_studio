@@ -42,6 +42,8 @@ Current backend status:
 - the public Order form accepts JPG, PNG, WebP and PDF attachments up to 5 MB each
 - attachment metadata, including upload scan status, is stored in PostgreSQL; development files are stored under `backend/storage/uploads`
 - public upload, order creation and Contact form endpoints use configurable per-IP rate limits and lightweight honeypot/timing anti-spam checks
+- `POST /api/auth/login` has its own per-IP rate limit (default 10 attempts / 15 minutes) in addition to Identity account lockout; `/api/auth/refresh` and other admin endpoints are not rate limited
+- all API responses include baseline security headers (`X-Content-Type-Options`, `Referrer-Policy`, `X-Frame-Options: DENY`, `Permissions-Policy` and a configurable baseline `Content-Security-Policy`), with HSTS enabled outside Development; the frontend host still sets its own document CSP (see `backend/README.md`)
 - order and attachment deletion schedules DB-backed physical-file cleanup jobs; a hosted worker processes them automatically with retry/backoff
 - administrators can manually remove expired orphan uploads through a protected fallback cleanup endpoint
 - Admin **Storage** shows automatic cleanup job health, compares database metadata with local files and provides diagnostic orphan cleanup
