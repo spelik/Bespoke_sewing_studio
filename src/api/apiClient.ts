@@ -1,5 +1,5 @@
 import { appConfig } from "../config/appConfig";
-import { clearAccessToken, getAccessToken, setAccessToken } from "./authTokenStorage";
+import { clearAccessToken, getAccessToken, setAccessToken } from "./authTokenStore";
 
 export interface ApiClient {
   readonly baseUrl: string;
@@ -135,7 +135,10 @@ export function refreshAccessToken(): Promise<boolean> {
       setAccessToken(result.accessToken);
       return true;
     })
-    .catch(() => false)
+    .catch(() => {
+      clearAccessToken();
+      return false;
+    })
     .finally(() => {
       refreshPromise = null;
     });
@@ -160,49 +163,13 @@ export const apiClient: ApiClient = {
     return request<TResponse>("GET", path);
   },
   async getBlob(path: string) {
-    let response: Response;
-    try {
-      response = await fetch(buildUrl(path), {
-        headers: {
-          Accept: "*/*",
-          ...getAuthorizationHeaders(),
-        },
-        credentials: "include",
-      });
-    } catch {
-      throw new ApiError("The server could not be reached. Check that the backend is running and try again.", 0);
-    }
-
-    if (!response.ok) {
-      await throwApiError(response);
-    }
-
-    return response.blob();
+    return requestBlob(path);
   },
   async post<TRequest, TResponse>(path: string, body: TRequest) {
     return request<TResponse>("POST", path, body);
   },
   async postForm<TResponse>(path: string, body: FormData) {
-    let response: Response;
-    try {
-      response = await fetch(buildUrl(path), {
-        method: "POST",
-        headers: {
-          Accept: "application/json",
-          ...getAuthorizationHeaders(),
-        },
-        body,
-        credentials: "include",
-      });
-    } catch {
-      throw new ApiError("The server could not be reached. Check that the backend is running and try again.", 0);
-    }
-
-    if (!response.ok) {
-      await throwApiError(response);
-    }
-
-    return (await response.json()) as TResponse;
+    return requestForm<TResponse>(path, body);
   },
   patch<TRequest, TResponse>(path: string, body: TRequest) {
     return request<TResponse>("PATCH", path, body);
@@ -211,3 +178,59 @@ export const apiClient: ApiClient = {
     return request<TResponse>("DELETE", path);
   },
 };
+
+async function requestBlob(path: string, allowRefresh = true): Promise<Blob> {
+  let response: Response;
+  try {
+    response = await fetch(buildUrl(path), {
+      headers: {
+        Accept: "*/*",
+        ...getAuthorizationHeaders(),
+      },
+      credentials: "include",
+    });
+  } catch {
+    throw new ApiError("The server could not be reached. Check that the backend is running and try again.", 0);
+  }
+
+  if (response.status === 401 && allowRefresh && getAccessToken() && await refreshAccessToken()) {
+    return requestBlob(path, false);
+  }
+
+  if (!response.ok) {
+    await throwApiError(response);
+  }
+
+  return response.blob();
+}
+
+async function requestForm<TResponse>(
+  path: string,
+  body: FormData,
+  allowRefresh = true,
+): Promise<TResponse> {
+  let response: Response;
+  try {
+    response = await fetch(buildUrl(path), {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        ...getAuthorizationHeaders(),
+      },
+      body,
+      credentials: "include",
+    });
+  } catch {
+    throw new ApiError("The server could not be reached. Check that the backend is running and try again.", 0);
+  }
+
+  if (response.status === 401 && allowRefresh && getAccessToken() && await refreshAccessToken()) {
+    return requestForm<TResponse>(path, body, false);
+  }
+
+  if (!response.ok) {
+    await throwApiError(response);
+  }
+
+  return (await response.json()) as TResponse;
+}

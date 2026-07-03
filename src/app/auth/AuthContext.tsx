@@ -16,7 +16,7 @@ import {
 import {
   clearAccessToken,
   setAccessToken,
-} from "../../api/authTokenStorage";
+} from "../../api/authTokenStore";
 
 interface AuthContextValue {
   user: AdminUser | null;

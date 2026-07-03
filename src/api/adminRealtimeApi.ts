@@ -1,4 +1,4 @@
-import { getAccessToken } from "./authTokenStorage";
+import { getAccessToken } from "./authTokenStore";
 import { refreshAccessToken } from "./apiClient";
 import { appConfig } from "../config/appConfig";
 
@@ -84,7 +84,12 @@ export function startAdminRealtimeConnection({
         throw new Error("SignalR negotiation did not return a connection token.");
       }
 
-      socket = new WebSocket(buildWebSocketUrl(connectionToken, token));
+      const currentToken = getAccessToken();
+      if (!currentToken) {
+        throw new Error("Admin access token is unavailable.");
+      }
+
+      socket = new WebSocket(buildWebSocketUrl(connectionToken, currentToken));
 
       socket.addEventListener("open", () => {
         socket?.send(JSON.stringify({ protocol: "json", version: 1 }) + RECORD_SEPARATOR);
