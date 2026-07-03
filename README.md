@@ -103,7 +103,10 @@ password. Apply migrations before starting the API, then open
 `http://127.0.0.1:5173/admin/login`. The frontend stores only the short-lived
 JWT access token in `sessionStorage`. The refresh token remains in an HttpOnly
 cookie and only its SHA-256 hash is stored in PostgreSQL. Signing out revokes
-the refresh token and clears the cookie. Passwords are never stored by the frontend.
+the refresh token and clears the cookie. Changing a password or disabling an
+administrator revokes all of that user's refresh sessions. Access JWT validation
+also checks the current Identity user, Admin role, lockout state and security stamp,
+so stale tokens are rejected. Passwords are never stored by the frontend.
 
 Start the frontend in a second PowerShell window:
 
@@ -169,7 +172,9 @@ Sign in to Admin and select **My account** to review the current administrator
 session, sign out, or change your own password. Changing the password requires
 the current password, a new password and confirmation. The backend uses ASP.NET
 Core Identity password validation and records an `account.password_changed` audit
-entry without storing the old or new password.
+entry without storing the old or new password. A successful password change updates
+the security stamp, revokes all refresh sessions, clears the cookie and signs the
+administrator out so they must use the new password.
 
 ## Admin audit log
 
@@ -178,11 +183,12 @@ actions. The protected `GET /api/admin/audit-log` endpoint returns the newest
 audit entries and supports filtering by search text, action, entity type and
 actor email. The UI can export the visible audit entries to CSV.
 
-The first audit scope records admin user management, own-account password changes,
+The audit scope records login success/failure, logout, failed/reused refresh,
+session revocation, admin user management, own-account password changes,
 order status/note/attachment changes, contact message status changes, Site Settings, Email Delivery and Brand / SEO
 updates. The audit log stores actor email, action, entity type, entity label,
-summary and timestamp; it intentionally does not store passwords or SMTP/Gmail
-App Password secrets.
+summary and timestamp; it intentionally does not store passwords, access/refresh
+tokens, token hashes, cookies or SMTP/Gmail App Password secrets.
 
 
 ## Email log

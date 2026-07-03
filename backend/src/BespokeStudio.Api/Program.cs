@@ -1,4 +1,5 @@
 using System.Net;
+using System.Security.Claims;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -19,6 +20,7 @@ using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Logging.EventLog;
@@ -216,6 +218,45 @@ builder.Services
                 }
 
                 return Task.CompletedTask;
+            },
+            OnTokenValidated = async context =>
+            {
+                var principal = context.Principal;
+                var userIdValue = principal?.FindFirstValue(ClaimTypes.NameIdentifier);
+                var tokenSecurityStamp = principal?.FindFirstValue(AdminAccess.SecurityStampClaimType);
+                if (!Guid.TryParse(userIdValue, out var userId) || string.IsNullOrWhiteSpace(tokenSecurityStamp))
+                {
+                    context.Fail("The access token is no longer valid.");
+                    return;
+                }
+
+                try
+                {
+                    var userManager = context.HttpContext.RequestServices
+                        .GetRequiredService<UserManager<AdminUser>>();
+                    var user = await userManager.FindByIdAsync(userId.ToString());
+                    if (user is null ||
+                        await userManager.IsLockedOutAsync(user) ||
+                        !await userManager.IsInRoleAsync(user, AdminAccess.RoleName))
+                    {
+                        context.Fail("The access token is no longer valid.");
+                        return;
+                    }
+
+                    var currentSecurityStamp = await userManager.GetSecurityStampAsync(user);
+                    if (!string.Equals(tokenSecurityStamp, currentSecurityStamp, StringComparison.Ordinal))
+                    {
+                        context.Fail("The access token is no longer valid.");
+                    }
+                }
+                catch (Exception exception)
+                {
+                    var logger = context.HttpContext.RequestServices
+                        .GetRequiredService<ILoggerFactory>()
+                        .CreateLogger("JwtUserValidation");
+                    logger.LogWarning(exception, "JWT user validation failed closed.");
+                    context.Fail("The access token could not be validated.");
+                }
             }
         };
     });

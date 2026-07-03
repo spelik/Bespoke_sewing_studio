@@ -36,6 +36,12 @@ const KNOWN_AUDIT_ACTIONS = [
   "admin_user.password_reset",
   "admin_user.deleted",
   "account.password_changed",
+  "auth.login_succeeded",
+  "auth.login_failed",
+  "auth.logout",
+  "auth.refresh_failed",
+  "auth.refresh_reuse_detected",
+  "auth.sessions_revoked",
   "order.status_updated",
   "order.note_added",
   "contact_message.status_updated",
@@ -47,6 +53,7 @@ const KNOWN_AUDIT_ACTIONS = [
 
 const KNOWN_ENTITY_TYPES = [
   "AdminUser",
+  "Authentication",
   "Order",
   "ContactMessage",
   "SiteSettings",

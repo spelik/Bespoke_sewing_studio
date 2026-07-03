@@ -57,11 +57,6 @@ public static class AuthEndpoints
         IOptions<RefreshTokenSettings> refreshTokenSettings,
         CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(request.Email) || string.IsNullOrWhiteSpace(request.Password))
-        {
-            return TypedResults.Unauthorized();
-        }
-
         var result = await authService.LoginAsync(
             request,
             GetIpAddress(httpContext),
@@ -83,15 +78,10 @@ public static class AuthEndpoints
         CancellationToken cancellationToken)
     {
         var settings = refreshTokenSettings.Value;
-        if (!httpContext.Request.Cookies.TryGetValue(settings.CookieName, out var refreshToken) ||
-            string.IsNullOrWhiteSpace(refreshToken))
-        {
-            DeleteRefreshCookie(httpContext, settings);
-            return TypedResults.Unauthorized();
-        }
+        httpContext.Request.Cookies.TryGetValue(settings.CookieName, out var refreshToken);
 
         var result = await authService.RefreshAsync(
-            refreshToken,
+            refreshToken ?? string.Empty,
             GetIpAddress(httpContext),
             GetUserAgent(httpContext),
             cancellationToken);
@@ -118,7 +108,7 @@ public static class AuthEndpoints
             await authService.RevokeRefreshTokenAsync(
                 refreshToken,
                 GetIpAddress(httpContext),
-                "Logged out.",
+                "logout",
                 cancellationToken);
         }
 
@@ -135,7 +125,9 @@ public static class AuthEndpoints
     private static async Task<IResult> ChangeOwnPasswordAsync(
         ChangeOwnPasswordRequest request,
         ClaimsPrincipal principal,
+        HttpContext httpContext,
         IAuthService authService,
+        IOptions<RefreshTokenSettings> refreshTokenSettings,
         CancellationToken cancellationToken)
     {
         var currentUserId = GetCurrentUserId(principal);
@@ -149,9 +141,16 @@ public static class AuthEndpoints
             var user = await authService.ChangeOwnPasswordAsync(
                 currentUserId.Value,
                 request,
+                GetIpAddress(httpContext),
                 cancellationToken);
 
-            return user is null ? TypedResults.Unauthorized() : TypedResults.Ok(user);
+            if (user is null)
+            {
+                return TypedResults.Unauthorized();
+            }
+
+            DeleteRefreshCookie(httpContext, refreshTokenSettings.Value);
+            return TypedResults.Ok(user);
         }
         catch (AdminAccountException exception)
         {

@@ -361,10 +361,11 @@ The endpoint returns newest entries first and accepts optional query parameters:
 - `entityType`;
 - `actorEmail`.
 
-The first audit scope records administrator user management, own-account password
+The audit scope records authentication login success/failure, logout, failed/reused
+refresh, session revocation, administrator user management, own-account password
 changes, order status/note changes, contact message status changes, Site Settings updates, Email Delivery
 updates and Brand / SEO updates. The audit log intentionally stores no
-passwords, Gmail App Passwords or raw SMTP secrets.
+passwords, access/refresh tokens, token hashes, cookies, Gmail App Passwords or raw SMTP secrets.
 
 ## Admin Users API
 
@@ -381,7 +382,8 @@ The implementation uses ASP.NET Core Identity users and the existing `Admin`
 role. It does not add a new migration: disabling a user is stored through
 Identity lockout fields. The API refuses to disable/delete the current session
 user and refuses to disable/delete the last active admin account. Passwords are
-never returned by the API.
+never returned by the API. Disabling an administrator revokes all active refresh
+sessions with reason `user_disabled`; subsequent refresh and access-token validation fail.
 
 ## Orders API
 
@@ -811,16 +813,24 @@ an HttpOnly, SameSite=Lax cookie (`Secure` outside Development). PostgreSQL tabl
 Reuse of a revoked token returns `401` and revokes the token family.
 `POST /api/auth/logout` is idempotent, revokes the current token when present and
 always expires the cookie. CORS credentials are allowed only for configured
-frontend origins. Production refresh requires HTTPS. Raw tokens are never logged.
+frontend origins. Production refresh requires HTTPS. Missing, invalid, expired,
+revoked and reused refresh attempts return a generic `401`, clear the cookie and
+write a safe audit event. Raw tokens and hashes are never logged or written to audit.
 
 Authentication uses ASP.NET Core Identity with PostgreSQL-backed users and
 roles. `POST /api/auth/login` accepts an email and password and returns a JWT.
+Issued JWTs contain an Identity security-stamp claim. Bearer validation loads the
+current user and rejects deleted, locked/disabled, non-Admin or stale-stamp users;
+this applies to protected HTTP endpoints and the SignalR query-string token flow.
 `GET /api/auth/me` validates a Bearer token and returns the current user.
 `POST /api/auth/me/password` requires the `Admin` role and lets the current admin
 change their own password by providing the current password, new password and
-confirmation. The `AdminOnly` policy requires the `Admin` role for Orders read/status/note routes.
+confirmation. A successful change updates the security stamp, revokes every refresh
+session with reason `password_changed`, clears the refresh cookie and requires a new
+login. The `AdminOnly` policy requires the `Admin` role for Orders read/status/note routes.
 Invalid email and invalid password both return the same `401 Unauthorized`
-response. JWT lifetime is four hours in development.
+response. Login success/failure, logout, failed/reused refresh and bulk session
+revocation are audited without passwords, tokens, hashes or cookie values.
 
 The administrator seed runs only in Development and only when both
 `SeedAdmin:Email` and `SeedAdmin:Password` are configured. It creates the role

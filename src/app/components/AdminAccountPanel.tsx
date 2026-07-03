@@ -6,7 +6,7 @@ import { changeOwnPassword, getAccountErrorMessage } from "../../api/authApi";
 interface AdminAccountPanelProps {
   email: string;
   roles: readonly string[];
-  onLogout(): void;
+  onLogout(): Promise<void>;
   onUnauthorized(): void;
 }
 
@@ -67,7 +67,7 @@ export function AdminAccountPanel({
       setCurrentPassword("");
       setNewPassword("");
       setConfirmNewPassword("");
-      setMessage("Password changed. Use the new password the next time you sign in.");
+      await onLogout();
     } catch (reason: unknown) {
       if (
         reason instanceof ApiError &&
@@ -221,7 +221,7 @@ export function AdminAccountPanel({
       <div className="border border-amber-200 bg-amber-50 px-4 py-3 text-[10px] text-amber-800 font-sans flex gap-2">
         <AlertTriangle size={13} className="shrink-0 mt-0.5" />
         <p>
-          After changing your password, existing JWT sessions may remain valid until they expire. Sign out and sign in again when testing the new password.
+          Changing your password revokes all refresh sessions and signs you out. Sign in again with the new password.
         </p>
       </div>
     </div>

@@ -77,7 +77,11 @@
 
 - проверить refresh cookie: `HttpOnly`, `Secure`, `SameSite=Lax`; production admin должен работать только через HTTPS;
 - проверить rotation через `/api/auth/refresh` и revocation через `/api/auth/logout`;
+- проверить, что смена собственного пароля отзывает все refresh sessions, очищает cookie, отклоняет старый JWT и требует повторный вход;
+- проверить, что disable admin user отзывает все refresh sessions и сразу отклоняет его старый JWT/refresh;
+- проверить audit actions `auth.login_succeeded`, `auth.login_failed`, `auth.logout`, `auth.refresh_failed`, `auth.refresh_reuse_detected`, `auth.sessions_revoked`;
 - убедиться, что raw refresh/access tokens отсутствуют в logs, Git и browser storage;
+- убедиться, что passwords, raw tokens, token hashes и cookie values отсутствуют в audit log;
 
 Дополнительные обязательные backend checks:
 

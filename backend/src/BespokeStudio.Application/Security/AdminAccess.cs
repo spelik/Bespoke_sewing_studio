@@ -4,4 +4,5 @@ public static class AdminAccess
 {
     public const string RoleName = "Admin";
     public const string PolicyName = "AdminOnly";
+    public const string SecurityStampClaimType = "security_stamp";
 }

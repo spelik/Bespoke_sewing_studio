@@ -2,6 +2,8 @@
 
 ## Закрыто
 
+- Task 55.2 — Auth invalidation + audit: access JWT проверяет актуального Identity user, Admin role, lockout и security stamp; смена собственного пароля и отключение admin user отзывают все refresh sessions; login success/failure, logout, failed/reused refresh и session revocation записываются в audit без паролей, токенов, hashes и cookies. Новая migration не потребовалась.
+
 - Task 55.1 — Refresh token backend foundation: добавлена таблица `AdminRefreshTokens` с SHA-256 hash-only storage, 15-minute access JWT, 14-day HttpOnly refresh cookie, rotation, reuse-family revocation и idempotent backend logout. Frontend выполняет один refresh/retry и не хранит raw refresh token.
 
 - Task 53 — Backend production hardening: добавлены отдельные liveness/readiness health endpoints с проверкой PostgreSQL, централизованные Problem Details для необработанных исключений, доверенные Forwarded Headers для reverse proxy и обязательный production-путь persistent Data Protection keys. Migration не нужна. Для каждого deployment всё ещё необходимо задать точные `KnownProxies`/`KnownNetworks`; внешний secret store и monitoring/alerting остаются операционными задачами.
@@ -89,7 +91,6 @@
 
 ## Осталось
 
-- Task 55.2: revoke all sessions при password change/disable user, login/logout/failed-login audit и полная auth invalidation policy.
 - Task 55.3: Active Sessions UI и выборочный revoke sessions.
 - Task 56: Admin 2FA.
 
@@ -104,7 +105,7 @@
 - Value objects и правила нормализации/валидации для email, телефона и денежных значений пока не определены.
 - Client matching пока не защищён уникальным normalized email/phone constraint; при конкурентных запросах возможны дубликаты.
 - Ручную validation можно позже заменить или дополнить FluentValidation при росте числа команд и правил.
-- Для production auth остаются refresh-token/session strategy, password reset, email confirmation/MFA, rate limiting login и ротация JWT signing key через внешний secret store.
+- Для production auth остаются Active Sessions UI/выборочный revoke, password recovery/email confirmation, Admin 2FA, rate limiting login и ротация JWT signing key через внешний secret store.
 - Production storage provider (S3/Azure Blob/R2), deep content inspection, thumbnail/AVIF generation и image cropper пока не реализованы. Для локального storage добавлены quarantine flow, scan metadata и configurable ClamAV/command-line scanner; production ещё требует фактической настройки ClamAV и мониторинга обновления signatures.
 - Автоматическая очистка orphan `PortfolioImage` пока не реализована; существующий cleanup обрабатывает только orphan order attachments. Архивирование portfolio item намеренно сохраняет физический файл.
 - Автоматический background orphan cleanup пока не реализован; доступен защищённый ручной endpoint. Для production нужны distributed rate limiting/abuse protection и точные deployment-specific `KnownProxies`/`KnownNetworks` для уже добавленной forwarded-header обработки.
@@ -338,9 +339,9 @@ Website Content и Repeatable Content, если это понадобится в
 - добавлена кнопка Sign out внутри My account;
 - новая migration не потребовалась.
 
-Технический нюанс: уже выданные JWT остаются действительными до истечения срока.
-Для production можно позже добавить token version/security stamp validation для
-принудительного сброса всех старых сессий после смены пароля.
+Уже выданные JWT теперь содержат security stamp и отклоняются после смены пароля,
+disable/delete пользователя или удаления роли Admin. Смена собственного пароля также
+отзывает все refresh sessions и выводит пользователя из admin.
 
 ## Task 42 — PostgreSQL backup & restore docs — Done
 

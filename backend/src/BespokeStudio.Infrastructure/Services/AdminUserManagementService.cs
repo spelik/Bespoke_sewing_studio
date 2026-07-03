@@ -12,7 +12,8 @@ namespace BespokeStudio.Infrastructure.Services;
 public sealed class AdminUserManagementService(
     UserManager<AdminUser> userManager,
     RoleManager<IdentityRole<Guid>> roleManager,
-    IAdminAuditLogService auditLogService) : IAdminUserManagementService
+    IAdminAuditLogService auditLogService,
+    IAuthService authService) : IAdminUserManagementService
 {
     public async Task<IReadOnlyList<AdminUserResponse>> GetAllAsync(
         Guid currentUserId,
@@ -119,6 +120,14 @@ public sealed class AdminUserManagementService(
 
             var lockoutResult = await userManager.SetLockoutEndDateAsync(user, DateTimeOffset.UtcNow.AddYears(100));
             ThrowIfFailed(lockoutResult, "user");
+
+            var actor = await userManager.FindByIdAsync(currentUserId.ToString());
+            await authService.RevokeAllRefreshTokensForUserAsync(
+                user.Id,
+                new AdminAuditActor(currentUserId, actor?.Email ?? actor?.UserName ?? "unknown-admin"),
+                "user_disabled",
+                null,
+                cancellationToken);
         }
         else
         {
@@ -140,7 +149,9 @@ public sealed class AdminUserManagementService(
             "AdminUser",
             user.Id.ToString(),
             user.Email,
-            $"Admin user {user.Email} was {(request.IsDisabled ? "disabled" : "enabled")}.",
+            request.IsDisabled
+                ? $"Admin user {user.Email} was disabled and active sessions were revoked."
+                : $"Admin user {user.Email} was enabled.",
             cancellationToken);
 
         var activeAdminCount = await GetActiveAdminCountAsync(cancellationToken);
