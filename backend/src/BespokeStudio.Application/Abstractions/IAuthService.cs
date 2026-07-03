@@ -4,7 +4,23 @@ namespace BespokeStudio.Application.Abstractions;
 
 public interface IAuthService
 {
-    Task<AuthTokenResponse?> LoginAsync(LoginRequest request, CancellationToken cancellationToken);
+    Task<AuthSessionResult?> LoginAsync(
+        LoginRequest request,
+        string? ipAddress,
+        string? userAgent,
+        CancellationToken cancellationToken);
+
+    Task<AuthSessionResult?> RefreshAsync(
+        string refreshToken,
+        string? ipAddress,
+        string? userAgent,
+        CancellationToken cancellationToken);
+
+    Task RevokeRefreshTokenAsync(
+        string refreshToken,
+        string? ipAddress,
+        string reason,
+        CancellationToken cancellationToken);
 
     Task<CurrentUserResponse?> ChangeOwnPasswordAsync(
         Guid currentUserId,

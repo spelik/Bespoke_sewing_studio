@@ -75,6 +75,10 @@
 
 ## 7. Hosting, HTTPS and secrets
 
+- проверить refresh cookie: `HttpOnly`, `Secure`, `SameSite=Lax`; production admin должен работать только через HTTPS;
+- проверить rotation через `/api/auth/refresh` и revocation через `/api/auth/logout`;
+- убедиться, что raw refresh/access tokens отсутствуют в logs, Git и browser storage;
+
 Дополнительные обязательные backend checks:
 
 - задать точные `ForwardedHeaders__KnownProxies` и/или `ForwardedHeaders__KnownNetworks` для proxy, который напрямую подключается к Kestrel;

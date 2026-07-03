@@ -31,6 +31,10 @@ export function login(email: string, password: string): Promise<LoginResponse> {
   });
 }
 
+export function logout(): Promise<void> {
+  return apiClient.post<Record<string, never>, void>("/auth/logout", {});
+}
+
 export function getMe(): Promise<AdminUser> {
   return apiClient.get<AdminUser>("/auth/me");
 }

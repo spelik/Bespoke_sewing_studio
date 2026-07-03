@@ -7,5 +7,5 @@ public sealed class JwtSettings
     public string Issuer { get; init; } = "BespokeStudio.Api";
     public string Audience { get; init; } = "BespokeStudio.Admin";
     public string SigningKey { get; init; } = string.Empty;
-    public int ExpirationHours { get; init; } = 4;
+    public int AccessTokenMinutes { get; init; } = 15;
 }

@@ -1,5 +1,5 @@
 import { appConfig } from "../config/appConfig";
-import { getAccessToken } from "./authTokenStorage";
+import { clearAccessToken, getAccessToken, setAccessToken } from "./authTokenStorage";
 
 export interface ApiClient {
   readonly baseUrl: string;
@@ -18,6 +18,12 @@ interface ApiProblemDetails {
   detail?: string;
   errors?: Record<string, string[]>;
 }
+
+interface RefreshResponse {
+  accessToken: string;
+}
+
+let refreshPromise: Promise<boolean> | null = null;
 
 export class ApiError extends Error {
   constructor(
@@ -67,6 +73,7 @@ async function request<TResponse>(
   method: ApiMethod,
   path: string,
   body?: unknown,
+  allowRefresh = true,
 ): Promise<TResponse> {
   const url = buildUrl(path);
 
@@ -80,12 +87,21 @@ async function request<TResponse>(
         ...getAuthorizationHeaders(),
       },
       body: body === undefined ? undefined : JSON.stringify(body),
+      credentials: "include",
     });
   } catch {
     throw new ApiError(
       "The server could not be reached. Check that the backend is running and try again.",
       0,
     );
+  }
+
+  const skipsRefresh = ["/auth/login", "/auth/refresh", "/auth/logout"].includes(path);
+  if (response.status === 401 && allowRefresh && !skipsRefresh) {
+    const refreshed = await refreshAccessToken();
+    if (refreshed) {
+      return request<TResponse>(method, path, body, false);
+    }
   }
 
   if (!response.ok) {
@@ -98,6 +114,33 @@ async function request<TResponse>(
     : undefined;
 
   return responseBody as TResponse;
+}
+
+export function refreshAccessToken(): Promise<boolean> {
+  if (refreshPromise) {
+    return refreshPromise;
+  }
+
+  refreshPromise = fetch(buildUrl("/auth/refresh"), {
+    method: "POST",
+    headers: { Accept: "application/json" },
+    credentials: "include",
+  })
+    .then(async (response) => {
+      if (!response.ok) {
+        clearAccessToken();
+        return false;
+      }
+      const result = (await response.json()) as RefreshResponse;
+      setAccessToken(result.accessToken);
+      return true;
+    })
+    .catch(() => false)
+    .finally(() => {
+      refreshPromise = null;
+    });
+
+  return refreshPromise;
 }
 
 function assertPrototypeMode() {
@@ -124,6 +167,7 @@ export const apiClient: ApiClient = {
           Accept: "*/*",
           ...getAuthorizationHeaders(),
         },
+        credentials: "include",
       });
     } catch {
       throw new ApiError("The server could not be reached. Check that the backend is running and try again.", 0);
@@ -148,6 +192,7 @@ export const apiClient: ApiClient = {
           ...getAuthorizationHeaders(),
         },
         body,
+        credentials: "include",
       });
     } catch {
       throw new ApiError("The server could not be reached. Check that the backend is running and try again.", 0);

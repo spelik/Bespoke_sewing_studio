@@ -35,8 +35,8 @@ Current backend status:
 - EF Core persistence is configured for local PostgreSQL development
 - migrations are applied explicitly with `dotnet ef database update`
 - Orders/enquiries API now persists data in PostgreSQL
-- ASP.NET Core Identity + JWT Bearer protects Orders administration routes
-- `/api/auth/login` and `/api/auth/me` provide the backend authentication foundation
+- ASP.NET Core Identity, short-lived JWT Bearer access tokens and rotating HttpOnly refresh cookies protect administration routes
+- `/api/auth/login`, `/api/auth/refresh`, `/api/auth/logout` and `/api/auth/me` provide persistent revocable admin sessions
 - the public Order form calls `POST /api/orders`
 - the public Contact form calls `POST /api/contact-messages` and persists messages in PostgreSQL
 - the public Order form accepts JPG, PNG, WebP and PDF attachments up to 5 MB each
@@ -100,9 +100,10 @@ dotnet user-secrets set "SeedAdmin:Password" "replace-with-a-strong-local-passwo
 
 The seed only creates a missing administrator and does not replace an existing
 password. Apply migrations before starting the API, then open
-`http://127.0.0.1:5173/admin/login`. The frontend stores only the JWT access
-token in `sessionStorage`; signing out clears it. Passwords are never stored by
-the frontend.
+`http://127.0.0.1:5173/admin/login`. The frontend stores only the short-lived
+JWT access token in `sessionStorage`. The refresh token remains in an HttpOnly
+cookie and only its SHA-256 hash is stored in PostgreSQL. Signing out revokes
+the refresh token and clears the cookie. Passwords are never stored by the frontend.
 
 Start the frontend in a second PowerShell window:
 

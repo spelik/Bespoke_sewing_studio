@@ -174,7 +174,13 @@ builder.Services
     .Validate(settings => !string.IsNullOrWhiteSpace(settings.Issuer), "Jwt:Issuer is required.")
     .Validate(settings => !string.IsNullOrWhiteSpace(settings.Audience), "Jwt:Audience is required.")
     .Validate(settings => settings.SigningKey.Length >= 32, "Jwt:SigningKey must be at least 32 characters.")
-    .Validate(settings => settings.ExpirationHours is >= 1 and <= 24, "Jwt:ExpirationHours must be between 1 and 24.")
+    .Validate(settings => settings.AccessTokenMinutes is >= 5 and <= 60, "Jwt:AccessTokenMinutes must be between 5 and 60.")
+    .ValidateOnStart();
+builder.Services
+    .AddOptions<RefreshTokenSettings>()
+    .Bind(builder.Configuration.GetSection(RefreshTokenSettings.SectionName))
+    .Validate(settings => !string.IsNullOrWhiteSpace(settings.CookieName), "RefreshToken:CookieName is required.")
+    .Validate(settings => settings.LifetimeDays is >= 1 and <= 90, "RefreshToken:LifetimeDays must be between 1 and 90.")
     .ValidateOnStart();
 
 var jwtSettings = builder.Configuration
@@ -228,7 +234,8 @@ builder.Services.AddCors(options =>
         policy
             .WithOrigins(corsSettings.AllowedOrigins.ToArray())
             .AllowAnyHeader()
-            .AllowAnyMethod();
+            .AllowAnyMethod()
+            .AllowCredentials();
     });
 });
 

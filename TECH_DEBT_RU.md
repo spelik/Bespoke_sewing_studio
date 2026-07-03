@@ -2,6 +2,8 @@
 
 ## Закрыто
 
+- Task 55.1 — Refresh token backend foundation: добавлена таблица `AdminRefreshTokens` с SHA-256 hash-only storage, 15-minute access JWT, 14-day HttpOnly refresh cookie, rotation, reuse-family revocation и idempotent backend logout. Frontend выполняет один refresh/retry и не хранит raw refresh token.
+
 - Task 53 — Backend production hardening: добавлены отдельные liveness/readiness health endpoints с проверкой PostgreSQL, централизованные Problem Details для необработанных исключений, доверенные Forwarded Headers для reverse proxy и обязательный production-путь persistent Data Protection keys. Migration не нужна. Для каждого deployment всё ещё необходимо задать точные `KnownProxies`/`KnownNetworks`; внешний secret store и monitoring/alerting остаются операционными задачами.
 
 - Task 52 — Admin modal accessibility: общий `AdminConfirmDialog` получил ARIA-связи, безопасный начальный фокус, focus trap для Tab/Shift+Tab, закрытие по Escape вне loading state и возврат фокуса к вызвавшему элементу.
@@ -86,6 +88,10 @@
   - остальные portfolio derivatives находятся в диапазоне примерно `35-139 KB` для WebP и `74-205 KB` для JPEG fallback
 
 ## Осталось
+
+- Task 55.2: revoke all sessions при password change/disable user, login/logout/failed-login audit и полная auth invalidation policy.
+- Task 55.3: Active Sessions UI и выборочный revoke sessions.
+- Task 56: Admin 2FA.
 
 - Две самые тяжёлые portfolio карточки (`portfolio-1a`, `portfolio-2`) всё ещё заметно крупнее остальных даже после downscale. Следующий шаг по изображениям - отдельные crop-aware thumbnails или AVIF pipeline.
 - SPA fallback всё ещё должен быть настроен на production-сервере. В репозитории добавлена только документация, не серверная конфигурация.

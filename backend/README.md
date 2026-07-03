@@ -802,6 +802,17 @@ implemented.
 
 ## Administrator authentication
 
+Admin sessions use a 15-minute JWT access token plus a rotating 14-day refresh
+token. Login returns only the access token in JSON and sets the refresh token in
+an HttpOnly, SameSite=Lax cookie (`Secure` outside Development). PostgreSQL table
+`AdminRefreshTokens` stores only a SHA-256 hash and bounded session metadata.
+
+`POST /api/auth/refresh` rotates the refresh token and returns a new access token.
+Reuse of a revoked token returns `401` and revokes the token family.
+`POST /api/auth/logout` is idempotent, revokes the current token when present and
+always expires the cookie. CORS credentials are allowed only for configured
+frontend origins. Production refresh requires HTTPS. Raw tokens are never logged.
+
 Authentication uses ASP.NET Core Identity with PostgreSQL-backed users and
 roles. `POST /api/auth/login` accepts an email and password and returns a JWT.
 `GET /api/auth/me` validates a Bearer token and returns the current user.

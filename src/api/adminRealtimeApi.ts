@@ -1,4 +1,5 @@
 import { getAccessToken } from "./authTokenStorage";
+import { refreshAccessToken } from "./apiClient";
 import { appConfig } from "../config/appConfig";
 
 const RECORD_SEPARATOR = "\u001e";
@@ -129,7 +130,7 @@ export function startAdminRealtimeConnection({
 }
 
 async function negotiate(token: string): Promise<SignalRNegotiateResponse> {
-  const response = await fetch(
+  let response = await fetch(
     `${getApiRootUrl()}/hubs/admin-notifications/negotiate?negotiateVersion=1`,
     {
       method: "POST",
@@ -137,8 +138,26 @@ async function negotiate(token: string): Promise<SignalRNegotiateResponse> {
         Accept: "application/json",
         Authorization: `Bearer ${token}`,
       },
+      credentials: "include",
     },
   );
+
+  if (response.status === 401 && (await refreshAccessToken())) {
+    const refreshedToken = getAccessToken();
+    if (refreshedToken) {
+      response = await fetch(
+        `${getApiRootUrl()}/hubs/admin-notifications/negotiate?negotiateVersion=1`,
+        {
+          method: "POST",
+          headers: {
+            Accept: "application/json",
+            Authorization: `Bearer ${refreshedToken}`,
+          },
+          credentials: "include",
+        },
+      );
+    }
+  }
 
   if (!response.ok) {
     throw new Error("SignalR negotiation failed.");
