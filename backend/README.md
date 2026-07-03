@@ -869,6 +869,16 @@ frontend origins. Production refresh requires HTTPS. Missing, invalid, expired,
 revoked and reused refresh attempts return a generic `401`, clear the cookie and
 write a safe audit event. Raw tokens and hashes are never logged or written to audit.
 
+The admin frontend keeps the returned access token in module memory only, never
+in `sessionStorage` or `localStorage`. A page reload clears that memory and the
+frontend restores the session by calling `/api/auth/refresh` with credentials,
+then retries protected API requests at most once after a successful refresh.
+Logout, password change and current-session revocation clear the in-memory token.
+SignalR connection/reconnect reads the latest token from the same memory store.
+The refresh cookie remains HttpOnly and inaccessible to frontend JavaScript.
+This reduces persistence risk but does not remove the need for CSP and XSS
+prevention.
+
 Admin session management endpoints require the `AdminOnly` policy:
 
 - `GET /api/auth/sessions` returns one safe logical session per refresh-token family;

@@ -105,13 +105,19 @@ dotnet user-secrets set "SeedAdmin:Password" "replace-with-a-strong-local-passwo
 
 The seed only creates a missing administrator and does not replace an existing
 password. Apply migrations before starting the API, then open
-`http://127.0.0.1:5173/admin/login`. The frontend stores only the short-lived
-JWT access token in `sessionStorage`. The refresh token remains in an HttpOnly
-cookie and only its SHA-256 hash is stored in PostgreSQL. Signing out revokes
+`http://127.0.0.1:5173/admin/login`. The frontend keeps the short-lived JWT
+access token only in module memory; it is never persisted in `sessionStorage`
+or `localStorage`. After a browser reload, the admin session is restored through
+`POST /api/auth/refresh` using the rotating HttpOnly refresh cookie. The refresh
+token is not readable by frontend JavaScript, and only its SHA-256 hash is stored
+in PostgreSQL. Signing out revokes
 the refresh token and clears the cookie. Changing a password or disabling an
 administrator revokes all of that user's refresh sessions. Access JWT validation
 also checks the current Identity user, Admin role, lockout state and security stamp,
-so stale tokens are rejected. Passwords are never stored by the frontend.
+so stale tokens are rejected. SignalR reads the latest in-memory token for each
+connection or reconnect. Memory-only storage reduces persistent token exposure
+under XSS but does not replace CSP and normal XSS prevention. Passwords are never
+stored by the frontend.
 
 Start the frontend in a second PowerShell window:
 

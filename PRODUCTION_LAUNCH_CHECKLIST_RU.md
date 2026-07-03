@@ -77,6 +77,10 @@
 ## 7. Hosting, HTTPS and secrets
 
 - проверить refresh cookie: `HttpOnly`, `Secure`, `SameSite=Lax`; production admin должен работать только через HTTPS;
+- проверить, что admin access token отсутствует в `sessionStorage` и `localStorage` и хранится только в памяти приложения;
+- перезагрузить admin page и убедиться, что сессия восстанавливается через HttpOnly refresh cookie и `/api/auth/refresh` без redirect loop;
+- проверить logout, смену пароля и revoke current session: memory token очищается, а refresh больше не восстанавливает отозванную сессию;
+- проверить SignalR connect/reconnect после refresh access token;
 - проверить rotation через `/api/auth/refresh` и revocation через `/api/auth/logout`;
 - проверить, что смена собственного пароля отзывает все refresh sessions, очищает cookie, отклоняет старый JWT и требует повторный вход;
 - проверить, что disable admin user отзывает все refresh sessions и сразу отклоняет его старый JWT/refresh;
