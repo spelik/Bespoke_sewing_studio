@@ -2,6 +2,8 @@
 
 ## Закрыто
 
+- Task 53 — Backend production hardening: добавлены отдельные liveness/readiness health endpoints с проверкой PostgreSQL, централизованные Problem Details для необработанных исключений, доверенные Forwarded Headers для reverse proxy и обязательный production-путь persistent Data Protection keys. Migration не нужна. Для каждого deployment всё ещё необходимо задать точные `KnownProxies`/`KnownNetworks`; внешний secret store и monitoring/alerting остаются операционными задачами.
+
 - Task 52 — Admin modal accessibility: общий `AdminConfirmDialog` получил ARIA-связи, безопасный начальный фокус, focus trap для Tab/Shift+Tab, закрытие по Escape вне loading state и возврат фокуса к вызвавшему элементу.
 
 - Admin-managed Gmail SMTP добавлен в Settings: владелец может выбрать Gmail SMTP, ввести Gmail address и Google App Password, пароль хранится как protected value на backend и никогда не возвращается в API.
@@ -99,8 +101,8 @@
 - Для production auth остаются refresh-token/session strategy, password reset, email confirmation/MFA, rate limiting login и ротация JWT signing key через внешний secret store.
 - Production storage provider (S3/Azure Blob/R2), deep content inspection, thumbnail/AVIF generation и image cropper пока не реализованы. Для локального storage добавлены quarantine flow, scan metadata и configurable ClamAV/command-line scanner; production ещё требует фактической настройки ClamAV и мониторинга обновления signatures.
 - Автоматическая очистка orphan `PortfolioImage` пока не реализована; существующий cleanup обрабатывает только orphan order attachments. Архивирование portfolio item намеренно сохраняет физический файл.
-- Автоматический background orphan cleanup пока не реализован; доступен защищённый ручной endpoint. Для production нужны distributed rate limiting/abuse protection и trusted forwarded-header configuration за reverse proxy.
-- SMTP provider реализован; есть два режима: developer-managed SMTP через user-secrets/env/secret store и owner-managed Gmail SMTP через Admin Settings с protected App Password. До production остаются настройка deliverability (SPF/DKIM/DMARC), мониторинг bounce/rejection, production Data Protection key persistence и операционная ротация credentials.
+- Автоматический background orphan cleanup пока не реализован; доступен защищённый ручной endpoint. Для production нужны distributed rate limiting/abuse protection и точные deployment-specific `KnownProxies`/`KnownNetworks` для уже добавленной forwarded-header обработки.
+- SMTP provider реализован; есть два режима: developer-managed SMTP через user-secrets/env/secret store и owner-managed Gmail SMTP через Admin Settings с protected App Password. Persistent Data Protection path теперь обязателен при production startup; до production остаются его фактическая настройка, deliverability (SPF/DKIM/DMARC), мониторинг bounce/rejection и операционная ротация credentials.
 - Background notification queue и retry policy пока не реализованы: отправка owner notifications и customer confirmation emails для orders/contact messages выполняется inline после сохранения.
 - Service image upload пока не реализован; advanced money/currency model и drag-and-drop reorder для Services/Portfolio можно добавить позже. Rich text page CMS ещё не реализован.
 - Полноценный rich-text editor/page builder не реализован: Content CMS и Repeatable Content CMS используют безопасные plain-text поля. Version history/drafts остаются будущими задачами. Multilingual CMS не планируется: проект принят как English-only.

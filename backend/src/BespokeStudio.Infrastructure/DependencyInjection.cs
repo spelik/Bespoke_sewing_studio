@@ -5,7 +5,6 @@ using BespokeStudio.Infrastructure.Persistence;
 using BespokeStudio.Infrastructure.Services;
 using BespokeStudio.Infrastructure.Storage;
 using BespokeStudio.Infrastructure.Security;
-using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -24,8 +23,6 @@ public static class DependencyInjection
         services.AddDbContext<BespokeStudioDbContext>(options =>
             options.UseNpgsql(connectionString, npgsqlOptions =>
                 npgsqlOptions.MigrationsAssembly(typeof(BespokeStudioDbContext).Assembly.FullName)));
-
-        services.AddDataProtection();
 
         services
             .AddOptions<UploadStorageOptions>()

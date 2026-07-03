@@ -75,6 +75,13 @@
 
 ## 7. Hosting, HTTPS and secrets
 
+Дополнительные обязательные backend checks:
+
+- задать точные `ForwardedHeaders__KnownProxies` и/или `ForwardedHeaders__KnownNetworks` для proxy, который напрямую подключается к Kestrel;
+- проверить, что `X-Forwarded-Proto` корректно восстанавливает HTTPS scheme, `X-Forwarded-For` — реальный client IP, а headers от недоверенного адреса игнорируются;
+- задать `DataProtection__KeysPath` для persistent ASP.NET Core Data Protection keys; без него production startup намеренно завершается ошибкой;
+- убедиться, что keys path находится вне repository и release/deployment directory, закрыт правами API process identity и включён в защищённый backup;
+
 Перед public launch:
 
 - включить HTTPS;
@@ -86,6 +93,13 @@
 - убедиться, что `appsettings.Production.json`, `.env`, `.env.local` и secrets не попадают в Git.
 
 ## 8. Final smoke test
+
+Backend health checks на production:
+
+- `/health` и `/health/live` возвращают `200`;
+- `/health/ready` возвращает `200` при доступном PostgreSQL;
+- health responses не раскрывают connection string, stack trace или exception details;
+- HTTPS/proxy headers дают ожидаемые scheme, host и client IP.
 
 Перед объявлением сайта публичным:
 

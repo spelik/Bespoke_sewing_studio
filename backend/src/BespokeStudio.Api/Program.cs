@@ -1,8 +1,11 @@
+using System.Net;
 using System.Text;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.RateLimiting;
 using BespokeStudio.Api.Configuration;
 using BespokeStudio.Api.Endpoints;
+using BespokeStudio.Api.HealthChecks;
 using BespokeStudio.Api.Hubs;
 using BespokeStudio.Api.Services;
 using BespokeStudio.Application.Abstractions;
@@ -12,13 +15,24 @@ using BespokeStudio.Application.Security;
 using BespokeStudio.Infrastructure.Authentication;
 using BespokeStudio.Infrastructure.DependencyInjection;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Http.Features;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Microsoft.Extensions.Logging.EventLog;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
 
 var builder = WebApplication.CreateBuilder(args);
+
+if (OperatingSystem.IsWindows())
+{
+    builder.Logging.AddFilter<EventLogLoggerProvider>(
+        "Microsoft.Extensions.Diagnostics.HealthChecks.DefaultHealthCheckService",
+        LogLevel.None);
+}
 
 var corsSettings = builder.Configuration
     .GetSection(CorsSettings.SectionName)
@@ -30,12 +44,54 @@ var uploadStorageSettings = builder.Configuration
 var rateLimitingSettings = builder.Configuration
     .GetSection(RateLimitingSettings.SectionName)
     .Get<RateLimitingSettings>() ?? new RateLimitingSettings();
+var forwardedHeadersSettings = builder.Configuration
+    .GetSection(ForwardedHeadersSettings.SectionName)
+    .Get<ForwardedHeadersSettings>() ?? new ForwardedHeadersSettings();
+var dataProtectionSettings = builder.Configuration
+    .GetSection(DataProtectionSettings.SectionName)
+    .Get<DataProtectionSettings>() ?? new DataProtectionSettings();
+
+ValidateForwardedHeadersSettings(forwardedHeadersSettings);
+ConfigureDataProtection(builder, dataProtectionSettings);
 
 builder.Services
     .AddApplication()
     .AddInfrastructure(builder.Configuration);
 
-builder.Services.AddHealthChecks();
+builder.Services
+    .AddProblemDetails(options =>
+    {
+        options.CustomizeProblemDetails = context =>
+            context.ProblemDetails.Extensions["traceId"] = context.HttpContext.TraceIdentifier;
+    });
+builder.Services
+    .AddHealthChecks()
+    .AddCheck(
+        "self",
+        () => HealthCheckResult.Healthy(),
+        tags: ["live", "ready"])
+    .AddCheck<PostgreSqlHealthCheck>(
+        "postgresql",
+        failureStatus: HealthStatus.Unhealthy,
+        tags: ["ready"]);
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders =
+        ForwardedHeaders.XForwardedFor |
+        ForwardedHeaders.XForwardedProto |
+        ForwardedHeaders.XForwardedHost;
+    options.ForwardLimit = forwardedHeadersSettings.ForwardLimit;
+
+    foreach (var proxy in forwardedHeadersSettings.KnownProxies)
+    {
+        options.KnownProxies.Add(IPAddress.Parse(proxy));
+    }
+
+    foreach (var network in forwardedHeadersSettings.KnownNetworks)
+    {
+        options.KnownIPNetworks.Add(System.Net.IPNetwork.Parse(network));
+    }
+});
 builder.Services.AddSignalR();
 builder.Services.AddSingleton<IAdminRealtimeNotifier, SignalRAdminRealtimeNotifier>();
 builder.Services.AddEndpointsApiExplorer();
@@ -189,6 +245,9 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+app.UseForwardedHeaders();
+app.UseExceptionHandler();
+
 if (!app.Environment.IsDevelopment())
 {
     app.UseHttpsRedirection();
@@ -201,6 +260,10 @@ app.UseRateLimiter();
 
 app.MapHub<AdminNotificationsHub>("/hubs/admin-notifications")
     .RequireAuthorization(AdminAccess.PolicyName);
+
+app.MapHealthChecks("/health", CreateHealthCheckOptions("live"));
+app.MapHealthChecks("/health/live", CreateHealthCheckOptions("live"));
+app.MapHealthChecks("/health/ready", CreateHealthCheckOptions("ready"));
 
 var api = app.MapGroup("/api")
     .WithTags("System");
@@ -258,4 +321,78 @@ static RateLimitPartition<string> CreateFixedWindowPartition(
             QueueLimit = 0,
             QueueProcessingOrder = QueueProcessingOrder.OldestFirst
         });
+}
+
+static HealthCheckOptions CreateHealthCheckOptions(string tag) => new()
+{
+    Predicate = registration => registration.Tags.Contains(tag),
+    ResponseWriter = WriteHealthResponseAsync,
+    ResultStatusCodes =
+    {
+        [HealthStatus.Healthy] = StatusCodes.Status200OK,
+        [HealthStatus.Degraded] = StatusCodes.Status503ServiceUnavailable,
+        [HealthStatus.Unhealthy] = StatusCodes.Status503ServiceUnavailable
+    }
+};
+
+static async Task WriteHealthResponseAsync(HttpContext context, HealthReport report)
+{
+    context.Response.ContentType = "application/json";
+    await context.Response.WriteAsync(JsonSerializer.Serialize(new
+    {
+        status = report.Status.ToString()
+    }));
+}
+
+static void ValidateForwardedHeadersSettings(ForwardedHeadersSettings settings)
+{
+    if (settings.ForwardLimit is < 1 or > 10)
+    {
+        throw new InvalidOperationException(
+            "ForwardedHeaders:ForwardLimit must be between 1 and 10.");
+    }
+
+    if (settings.KnownProxies.Any(proxy => !IPAddress.TryParse(proxy, out _)))
+    {
+        throw new InvalidOperationException(
+            "ForwardedHeaders:KnownProxies contains an invalid IP address.");
+    }
+
+    if (settings.KnownNetworks.Any(network => !System.Net.IPNetwork.TryParse(network, out _)))
+    {
+        throw new InvalidOperationException(
+            "ForwardedHeaders:KnownNetworks contains an invalid CIDR network.");
+    }
+}
+
+static void ConfigureDataProtection(
+    WebApplicationBuilder builder,
+    DataProtectionSettings settings)
+{
+    if (string.IsNullOrWhiteSpace(settings.ApplicationName))
+    {
+        throw new InvalidOperationException(
+            "DataProtection:ApplicationName is required.");
+    }
+
+    var dataProtection = builder.Services
+        .AddDataProtection()
+        .SetApplicationName(settings.ApplicationName);
+
+    if (string.IsNullOrWhiteSpace(settings.KeysPath))
+    {
+        if (builder.Environment.IsProduction())
+        {
+            throw new InvalidOperationException(
+                "DataProtection:KeysPath is required in Production.");
+        }
+
+        return;
+    }
+
+    var keysPath = Path.IsPathRooted(settings.KeysPath)
+        ? settings.KeysPath
+        : Path.GetFullPath(settings.KeysPath, builder.Environment.ContentRootPath);
+
+    dataProtection.PersistKeysToFileSystem(new DirectoryInfo(keysPath));
 }

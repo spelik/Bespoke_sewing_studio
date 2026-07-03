@@ -21,6 +21,58 @@ Current status:
 - email notification foundation supports owner notifications for Orders and Contact Messages through Logging and SMTP providers; WhatsApp/SMS channels are intentionally not implemented
 - the product is English-only; multilingual CMS, language fields and EN/UA switching are not part of the current scope
 
+## Production request pipeline and health checks
+
+Unhandled request exceptions are converted centrally to `application/problem+json`
+responses through ASP.NET Core Problem Details. Production responses do not expose
+stack traces or exception details; the response includes a `traceId` for correlation.
+Existing endpoint-level validation, authentication, authorization, upload validation
+and rate-limit responses keep their current status codes and payload semantics.
+
+Health endpoints are anonymous and intentionally expose only an overall status:
+
+- `GET /health` and `GET /health/live` are liveness checks for the API process;
+- `GET /health/ready` is readiness and calls EF Core `CanConnectAsync` against the
+  configured `ConnectionStrings:BespokeStudioDb` PostgreSQL database;
+- `GET /api/health` remains as a compatibility application-status endpoint and does
+  not query PostgreSQL.
+
+Readiness returns HTTP `503` when PostgreSQL is unavailable. Health responses do not
+contain connection strings, exception messages, stack traces or other secrets.
+
+Forwarded headers are processed before exception handling, HTTPS redirection, CORS,
+authentication and rate limiting. The API accepts `X-Forwarded-For`,
+`X-Forwarded-Proto` and `X-Forwarded-Host` only from the framework defaults
+(loopback) or explicitly configured trusted proxies/networks. Configure the exact
+deployment topology; do not trust arbitrary internet clients:
+
+```powershell
+$env:ForwardedHeaders__ForwardLimit = "1"
+$env:ForwardedHeaders__KnownProxies__0 = "10.0.0.10"
+$env:ForwardedHeaders__KnownNetworks__0 = "10.0.1.0/24"
+```
+
+For Cloudflare or another multi-hop topology, configure only the proxy/network that
+connects directly to Kestrel and set `ForwardLimit` to the actual trusted hop count.
+Verify the resulting request scheme and client address after deployment.
+
+Data Protection uses the stable application discriminator
+`BespokeSewingStudio`. Development can use the framework's default local key store.
+Production startup fails unless `DataProtection:KeysPath` is configured, preventing
+accidental use of ephemeral deployment storage. Use an absolute persistent path
+outside the repository and grant access only to the API process identity:
+
+```powershell
+$env:DataProtection__ApplicationName = "BespokeSewingStudio"
+$env:DataProtection__KeysPath = "D:\BespokeStudioSecrets\DataProtectionKeys"
+```
+
+Linux example: `DataProtection__KeysPath=/var/lib/bespoke-studio/data-protection-keys`.
+Back up this directory with the database and uploads. Never commit key files,
+production connection strings, JWT signing keys or SMTP credentials. Environment
+variables are supported by configuration; a managed secret store remains preferable
+for production secrets.
+
 ## Language and content scope
 
 Bespoke Sewing Studio is maintained as an English-only product. Backend models,
@@ -826,6 +878,9 @@ dotnet restore backend/BespokeStudio.sln --configfile backend/NuGet.Config
 Available core endpoints after startup include:
 
 - `/swagger`
+- `/health`
+- `/health/live`
+- `/health/ready`
 - `/api/health`
 - `/api/version`
 - `/api/auth/login`
@@ -849,14 +904,15 @@ window:
 
 ```powershell
 Invoke-WebRequest http://localhost:5099/api/health -UseBasicParsing
+Invoke-WebRequest http://localhost:5099/health -UseBasicParsing
+Invoke-WebRequest http://localhost:5099/health/ready -UseBasicParsing
 Invoke-WebRequest http://localhost:5099/api/version -UseBasicParsing
 Invoke-WebRequest http://localhost:5099/swagger/index.html -UseBasicParsing
 ```
 
-Expected result: all three requests return HTTP `200`. These endpoints do not
-execute database queries, so they also remain available when PostgreSQL is
-offline. Database connectivity is verified separately by `database update` and
-the `__EFMigrationsHistory` query above.
+Expected result with PostgreSQL running: all requests return HTTP `200`.
+`/health/ready` returns `503` when PostgreSQL cannot be reached; the liveness and
+compatibility system endpoints remain available in that condition.
 
 Portfolio/Gallery CRUD and its dedicated image upload are implemented. General
 upload-library management is not implemented. Public pages are backend-first for

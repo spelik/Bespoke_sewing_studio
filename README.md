@@ -31,7 +31,7 @@ The backend lives in `backend/` as a separate ASP.NET Core Web API skeleton (`ne
 Current backend status:
 
 - Swagger/OpenAPI is enabled
-- `/api/health` and `/api/version` are available
+- `/health` and `/health/live` provide liveness checks, `/health/ready` verifies PostgreSQL readiness, and the compatibility `/api/health` plus `/api/version` endpoints remain available
 - EF Core persistence is configured for local PostgreSQL development
 - migrations are applied explicitly with `dotnet ef database update`
 - Orders/enquiries API now persists data in PostgreSQL
@@ -233,6 +233,9 @@ Before the first public launch or a production-domain migration, review
 `public/sitemap.xml`, set `VITE_PUBLIC_SITE_URL` to the real public origin,
 verify `/robots.txt` and `/sitemap.xml` on the production domain, and complete
 the backup, email, upload-security, HTTPS, secrets and legal-text checks.
+The production reverse proxy must supply trusted forwarded headers and its exact
+proxy addresses or networks must be configured. `DataProtection__KeysPath` must
+point to persistent storage outside the repository and deployment directory.
 
 ## Site settings
 
