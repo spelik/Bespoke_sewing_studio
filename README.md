@@ -10,7 +10,10 @@ page content, repeatable content, services/prices, portfolio data and Contact fo
 Centralised typed frontend defaults are used only when the corresponding public API
 cannot be reached. The public Order form sends real requests to
 `POST /api/orders`, which persists enquiries in PostgreSQL through the ASP.NET
-Core backend. The public Contact form sends real requests to
+Core backend. The database save is the source of truth for order creation;
+email and admin realtime notifications run afterward as best-effort side effects,
+so their failure cannot turn a persisted order into a failed public response.
+The public Contact form sends real requests to
 `POST /api/contact-messages`, which stores messages in PostgreSQL and can notify
 the owner by email. The admin login, Orders and Contact Messages screens also use the backend API; the
 admin Services, Portfolio, Content, Repeatable Content, Settings and Brand/SEO sections use protected backend APIs. Optional order

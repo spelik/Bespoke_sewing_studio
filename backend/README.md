@@ -752,6 +752,15 @@ Settings. Supported placeholders include `{{studioName}}`, `{{customerName}}`,
 `{{contactReference}}`. The reference placeholders render the human-readable
 request numbers, not raw GUIDs.
 
+For order creation, the successful database save is the commit boundary and
+source of truth. Email notification preparation/delivery logging and the
+SignalR admin event run afterward as independent best-effort operations using a
+non-request cancellation token. Either failure is warning/error logged with the
+order ID and reference number and does not replace the `201 Created` response.
+The public response contract and `Location` header are unchanged. A durable
+email outbox/retry mechanism is not implemented here and remains a separate
+future improvement.
+
 Admin-managed email delivery settings are checked first: `Configuration` keeps
 the existing configuration-based provider, while `GmailSmtp` sends through Gmail
 using the owner-managed Gmail address and protected Google App Password stored

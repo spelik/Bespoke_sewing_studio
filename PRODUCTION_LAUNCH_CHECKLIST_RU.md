@@ -59,6 +59,7 @@
 - проверить test email из Admin → Settings → Email delivery;
 - проверить owner notification на Order и Contact Message;
 - проверить customer confirmation emails;
+- проверить, что сбой SMTP/email delivery log или SignalR после сохранения Order записывается в backend logs, но публичный `POST /api/orders` всё равно возвращает `201 Created` для сохранённого заказа;
 - настроить SPF, DKIM и DMARC для production-домена, если используется доменная почта;
 - проверить, что email templates не содержат тестовых данных.
 

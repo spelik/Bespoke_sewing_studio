@@ -79,6 +79,7 @@ public static class OrderEndpoints
         IOrderService orderService,
         INotificationService notificationService,
         IAdminRealtimeNotifier realtimeNotifier,
+        ILoggerFactory loggerFactory,
         CancellationToken cancellationToken)
     {
         var errors = OrderRequestValidator.Validate(request);
@@ -90,8 +91,11 @@ public static class OrderEndpoints
         try
         {
             var order = await orderService.CreateAsync(request, cancellationToken);
-            await notificationService.NotifyNewOrderCreatedAsync(order.Id, cancellationToken);
-            await realtimeNotifier.NotifyOrderCreatedAsync(order.Id, order.ReferenceNumber, cancellationToken);
+            await RunPostCommitSideEffectsAsync(
+                order,
+                notificationService,
+                realtimeNotifier,
+                loggerFactory);
             return TypedResults.Created($"/api/orders/{order.Id}", order);
         }
         catch (OrderAttachmentValidationException exception)
@@ -107,6 +111,66 @@ public static class OrderEndpoints
             {
                 [JsonNamingPolicy.CamelCase.ConvertName(exception.Field)] = [exception.Message]
             });
+        }
+    }
+
+    private static async Task RunPostCommitSideEffectsAsync(
+        OrderResponse order,
+        INotificationService notificationService,
+        IAdminRealtimeNotifier realtimeNotifier,
+        ILoggerFactory loggerFactory)
+    {
+        var logger = loggerFactory.CreateLogger("OrderCreationSideEffects");
+
+        try
+        {
+            await notificationService.NotifyNewOrderCreatedAsync(
+                order.Id,
+                CancellationToken.None);
+        }
+        catch (Exception exception)
+        {
+            TryLogPostCommitFailure(
+                logger,
+                exception,
+                "Post-commit notifications failed for order {OrderId} ({ReferenceNumber}).",
+                order);
+        }
+
+        try
+        {
+            await realtimeNotifier.NotifyOrderCreatedAsync(
+                order.Id,
+                order.ReferenceNumber,
+                CancellationToken.None);
+        }
+        catch (Exception exception)
+        {
+            TryLogPostCommitFailure(
+                logger,
+                exception,
+                "Post-commit realtime notification failed for order {OrderId} ({ReferenceNumber}).",
+                order);
+        }
+    }
+
+    private static void TryLogPostCommitFailure(
+        ILogger logger,
+        Exception exception,
+        string message,
+        OrderResponse order)
+    {
+        try
+        {
+            logger.LogWarning(
+                exception,
+                message,
+                order.Id,
+                order.ReferenceNumber);
+        }
+        catch
+        {
+            // A failing logging provider must not turn a persisted order into HTTP 500.
         }
     }
 
