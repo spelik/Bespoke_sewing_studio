@@ -1,5 +1,6 @@
 using BespokeStudio.Application.Abstractions;
 using BespokeStudio.Application.Contracts.AdminAuditLog;
+using BespokeStudio.Application.Contracts.Common;
 using BespokeStudio.Application.Security;
 
 namespace BespokeStudio.Api.Endpoints;
@@ -14,8 +15,7 @@ public static class AdminAuditLogEndpoints
 
         admin.MapGet(string.Empty, GetAsync)
             .WithName("GetAdminAuditLog")
-            .Produces<IReadOnlyList<AdminAuditLogEntryResponse>>()
-            .ProducesValidationProblem()
+            .Produces<PagedResponse<AdminAuditLogEntryResponse>>()
             .Produces(StatusCodes.Status401Unauthorized)
             .Produces(StatusCodes.Status403Forbidden);
 
@@ -23,7 +23,8 @@ public static class AdminAuditLogEndpoints
     }
 
     private static async Task<IResult> GetAsync(
-        int? take,
+        int? page,
+        int? pageSize,
         string? search,
         string? action,
         string? entityType,
@@ -31,17 +32,16 @@ public static class AdminAuditLogEndpoints
         IAdminAuditLogService service,
         CancellationToken cancellationToken)
     {
-        var limit = take ?? 100;
-        if (limit is < 1 or > 200)
-        {
-            return TypedResults.ValidationProblem(new Dictionary<string, string[]>
-            {
-                ["take"] = ["Take must be between 1 and 200."]
-            });
-        }
+        var pagination = PaginationQuery.Normalize(page, pageSize);
 
         var entries = await service.GetAsync(
-            new AdminAuditLogQueryRequest(limit, search, action, entityType, actorEmail),
+            new AdminAuditLogQueryRequest(
+                pagination.Page,
+                pagination.PageSize,
+                search,
+                action,
+                entityType,
+                actorEmail),
             cancellationToken);
 
         return TypedResults.Ok(entries);

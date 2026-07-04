@@ -6,8 +6,10 @@ import {
   getEmailDeliveryLogErrorMessage,
   type EmailDeliveryLogEntry,
 } from "../../api/emailDeliveryLogApi";
+import { type AdminPageSize } from "../../api/pagination";
 import { createCsvFileName, downloadCsv } from "../utils/csvExport";
 import { formatAdminDate } from "./adminOrderFormatting";
+import { AdminServerPagination } from "./AdminUi";
 
 interface AdminEmailLogPanelProps {
   onUnauthorized(): void;
@@ -20,7 +22,7 @@ interface EmailLogFilters {
   status: string;
   recipientEmail: string;
   provider: string;
-  take: number;
+  pageSize: AdminPageSize;
 }
 
 interface FilterOption {
@@ -35,14 +37,8 @@ const DEFAULT_FILTERS: EmailLogFilters = {
   status: "",
   recipientEmail: "",
   provider: "",
-  take: 100,
+  pageSize: 25,
 };
-
-const LIMIT_OPTIONS: FilterOption[] = [
-  { value: "50", label: "50 latest" },
-  { value: "100", label: "100 latest" },
-  { value: "200", label: "200 latest" },
-];
 
 const STATUS_OPTIONS: FilterOption[] = [
   { value: "Sent", label: "Sent" },
@@ -57,12 +53,17 @@ const MESSAGE_TYPE_LABELS: Record<string, string> = {
   test_email: "Test email",
 };
 
+const KNOWN_EMAIL_PROVIDERS = ["Logging", "LoggingFallback", "SMTP", "GmailSmtp"];
+
 export function AdminEmailLogPanel({
   onUnauthorized,
   realtimeRefreshKey = 0,
 }: AdminEmailLogPanelProps) {
   const [entries, setEntries] = useState<EmailDeliveryLogEntry[]>([]);
   const [filters, setFilters] = useState<EmailLogFilters>(DEFAULT_FILTERS);
+  const [page, setPage] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
@@ -70,6 +71,7 @@ export function AdminEmailLogPanel({
   const [debouncedRecipientEmail, setDebouncedRecipientEmail] = useState(
     filters.recipientEmail,
   );
+  const latestRequestIdRef = useRef(0);
 
   useEffect(() => {
     const timeout = window.setTimeout(() => {
@@ -88,20 +90,35 @@ export function AdminEmailLogPanel({
   }, [filters.recipientEmail]);
 
   const loadEntries = useCallback(async () => {
+    const requestId = ++latestRequestIdRef.current;
     setIsLoading(true);
     setError(null);
 
     try {
       const result = await getEmailDeliveryLog({
-        take: filters.take,
+        page,
+        pageSize: filters.pageSize,
         search: debouncedSearch,
         messageType: filters.messageType,
         status: filters.status,
         recipientEmail: debouncedRecipientEmail,
         provider: filters.provider,
       });
-      setEntries(result);
+      if (requestId !== latestRequestIdRef.current) {
+        return;
+      }
+
+      setEntries(result.items);
+      setTotalItems(result.totalItems);
+      setTotalPages(result.totalPages);
+      if (result.page > result.totalPages) {
+        setPage(result.totalPages);
+      }
     } catch (reason: unknown) {
+      if (requestId !== latestRequestIdRef.current) {
+        return;
+      }
+
       if (
         reason instanceof ApiError &&
         (reason.status === 401 || reason.status === 403)
@@ -112,7 +129,9 @@ export function AdminEmailLogPanel({
 
       setError(getEmailDeliveryLogErrorMessage(reason));
     } finally {
-      setIsLoading(false);
+      if (requestId === latestRequestIdRef.current) {
+        setIsLoading(false);
+      }
     }
   }, [
     debouncedRecipientEmail,
@@ -120,8 +139,9 @@ export function AdminEmailLogPanel({
     filters.messageType,
     filters.provider,
     filters.status,
-    filters.take,
+    filters.pageSize,
     onUnauthorized,
+    page,
   ]);
 
   useEffect(() => {
@@ -131,18 +151,18 @@ export function AdminEmailLogPanel({
   const messageTypeOptions = useMemo(
     () =>
       buildDropdownOptions(
-        entries.map((entry) => entry.messageType),
+        [...Object.keys(MESSAGE_TYPE_LABELS), filters.messageType, ...entries.map((entry) => entry.messageType)],
         formatMessageTypeLabel,
       ),
-    [entries],
+    [entries, filters.messageType],
   );
   const providerOptions = useMemo(
     () =>
       buildDropdownOptions(
-        entries.map((entry) => entry.provider),
+        [...KNOWN_EMAIL_PROVIDERS, filters.provider, ...entries.map((entry) => entry.provider)],
         prettifyToken,
       ),
-    [entries],
+    [entries, filters.provider],
   );
   const sentCount = entries.filter((entry) => entry.status === "Sent").length;
   const failedCount = entries.filter((entry) => entry.status === "Failed").length;
@@ -156,6 +176,7 @@ export function AdminEmailLogPanel({
 
   const updateFilter = useCallback(
     <TKey extends keyof EmailLogFilters>(key: TKey, value: EmailLogFilters[TKey]) => {
+      setPage(1);
       setFilters((current) => ({ ...current, [key]: value }));
     },
     [],
@@ -163,6 +184,7 @@ export function AdminEmailLogPanel({
 
   const clearFilters = () => {
     setOpenDropdown(null);
+    setPage(1);
     setFilters(DEFAULT_FILTERS);
     setDebouncedSearch("");
     setDebouncedRecipientEmail("");
@@ -189,9 +211,9 @@ export function AdminEmailLogPanel({
   return (
     <section className="space-y-5">
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <EmailLogStatCard label="Visible entries" value={entries.length} tone="neutral" />
-        <EmailLogStatCard label="Sent" value={sentCount} tone="success" />
-        <EmailLogStatCard label="Failed" value={failedCount} tone="danger" />
+        <EmailLogStatCard label="Page entries" value={entries.length} tone="neutral" />
+        <EmailLogStatCard label="Sent on page" value={sentCount} tone="success" />
+        <EmailLogStatCard label="Failed on page" value={failedCount} tone="danger" />
       </div>
 
       <div className="bg-card border border-border">
@@ -295,7 +317,7 @@ export function AdminEmailLogPanel({
                 onChange={(value) => updateFilter("provider", value)}
               />
             </div>
-            <div className="relative xl:col-span-2">
+            <div className="relative xl:col-span-3">
               <span className="mb-1 block text-[9px] uppercase tracking-[0.18em] text-muted-foreground">
                 Recipient
               </span>
@@ -318,25 +340,11 @@ export function AdminEmailLogPanel({
                 </button>
               ) : null}
             </div>
-            <div className="xl:col-span-1">
-              <StyledFilterDropdown
-                id="take"
-                label="Limit"
-                value={String(filters.take)}
-                placeholder="100 latest"
-                options={LIMIT_OPTIONS}
-                isOpen={openDropdown === "take"}
-                onToggle={() => setOpenDropdown((current) => (current === "take" ? null : "take"))}
-                onClose={() => setOpenDropdown(null)}
-                onChange={(value) => updateFilter("take", Number(value))}
-                hideEmptyOption
-              />
-            </div>
           </div>
 
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="text-[10px] text-muted-foreground font-sans">
-              Filters apply automatically · Showing {entries.length} email entr{entries.length === 1 ? "y" : "ies"} · Live updates enabled
+              Filters apply automatically · Showing {entries.length} of {totalItems} email entr{totalItems === 1 ? "y" : "ies"} · Live updates enabled
             </p>
             {activeFilterCount > 0 ? (
               <button
@@ -400,6 +408,15 @@ export function AdminEmailLogPanel({
             </tbody>
           </table>
         </div>
+        <AdminServerPagination
+          page={page}
+          pageSize={filters.pageSize}
+          totalItems={totalItems}
+          totalPages={totalPages}
+          isLoading={isLoading}
+          onPageChange={setPage}
+          onPageSizeChange={(value) => updateFilter("pageSize", value)}
+        />
       </div>
     </section>
   );

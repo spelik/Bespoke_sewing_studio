@@ -1,4 +1,5 @@
 using BespokeStudio.Application.Abstractions;
+using BespokeStudio.Application.Contracts.Common;
 using BespokeStudio.Application.Contracts.EmailDeliveryLog;
 using BespokeStudio.Application.Security;
 
@@ -14,8 +15,7 @@ public static class EmailDeliveryLogEndpoints
 
         admin.MapGet(string.Empty, GetAsync)
             .WithName("GetAdminEmailDeliveryLog")
-            .Produces<IReadOnlyList<EmailDeliveryLogEntryResponse>>()
-            .ProducesValidationProblem()
+            .Produces<PagedResponse<EmailDeliveryLogEntryResponse>>()
             .Produces(StatusCodes.Status401Unauthorized)
             .Produces(StatusCodes.Status403Forbidden);
 
@@ -23,7 +23,8 @@ public static class EmailDeliveryLogEndpoints
     }
 
     private static async Task<IResult> GetAsync(
-        int? take,
+        int? page,
+        int? pageSize,
         string? search,
         string? messageType,
         string? status,
@@ -32,17 +33,17 @@ public static class EmailDeliveryLogEndpoints
         IEmailDeliveryLogService service,
         CancellationToken cancellationToken)
     {
-        var limit = take ?? 100;
-        if (limit is < 1 or > 200)
-        {
-            return TypedResults.ValidationProblem(new Dictionary<string, string[]>
-            {
-                ["take"] = ["Take must be between 1 and 200."]
-            });
-        }
+        var pagination = PaginationQuery.Normalize(page, pageSize);
 
         var entries = await service.GetAsync(
-            new EmailDeliveryLogQueryRequest(limit, search, messageType, status, recipientEmail, provider),
+            new EmailDeliveryLogQueryRequest(
+                pagination.Page,
+                pagination.PageSize,
+                search,
+                messageType,
+                status,
+                recipientEmail,
+                provider),
             cancellationToken);
 
         return TypedResults.Ok(entries);

@@ -1,6 +1,10 @@
 import type { ReactNode } from "react";
 import { useEffect, useId, useLayoutEffect, useRef } from "react";
 import { LoaderCircle, Search, X } from "lucide-react";
+import {
+  ADMIN_PAGE_SIZE_OPTIONS,
+  type AdminPageSize,
+} from "../../api/pagination";
 
 export interface AdminFilterOption {
   value: string;
@@ -430,6 +434,67 @@ export function AdminPagination({
           type="button"
           onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))}
           disabled={currentPage >= totalPages}
+          className="border border-border bg-background px-3 py-1.5 text-foreground disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          Next
+        </button>
+      </div>
+    </div>
+  );
+}
+
+export function AdminServerPagination({
+  page,
+  pageSize,
+  totalItems,
+  totalPages,
+  isLoading,
+  onPageChange,
+  onPageSizeChange,
+}: {
+  page: number;
+  pageSize: AdminPageSize;
+  totalItems: number;
+  totalPages: number;
+  isLoading: boolean;
+  onPageChange(page: number): void;
+  onPageSizeChange(pageSize: AdminPageSize): void;
+}) {
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border bg-card px-4 py-3 font-sans text-[10px] text-muted-foreground">
+      <span>
+        Page {page} of {totalPages} · {totalItems} total
+      </span>
+      <div className="flex flex-wrap items-center gap-2">
+        <label className="flex items-center gap-2">
+          Page size
+          <select
+            value={pageSize}
+            onChange={(event) =>
+              onPageSizeChange(Number(event.target.value) as AdminPageSize)
+            }
+            disabled={isLoading}
+            className="border border-border bg-background px-2 py-1.5 text-foreground focus:border-accent focus:outline-none disabled:opacity-50"
+          >
+            {ADMIN_PAGE_SIZE_OPTIONS.map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
+          </select>
+        </label>
+        <button
+          type="button"
+          onClick={() => onPageChange(Math.max(1, page - 1))}
+          disabled={isLoading || page <= 1}
+          className="border border-border bg-background px-3 py-1.5 text-foreground disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          Previous
+        </button>
+        <button
+          type="button"
+          onClick={() => onPageChange(Math.min(totalPages, page + 1))}
+          disabled={isLoading || page >= totalPages}
           className="border border-border bg-background px-3 py-1.5 text-foreground disabled:cursor-not-allowed disabled:opacity-40"
         >
           Next

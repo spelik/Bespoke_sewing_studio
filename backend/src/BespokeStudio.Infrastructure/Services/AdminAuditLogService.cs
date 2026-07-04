@@ -1,5 +1,6 @@
 using BespokeStudio.Application.Abstractions;
 using BespokeStudio.Application.Contracts.AdminAuditLog;
+using BespokeStudio.Application.Contracts.Common;
 using BespokeStudio.Domain.Entities;
 using BespokeStudio.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -8,14 +9,11 @@ namespace BespokeStudio.Infrastructure.Services;
 
 public sealed class AdminAuditLogService(BespokeStudioDbContext dbContext) : IAdminAuditLogService
 {
-    private const int DefaultTake = 100;
-    private const int MaxTake = 200;
-
-    public async Task<IReadOnlyList<AdminAuditLogEntryResponse>> GetAsync(
+    public async Task<PagedResponse<AdminAuditLogEntryResponse>> GetAsync(
         AdminAuditLogQueryRequest request,
         CancellationToken cancellationToken = default)
     {
-        var take = request.Take <= 0 ? DefaultTake : Math.Min(request.Take, MaxTake);
+        var pagination = PaginationQuery.Normalize(request.Page, request.PageSize);
         var search = Normalize(request.Search);
         var action = Normalize(request.Action);
         var entityType = Normalize(request.EntityType);
@@ -49,9 +47,11 @@ public sealed class AdminAuditLogService(BespokeStudioDbContext dbContext) : IAd
                 entry.Summary.ToLower().Contains(search));
         }
 
-        return await query
+        var totalItems = await query.CountAsync(cancellationToken);
+        var items = await query
             .OrderByDescending(entry => entry.CreatedAt)
-            .Take(take)
+            .Skip(pagination.Skip)
+            .Take(pagination.PageSize)
             .Select(entry => new AdminAuditLogEntryResponse(
                 entry.Id,
                 entry.ActorUserId,
@@ -64,6 +64,12 @@ public sealed class AdminAuditLogService(BespokeStudioDbContext dbContext) : IAd
                 entry.MetadataJson,
                 entry.CreatedAt))
             .ToListAsync(cancellationToken);
+
+        return PagedResponse<AdminAuditLogEntryResponse>.Create(
+            items,
+            pagination.Page,
+            pagination.PageSize,
+            totalItems);
     }
 
     public async Task RecordAsync(

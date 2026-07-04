@@ -1,4 +1,5 @@
 using BespokeStudio.Application.Abstractions;
+using BespokeStudio.Application.Contracts.Common;
 using BespokeStudio.Application.Contracts.EmailDeliveryLog;
 using BespokeStudio.Domain.Entities;
 using BespokeStudio.Infrastructure.Persistence;
@@ -10,14 +11,11 @@ public sealed class EmailDeliveryLogService(
     BespokeStudioDbContext dbContext,
     IAdminRealtimeNotifier realtimeNotifier) : IEmailDeliveryLogService
 {
-    private const int DefaultTake = 100;
-    private const int MaxTake = 200;
-
-    public async Task<IReadOnlyList<EmailDeliveryLogEntryResponse>> GetAsync(
+    public async Task<PagedResponse<EmailDeliveryLogEntryResponse>> GetAsync(
         EmailDeliveryLogQueryRequest request,
         CancellationToken cancellationToken = default)
     {
-        var take = request.Take <= 0 ? DefaultTake : Math.Min(request.Take, MaxTake);
+        var pagination = PaginationQuery.Normalize(request.Page, request.PageSize);
         var search = Normalize(request.Search);
         var messageType = Normalize(request.MessageType);
         var status = Normalize(request.Status);
@@ -61,9 +59,11 @@ public sealed class EmailDeliveryLogService(
                 (entry.RelatedEntityLabel != null && entry.RelatedEntityLabel.ToLower().Contains(search)));
         }
 
-        return await query
+        var totalItems = await query.CountAsync(cancellationToken);
+        var items = await query
             .OrderByDescending(entry => entry.CreatedAt)
-            .Take(take)
+            .Skip(pagination.Skip)
+            .Take(pagination.PageSize)
             .Select(entry => new EmailDeliveryLogEntryResponse(
                 entry.Id,
                 entry.MessageType,
@@ -80,6 +80,12 @@ public sealed class EmailDeliveryLogService(
                 entry.CreatedAt,
                 entry.CompletedAt))
             .ToListAsync(cancellationToken);
+
+        return PagedResponse<EmailDeliveryLogEntryResponse>.Create(
+            items,
+            pagination.Page,
+            pagination.PageSize,
+            totalItems);
     }
 
     public async Task RecordAsync(

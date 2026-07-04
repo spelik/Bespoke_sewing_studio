@@ -1,4 +1,5 @@
 import { ApiError, apiClient } from "./apiClient";
+import type { PagedResponse } from "./pagination";
 
 export interface EmailDeliveryLogEntry {
   id: string;
@@ -18,7 +19,8 @@ export interface EmailDeliveryLogEntry {
 }
 
 export interface EmailDeliveryLogQuery {
-  take?: number;
+  page?: number;
+  pageSize?: number;
   search?: string;
   messageType?: string;
   status?: string;
@@ -28,11 +30,15 @@ export interface EmailDeliveryLogQuery {
 
 export function getEmailDeliveryLog(
   query: EmailDeliveryLogQuery = {},
-): Promise<EmailDeliveryLogEntry[]> {
+): Promise<PagedResponse<EmailDeliveryLogEntry>> {
   const parameters = new URLSearchParams();
 
-  if (query.take) {
-    parameters.set("take", String(query.take));
+  if (query.page) {
+    parameters.set("page", String(query.page));
+  }
+
+  if (query.pageSize) {
+    parameters.set("pageSize", String(query.pageSize));
   }
 
   setOptionalParameter(parameters, "search", query.search);
@@ -43,7 +49,7 @@ export function getEmailDeliveryLog(
 
   const queryString = parameters.toString();
   const suffix = queryString ? `?${queryString}` : "";
-  return apiClient.get<EmailDeliveryLogEntry[]>(`/admin/email-log${suffix}`);
+  return apiClient.get<PagedResponse<EmailDeliveryLogEntry>>(`/admin/email-log${suffix}`);
 }
 
 export function getEmailDeliveryLogErrorMessage(error: unknown): string {

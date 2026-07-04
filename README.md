@@ -218,7 +218,9 @@ the refresh cookie remains HttpOnly and no extra refresh session is created.
 Sign in to Admin and select **Audit Log** to review important administrator
 actions. The protected `GET /api/admin/audit-log` endpoint returns the newest
 audit entries and supports filtering by search text, action, entity type and
-actor email. The UI can export the visible audit entries to CSV.
+actor email. Results use server-side pagination with a default page size of 25,
+allowed sizes of 10/25/50/100 and a maximum of 100. The UI requests only the
+current page, shows the filtered total and can export the visible page to CSV.
 
 The audit scope records login success/failure, logout, failed/reused refresh,
 individual/other-session revocation, admin user management, own-account password changes,
@@ -234,7 +236,10 @@ Sign in to Admin and select **Email Log** to review email delivery attempts for
 owner notifications, customer confirmations and test emails. The protected
 `GET /api/admin/email-log` endpoint returns the newest entries and supports
 filtering by search text, message type, status, recipient email and provider.
-The UI applies filters automatically, refreshes from admin realtime events when new email attempts are recorded and can export the visible rows to CSV.
+Results use the same server-side pagination contract: 25 items by default and
+100 maximum. The UI applies filters automatically, refreshes the current page
+from admin realtime events without appending duplicate rows and can export the
+visible page to CSV.
 
 The log stores delivery metadata only: recipient email, subject, provider,
 status, result/error summary, related Order/Contact reference and timestamps.

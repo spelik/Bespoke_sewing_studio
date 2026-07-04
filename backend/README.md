@@ -210,6 +210,13 @@ uploads and notification delivery.
 - Admin audit log
 - Admin account password change
 
+The protected Audit Log and Email Delivery Log list endpoints use typed
+server-side pagination. Both accept 1-based `page` and `pageSize` query values,
+apply filters before counting, sort newest first and return `items`, `page`,
+`pageSize`, `totalItems` and `totalPages`. The default page size is 25; supported
+sizes are 10, 25, 50 and 100, with 100 as the maximum. Invalid values are safely
+normalised. No database schema change is required.
+
 ## PostgreSQL and EF Core
 
 The EF Core context is `BespokeStudioDbContext` in

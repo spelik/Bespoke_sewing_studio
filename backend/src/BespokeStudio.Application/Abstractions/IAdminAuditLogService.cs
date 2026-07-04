@@ -1,10 +1,11 @@
 using BespokeStudio.Application.Contracts.AdminAuditLog;
+using BespokeStudio.Application.Contracts.Common;
 
 namespace BespokeStudio.Application.Abstractions;
 
 public interface IAdminAuditLogService
 {
-    Task<IReadOnlyList<AdminAuditLogEntryResponse>> GetAsync(
+    Task<PagedResponse<AdminAuditLogEntryResponse>> GetAsync(
         AdminAuditLogQueryRequest request,
         CancellationToken cancellationToken = default);
 

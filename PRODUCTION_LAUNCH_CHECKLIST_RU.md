@@ -152,7 +152,8 @@ Order, Contact и upload flows.
 - Admin Dashboard;
 - Orders and Contact Messages;
 - Email delivery;
-- Audit Log;
+- Audit Log: проверить server-side filters, total, page size 10/25/50/100 и Previous/Next;
+- Email Log: проверить server-side filters, total, page size, Previous/Next и realtime refresh без дубликатов;
 - Users;
 - My account password change;
 - `/robots.txt`;

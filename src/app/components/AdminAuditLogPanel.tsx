@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Download, History, LoaderCircle, Search, X } from "lucide-react";
 import { ApiError } from "../../api/apiClient";
 import {
@@ -6,8 +6,10 @@ import {
   getAdminAuditLogErrorMessage,
   type AdminAuditLogEntry,
 } from "../../api/adminAuditLogApi";
+import { type AdminPageSize } from "../../api/pagination";
 import { formatAdminDate } from "./adminOrderFormatting";
 import { createCsvFileName, downloadCsv } from "../utils/csvExport";
+import { AdminServerPagination } from "./AdminUi";
 
 interface AdminAuditLogPanelProps {
   onUnauthorized(): void;
@@ -18,7 +20,6 @@ interface AdminAuditLogFilters {
   action: string;
   entityType: string;
   actorEmail: string;
-  take: number;
 }
 
 interface FilterOption {
@@ -26,8 +27,6 @@ interface FilterOption {
   label: string;
   meta?: string;
 }
-
-const TAKE_OPTIONS = [50, 100, 200] as const;
 
 const KNOWN_AUDIT_ACTIONS = [
   "admin_user.created",
@@ -74,7 +73,7 @@ const KNOWN_ENTITY_TYPES = [
   "Storage",
 ] as const;
 
-type AuditFilterDropdownId = "action" | "entityType" | "take";
+type AuditFilterDropdownId = "action" | "entityType";
 
 export function AdminAuditLogPanel({ onUnauthorized }: AdminAuditLogPanelProps) {
   const [entries, setEntries] = useState<AdminAuditLogEntry[]>([]);
@@ -82,27 +81,43 @@ export function AdminAuditLogPanel({ onUnauthorized }: AdminAuditLogPanelProps) 
   const [action, setAction] = useState("");
   const [entityType, setEntityType] = useState("");
   const [actorEmail, setActorEmail] = useState("");
-  const [take, setTake] = useState<(typeof TAKE_OPTIONS)[number]>(100);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState<AdminPageSize>(25);
+  const [totalItems, setTotalItems] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
   const [openFilter, setOpenFilter] = useState<AuditFilterDropdownId | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const latestRequestIdRef = useRef(0);
 
   const filters = useMemo<AdminAuditLogFilters>(
-    () => ({ search, action, entityType, actorEmail, take }),
-    [actorEmail, action, entityType, search, take],
+    () => ({ search, action, entityType, actorEmail }),
+    [actorEmail, action, entityType, search],
   );
 
-  const loadEntries = useCallback(
-    async (overrides?: Partial<AdminAuditLogFilters>) => {
-      const request = { ...filters, ...overrides };
+  const loadEntries = useCallback(async () => {
+      const requestId = ++latestRequestIdRef.current;
 
       setIsLoading(true);
       setError(null);
 
       try {
-        const result = await getAdminAuditLog(request);
-        setEntries(result);
+        const result = await getAdminAuditLog({ ...filters, page, pageSize });
+        if (requestId !== latestRequestIdRef.current) {
+          return;
+        }
+
+        setEntries(result.items);
+        setTotalItems(result.totalItems);
+        setTotalPages(result.totalPages);
+        if (result.page > result.totalPages) {
+          setPage(result.totalPages);
+        }
       } catch (reason: unknown) {
+        if (requestId !== latestRequestIdRef.current) {
+          return;
+        }
+
         if (
           reason instanceof ApiError &&
           (reason.status === 401 || reason.status === 403)
@@ -113,11 +128,11 @@ export function AdminAuditLogPanel({ onUnauthorized }: AdminAuditLogPanelProps) 
 
         setError(getAdminAuditLogErrorMessage(reason));
       } finally {
-        setIsLoading(false);
+        if (requestId === latestRequestIdRef.current) {
+          setIsLoading(false);
+        }
       }
-    },
-    [filters, onUnauthorized],
-  );
+    }, [filters, onUnauthorized, page, pageSize]);
 
   useEffect(() => {
     const delay = search.trim().length > 0 || actorEmail.trim().length > 0 ? 300 : 0;
@@ -146,15 +161,6 @@ export function AdminAuditLogPanel({ onUnauthorized }: AdminAuditLogPanelProps) 
     [entries, entityType],
   );
 
-  const takeOptions = useMemo(
-    () =>
-      TAKE_OPTIONS.map((value) => ({
-        value: String(value),
-        label: String(value),
-      })),
-    [],
-  );
-
   const visibleFiltersCount = [search, action, entityType, actorEmail].filter(
     (value) => value.trim().length > 0,
   ).length;
@@ -164,6 +170,7 @@ export function AdminAuditLogPanel({ onUnauthorized }: AdminAuditLogPanelProps) 
     setAction("");
     setEntityType("");
     setActorEmail("");
+    setPage(1);
     setOpenFilter(null);
   }
 
@@ -212,7 +219,7 @@ export function AdminAuditLogPanel({ onUnauthorized }: AdminAuditLogPanelProps) 
         </div>
 
         <div className="p-5 border-b border-border space-y-3">
-          <div className="grid grid-cols-1 lg:grid-cols-[1.25fr_0.95fr_0.9fr_0.95fr_0.45fr] gap-3 items-end">
+          <div className="grid grid-cols-1 lg:grid-cols-[1.25fr_0.95fr_0.9fr_0.95fr] gap-3 items-end">
             <label className="text-[10px] tracking-wide text-muted-foreground font-sans">
               Search
               <div className="relative mt-1">
@@ -223,14 +230,20 @@ export function AdminAuditLogPanel({ onUnauthorized }: AdminAuditLogPanelProps) 
                 <input
                   type="text"
                   value={search}
-                  onChange={(event) => setSearch(event.target.value)}
+                  onChange={(event) => {
+                    setPage(1);
+                    setSearch(event.target.value);
+                  }}
                   placeholder="Actor, action, entity, reference, summary..."
                   className="w-full border border-border bg-background pl-8 pr-8 py-2 text-[10px] text-foreground focus:outline-none focus:border-accent"
                 />
                 {search ? (
                   <button
                     type="button"
-                    onClick={() => setSearch("")}
+                    onClick={() => {
+                      setPage(1);
+                      setSearch("");
+                    }}
                     className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-muted-foreground hover:text-foreground"
                     aria-label="Clear audit log search"
                   >
@@ -248,7 +261,10 @@ export function AdminAuditLogPanel({ onUnauthorized }: AdminAuditLogPanelProps) 
               isOpen={openFilter === "action"}
               onToggle={() => setOpenFilter((current) => (current === "action" ? null : "action"))}
               onClose={() => setOpenFilter(null)}
-              onChange={setAction}
+              onChange={(value) => {
+                setPage(1);
+                setAction(value);
+              }}
             />
 
             <StyledFilterDropdown
@@ -259,7 +275,10 @@ export function AdminAuditLogPanel({ onUnauthorized }: AdminAuditLogPanelProps) 
               isOpen={openFilter === "entityType"}
               onToggle={() => setOpenFilter((current) => (current === "entityType" ? null : "entityType"))}
               onClose={() => setOpenFilter(null)}
-              onChange={setEntityType}
+              onChange={(value) => {
+                setPage(1);
+                setEntityType(value);
+              }}
             />
 
             <label className="text-[10px] tracking-wide text-muted-foreground font-sans">
@@ -267,23 +286,15 @@ export function AdminAuditLogPanel({ onUnauthorized }: AdminAuditLogPanelProps) 
               <input
                 type="email"
                 value={actorEmail}
-                onChange={(event) => setActorEmail(event.target.value)}
+                onChange={(event) => {
+                  setPage(1);
+                  setActorEmail(event.target.value);
+                }}
                 placeholder="admin@example.com"
                 className="mt-1 w-full border border-border bg-background px-3 py-2 text-[10px] text-foreground focus:outline-none focus:border-accent"
               />
             </label>
 
-            <StyledFilterDropdown
-              label="Limit"
-              value={String(take)}
-              placeholder="Limit"
-              options={takeOptions}
-              allowEmpty={false}
-              isOpen={openFilter === "take"}
-              onToggle={() => setOpenFilter((current) => (current === "take" ? null : "take"))}
-              onClose={() => setOpenFilter(null)}
-              onChange={(value) => setTake(Number(value) as typeof take)}
-            />
           </div>
 
           <div className="flex flex-wrap items-center gap-3 text-[10px] text-muted-foreground font-sans">
@@ -308,7 +319,7 @@ export function AdminAuditLogPanel({ onUnauthorized }: AdminAuditLogPanelProps) 
 
         <div className="p-5">
           <div className="mb-3 text-[10px] text-muted-foreground font-sans">
-            Showing {entries.length} audit entr{entries.length === 1 ? "y" : "ies"} · Sorted newest first
+            Showing {entries.length} of {totalItems} audit entr{totalItems === 1 ? "y" : "ies"} · Sorted newest first
           </div>
 
           {isLoading ? (
@@ -376,6 +387,18 @@ export function AdminAuditLogPanel({ onUnauthorized }: AdminAuditLogPanelProps) 
             </div>
           ) : null}
         </div>
+        <AdminServerPagination
+          page={page}
+          pageSize={pageSize}
+          totalItems={totalItems}
+          totalPages={totalPages}
+          isLoading={isLoading}
+          onPageChange={setPage}
+          onPageSizeChange={(value) => {
+            setPage(1);
+            setPageSize(value);
+          }}
+        />
       </section>
     </div>
   );
