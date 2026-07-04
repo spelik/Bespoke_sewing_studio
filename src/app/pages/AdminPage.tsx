@@ -27,10 +27,14 @@ import {
   getAdminSiteSettings,
 } from "../../api/siteSettingsApi";
 import {
+  getAdminApiErrorMessage,
+  getAdminOrders,
   ORDER_STATUSES,
+  type AdminOrderListQuery,
   type AdminOrderListItem,
   type AdminOrderStatus,
 } from "../../api/ordersApi";
+import { type AdminPageSize } from "../../api/pagination";
 import { useAuth } from "../auth/AuthContext";
 import { AdminAccountPanel } from "../components/AdminAccountPanel";
 import { AdminAuditLogPanel } from "../components/AdminAuditLogPanel";
@@ -39,7 +43,7 @@ import {
   AdminActionButton,
   AdminConfirmDialog,
   AdminFilterDropdown,
-  AdminPagination,
+  AdminServerPagination,
   AdminSearchInput,
   type AdminFilterOption,
 } from "../components/AdminUi";
@@ -134,8 +138,6 @@ const ADMIN_SECTION_HASHES: Record<AdminSection, string> = {
 };
 
 
-const ADMIN_PAGE_SIZE = 25;
-
 const ORDER_STATUS_FILTER_OPTIONS: AdminFilterOption[] = [
   { value: "All", label: "All statuses" },
   ...ORDER_STATUSES.map((status) => ({
@@ -177,7 +179,6 @@ function updateAdminSectionHash(section: AdminSection) {
 export function AdminPage() {
   const navigate = usePageNavigation();
   const { user, logout } = useAuth();
-  const adminOrders = useAdminOrders(logout);
   const [section, setSection] = useState<AdminSection>(() =>
     getAdminSectionFromHash(),
   );
@@ -185,9 +186,18 @@ export function AdminPage() {
     "All",
   );
   const [orderSearchQuery, setOrderSearchQuery] = useState("");
+  const [debouncedOrderSearchQuery, setDebouncedOrderSearchQuery] = useState("");
   const [orderStatusFilterOpen, setOrderStatusFilterOpen] = useState(false);
   const [orderPage, setOrderPage] = useState(1);
+  const [orderPageSize, setOrderPageSize] = useState<AdminPageSize>(25);
   const [orderDeleteCandidate, setOrderDeleteCandidate] = useState<AdminOrderListItem | null>(null);
+  const [dashboardOrders, setDashboardOrders] = useState<AdminOrderListItem[]>([]);
+  const [orderAttentionCounts, setOrderAttentionCounts] = useState<AttentionCounts>({
+    newCount: 0,
+    totalCount: 0,
+  });
+  const [isDashboardOrdersLoading, setIsDashboardOrdersLoading] = useState(true);
+  const [dashboardOrdersError, setDashboardOrdersError] = useState<string | null>(null);
   const [contactMessages, setContactMessages] = useState<
     AdminContactMessageListItem[]
   >([]);
@@ -208,10 +218,57 @@ export function AdminPage() {
   );
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  const orderAttentionCounts = useMemo(
-    () => calculateOrderAttentionCounts(adminOrders.orders),
-    [adminOrders.orders],
+  const orderQuery = useMemo<AdminOrderListQuery>(
+    () => ({
+      page: orderPage,
+      pageSize: orderPageSize,
+      search: debouncedOrderSearchQuery.trim() || undefined,
+      status: orderFilter === "All" ? undefined : orderFilter,
+    }),
+    [debouncedOrderSearchQuery, orderFilter, orderPage, orderPageSize],
   );
+  const adminOrders = useAdminOrders(logout, orderQuery);
+
+  const loadDashboardOrders = useCallback(async () => {
+    setIsDashboardOrdersLoading(true);
+    setDashboardOrdersError(null);
+
+    try {
+      const [allOrders, newOrders] = await Promise.all([
+        getAdminOrders({ page: 1, pageSize: 10 }),
+        getAdminOrders({ page: 1, pageSize: 10, status: "New" }),
+      ]);
+      setDashboardOrders(allOrders.items);
+      setOrderAttentionCounts({
+        newCount: newOrders.totalItems,
+        totalCount: allOrders.totalItems,
+      });
+    } catch (reason: unknown) {
+      if (
+        reason instanceof ApiError &&
+        (reason.status === 401 || reason.status === 403)
+      ) {
+        logout();
+        return;
+      }
+
+      setDashboardOrdersError(getAdminApiErrorMessage(reason));
+    } finally {
+      setIsDashboardOrdersLoading(false);
+    }
+  }, [logout]);
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      setDebouncedOrderSearchQuery(orderSearchQuery);
+    }, orderSearchQuery.trim() ? 300 : 0);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [orderSearchQuery]);
+
+  useEffect(() => {
+    void loadDashboardOrders();
+  }, [loadDashboardOrders]);
 
   const loadContactMessagesForDashboard = useCallback(async () => {
     try {
@@ -259,6 +316,7 @@ export function AdminPage() {
     (event: { entity: "Order" | "ContactMessage" | "EmailDeliveryLog" }) => {
       if (event.entity === "Order") {
         void adminOrders.reload();
+        void loadDashboardOrders();
         return;
       }
 
@@ -270,7 +328,7 @@ export function AdminPage() {
 
       setEmailLogRefreshKey((current) => current + 1);
     },
-    [adminOrders.reload, loadContactMessagesForDashboard],
+    [adminOrders.reload, loadContactMessagesForDashboard, loadDashboardOrders],
   );
 
   const adminRealtime = useAdminRealtimeUpdates({
@@ -342,43 +400,11 @@ export function AdminPage() {
     };
   }, [logout]);
 
-  const filteredOrders = useMemo(() => {
-    const normalizedQuery = normalizeSearchValue(orderSearchQuery);
-    return adminOrders.orders.filter((order) => {
-      if (orderFilter !== "All" && order.status !== orderFilter) {
-        return false;
-      }
-
-      if (!normalizedQuery) {
-        return true;
-      }
-
-      return [
-        order.referenceNumber,
-        order.clientName,
-        order.clientEmail,
-        order.clientPhone,
-        order.serviceName,
-        order.description,
-      ]
-        .map((value) => normalizeSearchValue(value))
-        .some((value) => value.includes(normalizedQuery));
-    });
-  }, [adminOrders.orders, orderFilter, orderSearchQuery]);
-
-  const orderTotalPages = Math.max(1, Math.ceil(filteredOrders.length / ADMIN_PAGE_SIZE));
-  const paginatedOrders = useMemo(
-    () => paginateItems(filteredOrders, orderPage, ADMIN_PAGE_SIZE),
-    [filteredOrders, orderPage],
-  );
-
   useEffect(() => {
-    setOrderPage(1);
-  }, [orderFilter, orderSearchQuery]);
-
-  useEffect(() => {
-    setOrderPage((currentPage) => Math.min(currentPage, orderTotalPages));
-  }, [orderTotalPages]);
+    if (orderPage > adminOrders.totalPages) {
+      setOrderPage(adminOrders.totalPages);
+    }
+  }, [adminOrders.totalPages, orderPage]);
 
   async function confirmOrderDelete() {
     if (!orderDeleteCandidate) {
@@ -388,6 +414,7 @@ export function AdminPage() {
     const wasDeleted = await adminOrders.deleteOrder(orderDeleteCandidate.id);
     if (wasDeleted) {
       setOrderDeleteCandidate(null);
+      void loadDashboardOrders();
     }
   }
 
@@ -473,7 +500,7 @@ export function AdminPage() {
 
           {section === "dashboard" ? (
             <AdminDashboardOverview
-              orders={adminOrders.orders}
+              orders={dashboardOrders}
               contactMessages={contactMessages}
               orderAttentionCounts={orderAttentionCounts}
               contactAttentionCounts={contactAttentionCounts}
@@ -481,8 +508,8 @@ export function AdminPage() {
               emailDeliveryError={emailDeliveryError}
               siteSettings={siteSettings}
               siteSettingsError={siteSettingsError}
-              isOrdersLoading={adminOrders.isLoading}
-              ordersError={adminOrders.error}
+              isOrdersLoading={isDashboardOrdersLoading}
+              ordersError={dashboardOrdersError}
               onOpenSection={handleAdminSectionChange}
               onSelectOrder={(id) => void adminOrders.selectOrder(id)}
             />
@@ -516,27 +543,31 @@ export function AdminPage() {
                       setOrderStatusFilterOpen((current) => !current)
                     }
                     onClose={() => setOrderStatusFilterOpen(false)}
-                    onChange={(value) =>
-                      setOrderFilter(value as AdminOrderStatus | "All")
-                    }
+                    onChange={(value) => {
+                      setOrderPage(1);
+                      setOrderFilter(value as AdminOrderStatus | "All");
+                    }}
                     className="xl:col-span-2"
                   />
                   <AdminSearchInput
                     label="Search"
                     value={orderSearchQuery}
-                    onChange={setOrderSearchQuery}
+                    onChange={(value) => {
+                      setOrderPage(1);
+                      setOrderSearchQuery(value);
+                    }}
                     placeholder="Reference, client, email, phone, service..."
                     ariaLabel="Search orders"
                     className="xl:col-span-5"
                   />
                   <div className="xl:col-span-2 text-[10px] text-muted-foreground font-sans">
-                    {filteredOrders.length} visible / {adminOrders.orders.length} total
+                    {adminOrders.orders.length} visible / {adminOrders.totalItems} total
                   </div>
                   <div className="xl:col-span-3 flex flex-wrap items-center justify-start xl:justify-end gap-2">
                     <AdminActionButton
                       icon={<Download size={12} aria-hidden="true" />}
-                      onClick={() => exportOrdersCsv(filteredOrders)}
-                      disabled={filteredOrders.length === 0}
+                      onClick={() => exportOrdersCsv(adminOrders.orders)}
+                      disabled={adminOrders.orders.length === 0}
                     >
                       Export CSV
                     </AdminActionButton>
@@ -544,18 +575,24 @@ export function AdminPage() {
                 </div>
               </div>
               <AdminOrdersTable
-                orders={paginatedOrders}
+                orders={adminOrders.orders}
                 isLoading={adminOrders.isLoading}
                 emptyMessage="No enquiries match this status or search."
                 deletingOrderId={adminOrders.deletingOrderId}
                 onSelect={(id) => void adminOrders.selectOrder(id)}
                 onRequestDelete={setOrderDeleteCandidate}
               />
-              <AdminPagination
-                currentPage={orderPage}
-                pageSize={ADMIN_PAGE_SIZE}
-                totalItems={filteredOrders.length}
+              <AdminServerPagination
+                page={adminOrders.page}
+                pageSize={orderPageSize}
+                totalItems={adminOrders.totalItems}
+                totalPages={adminOrders.totalPages}
+                isLoading={adminOrders.isLoading}
                 onPageChange={setOrderPage}
+                onPageSizeChange={(value) => {
+                  setOrderPage(1);
+                  setOrderPageSize(value);
+                }}
               />
             </div>
           ) : null}
@@ -1197,24 +1234,6 @@ function exportOrdersCsv(orders: readonly AdminOrderListItem[]): void {
     { header: "Created at", value: (order) => order.createdAt },
     { header: "Message", value: (order) => order.description },
   ]);
-}
-
-function paginateItems<T>(items: readonly T[], page: number, pageSize: number): T[] {
-  const start = Math.max(0, page - 1) * pageSize;
-  return items.slice(start, start + pageSize);
-}
-
-function normalizeSearchValue(value: string | null | undefined): string {
-  return (value ?? "").trim().toLocaleLowerCase();
-}
-
-function calculateOrderAttentionCounts(
-  orders: readonly AdminOrderListItem[],
-): AttentionCounts {
-  return {
-    newCount: orders.filter((order) => order.status === "New").length,
-    totalCount: orders.length,
-  };
 }
 
 function calculateContactAttentionCounts(

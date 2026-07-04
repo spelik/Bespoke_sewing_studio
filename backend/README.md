@@ -399,10 +399,18 @@ The Orders API is available under `/api/orders`. Each order has an internal GUID
 `id` and a customer-facing `referenceNumber` such as `BSS-ORD-2026-000001`:
 
 - `POST /api/orders` anonymously creates an enquiry and returns `201 Created`
-- `GET /api/orders?take=100` returns the newest enquiries (Admin JWT required)
+- `GET /api/orders?page=1&pageSize=25` returns a typed page of enquiries (Admin JWT required)
 - `GET /api/orders/{id}` returns enquiry details (Admin JWT required)
 - `PATCH /api/orders/{id}/status` updates the workflow status (Admin JWT required)
 - `POST /api/orders/{id}/notes` adds an internal note (Admin JWT required)
+
+The Admin list accepts `page`, `pageSize`, `search` and `status`. Search covers
+the request reference, client name, email, phone, service snapshot and description.
+Filters are applied server-side before `totalItems` is counted; results are ordered
+by newest first and returned as `items`, `page`, `pageSize`, `totalItems` and
+`totalPages`. Page size defaults to 25, supports 10/25/50/100 and is capped at 100.
+The separate order details endpoint and anonymous `POST /api/orders` contract are
+unchanged.
 
 Example request:
 

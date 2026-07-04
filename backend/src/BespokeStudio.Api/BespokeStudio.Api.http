@@ -49,7 +49,7 @@ Content-Type: application/json
 
 ###
 
-GET {{BespokeStudio.Api_HostAddress}}/api/orders?take=100
+GET {{BespokeStudio.Api_HostAddress}}/api/orders?page=1&pageSize=25
 Accept: application/json
 Authorization: Bearer {{AccessToken}}
 

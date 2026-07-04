@@ -6,6 +6,7 @@ import type {
   OrderSubmissionResponse,
 } from "../app/types";
 import { ApiError, apiClient } from "./apiClient";
+import type { PagedResponse } from "./pagination";
 
 const API_SERVICE_TYPES: Readonly<Record<OrderServiceType, OrderApiServiceType>> = {
   Tailoring: "Tailoring",
@@ -72,6 +73,13 @@ export interface AdminOrderListItem {
   description: string;
   preferredDate: string | null;
   createdAt: string;
+}
+
+export interface AdminOrderListQuery {
+  page?: number;
+  pageSize?: number;
+  search?: string;
+  status?: AdminOrderStatus;
 }
 
 export interface AdminClient {
@@ -186,8 +194,30 @@ export function getAdminAttachmentFile(uploadedFileId: string): Promise<Blob> {
   return apiClient.getBlob(`/uploads/${uploadedFileId}`);
 }
 
-export function getAdminOrders(take = 200): Promise<AdminOrderListItem[]> {
-  return apiClient.get<AdminOrderListItem[]>(`/orders?take=${take}`);
+export function getAdminOrders(
+  query: AdminOrderListQuery = {},
+): Promise<PagedResponse<AdminOrderListItem>> {
+  const parameters = new URLSearchParams();
+
+  if (query.page) {
+    parameters.set("page", String(query.page));
+  }
+  if (query.pageSize) {
+    parameters.set("pageSize", String(query.pageSize));
+  }
+
+  const search = query.search?.trim();
+  if (search) {
+    parameters.set("search", search);
+  }
+  if (query.status) {
+    parameters.set("status", query.status);
+  }
+
+  const queryString = parameters.toString();
+  return apiClient.get<PagedResponse<AdminOrderListItem>>(
+    `/orders${queryString ? `?${queryString}` : ""}`,
+  );
 }
 
 export function getAdminOrder(id: string): Promise<AdminOrderDetail> {

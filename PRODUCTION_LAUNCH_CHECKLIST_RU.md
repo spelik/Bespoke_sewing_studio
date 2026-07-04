@@ -150,7 +150,8 @@ Order, Contact и upload flows.
 - file upload and attachment scan;
 - admin login;
 - Admin Dashboard;
-- Orders and Contact Messages;
+- Orders: проверить server-side search/status filter, total, page size 10/25/50/100, Previous/Next, details drawer и действия;
+- Contact Messages;
 - Email delivery;
 - Audit Log: проверить server-side filters, total, page size 10/25/50/100 и Previous/Next;
 - Email Log: проверить server-side filters, total, page size, Previous/Next и realtime refresh без дубликатов;

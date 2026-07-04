@@ -1,10 +1,12 @@
 using System.Security.Claims;
 using System.Text.Json;
 using BespokeStudio.Application.Abstractions;
+using BespokeStudio.Application.Contracts.Common;
 using BespokeStudio.Application.Contracts.Orders;
 using BespokeStudio.Application.Security;
 using BespokeStudio.Application.Validation;
 using BespokeStudio.Api.Configuration;
+using BespokeStudio.Domain.Enums;
 
 namespace BespokeStudio.Api.Endpoints;
 
@@ -25,7 +27,7 @@ public static class OrderEndpoints
         orders.MapGet(string.Empty, GetOrdersAsync)
             .RequireAuthorization(AdminAccess.PolicyName)
             .WithName("GetOrders")
-            .Produces<IReadOnlyList<OrderListItemResponse>>()
+            .Produces<PagedResponse<OrderListItemResponse>>()
             .Produces(StatusCodes.Status401Unauthorized)
             .Produces(StatusCodes.Status403Forbidden);
 
@@ -175,21 +177,22 @@ public static class OrderEndpoints
     }
 
     private static async Task<IResult> GetOrdersAsync(
-        int? take,
+        int? page,
+        int? pageSize,
+        string? search,
+        OrderStatus? status,
         IOrderService orderService,
         CancellationToken cancellationToken)
     {
-        var limit = take ?? 100;
+        var pagination = PaginationQuery.Normalize(page, pageSize);
 
-        if (limit is < 1 or > 200)
-        {
-            return TypedResults.ValidationProblem(new Dictionary<string, string[]>
-            {
-                ["take"] = ["Take must be between 1 and 200."]
-            });
-        }
-
-        var orders = await orderService.GetAllAsync(limit, cancellationToken);
+        var orders = await orderService.GetPageAsync(
+            new OrderListQueryRequest(
+                pagination.Page,
+                pagination.PageSize,
+                search,
+                status),
+            cancellationToken);
         return TypedResults.Ok(orders);
     }
 

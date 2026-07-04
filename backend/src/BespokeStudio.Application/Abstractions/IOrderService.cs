@@ -1,5 +1,6 @@
 using BespokeStudio.Application.Contracts.Orders;
 using BespokeStudio.Application.Contracts.AdminAuditLog;
+using BespokeStudio.Application.Contracts.Common;
 
 namespace BespokeStudio.Application.Abstractions;
 
@@ -13,8 +14,8 @@ public interface IOrderService
         Guid orderId,
         CancellationToken cancellationToken = default);
 
-    Task<IReadOnlyList<OrderListItemResponse>> GetAllAsync(
-        int take,
+    Task<PagedResponse<OrderListItemResponse>> GetPageAsync(
+        OrderListQueryRequest request,
         CancellationToken cancellationToken = default);
 
     Task<OrderResponse?> UpdateStatusAsync(

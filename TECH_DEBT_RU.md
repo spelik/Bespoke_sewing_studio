@@ -2,6 +2,8 @@
 
 ## Закрыто
 
+- Task 51.1 — Admin Orders server-side pagination: protected `GET /api/orders` возвращает typed page response и применяет status/search до `CountAsync`, затем стабильную newest-first сортировку и `Skip/Take`. Search покрывает reference, client name/email/phone, service snapshot и description. Admin UI загружает только текущую страницу, показывает total/page size, сбрасывает page при filters/search и refetch текущей страницы после actions/SignalR events. Default page size — 25, разрешены 10/25/50/100, максимум — 100. Public `POST /api/orders`, details и attachment APIs не изменены; migration не потребовалась.
+
 - Task 51.3 — Server-side pagination для Audit Log и Email Delivery Log: оба protected endpoint возвращают typed page response (`items`, `page`, `pageSize`, `totalItems`, `totalPages`), применяют фильтры до `CountAsync`, сохраняют newest-first sorting и загружают только текущую страницу через `Skip/Take`. Default page size — 25, разрешены 10/25/50/100, максимум — 100. Admin UI показывает page/total/page size, сбрасывает page на 1 при фильтрах и безопасно обновляет текущую Email Log page по realtime event. Migration не потребовалась.
 
 - Task 49.1 — Backend test project foundation: в `backend/tests/BespokeStudio.Tests` добавлен xUnit-проект и включён в `backend/BespokeStudio.sln`. Первые unit-тесты проверяют валидную минимальную заявку, honeypot, формат email, обязательное consent и лимит вложений. Тесты не требуют PostgreSQL, SMTP, ClamAV, файлов или secrets; production behavior и схема БД не изменены.
@@ -524,7 +526,8 @@ Migration не нужна: это frontend-only UI polish.
 - Task 49.3: покрыть integration-сценарии auth/2FA, order/contact APIs и uploads без использования production credentials.
 - CI automation, включая запуск `dotnet test backend\BespokeStudio.sln`, остаётся для будущей Task 63.
 - Текущий foundation не является полным покрытием backend и не заменяет manual production smoke checklist.
-- Task 51.1 (Orders server-side pagination) и Task 51.2 (Contact Messages server-side pagination) остаются отдельными future tasks; Task 51.3 не меняет эти списки.
+- Task 51.2 (Contact Messages server-side pagination) остаётся отдельной future task.
+- Для очень большого Orders dataset substring search по нескольким полям потребует отдельного анализа PostgreSQL full-text/trigram indexes; schema migration намеренно не добавлялась в Task 51.1.
 
 ## Task 47.4 — Admin table width correction
 

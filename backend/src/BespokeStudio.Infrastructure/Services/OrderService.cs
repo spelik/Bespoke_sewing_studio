@@ -1,6 +1,7 @@
 using BespokeStudio.Application.Abstractions;
 using BespokeStudio.Application.Contracts.AdminAuditLog;
 using BespokeStudio.Application.Contracts.Clients;
+using BespokeStudio.Application.Contracts.Common;
 using BespokeStudio.Application.Contracts.Orders;
 using BespokeStudio.Application.Contracts.Storage;
 using BespokeStudio.Application.Validation;
@@ -209,30 +210,63 @@ public sealed class OrderService(
             notes);
     }
 
-    public async Task<IReadOnlyList<OrderListItemResponse>> GetAllAsync(
-        int take,
+    public async Task<PagedResponse<OrderListItemResponse>> GetPageAsync(
+        OrderListQueryRequest request,
         CancellationToken cancellationToken = default)
     {
-        return await (
+        var pagination = PaginationQuery.Normalize(request.Page, request.PageSize);
+        var search = string.IsNullOrWhiteSpace(request.Search)
+            ? null
+            : request.Search.Trim().ToLowerInvariant();
+
+        var query =
             from order in dbContext.Orders.AsNoTracking()
             join client in dbContext.Clients.AsNoTracking() on order.ClientId equals client.Id
-            orderby order.CreatedAt descending
-            select new OrderListItemResponse(
-                order.Id,
-                order.ReferenceNumber,
-                order.ClientId,
-                client.FullName,
-                client.Email,
-                client.Phone,
-                order.ServiceOfferingId,
-                order.ServiceNameSnapshot,
-                order.ServiceType,
-                order.Status,
-                order.Description,
-                order.PreferredDate,
-                order.CreatedAt))
-            .Take(take)
+            select new { Order = order, Client = client };
+
+        if (request.Status.HasValue)
+        {
+            query = query.Where(item => item.Order.Status == request.Status.Value);
+        }
+
+        if (search is not null)
+        {
+            query = query.Where(item =>
+                item.Order.ReferenceNumber.ToLower().Contains(search) ||
+                item.Client.FullName.ToLower().Contains(search) ||
+                (item.Client.Email != null && item.Client.Email.ToLower().Contains(search)) ||
+                (item.Client.Phone != null && item.Client.Phone.ToLower().Contains(search)) ||
+                item.Order.ServiceNameSnapshot.ToLower().Contains(search) ||
+                item.Order.Description.ToLower().Contains(search));
+        }
+
+        var totalItems = await query.CountAsync(cancellationToken);
+        var items = await query
+            .OrderByDescending(item => item.Order.CreatedAt)
+            .ThenByDescending(item => item.Order.Id)
+            .Select(item => new OrderListItemResponse(
+                item.Order.Id,
+                item.Order.ReferenceNumber,
+                item.Order.ClientId,
+                item.Client.FullName,
+                item.Client.Email,
+                item.Client.Phone,
+                item.Order.ServiceOfferingId,
+                item.Order.ServiceNameSnapshot,
+                item.Order.ServiceType,
+                item.Order.Status,
+                item.Order.Description,
+                item.Order.PreferredDate,
+                item.Order.CreatedAt))
+            .Skip(pagination.Skip)
+            .Take(pagination.PageSize)
             .ToListAsync(cancellationToken);
+
+        return PagedResponse<OrderListItemResponse>.Create(
+            items,
+            pagination.Page,
+            pagination.PageSize,
+            totalItems);
     }
 
     public async Task<OrderResponse?> UpdateStatusAsync(

@@ -265,6 +265,14 @@ limited to two lines in the list view so the table does not shift or overflow
 when rows contain long text. Full message/order details remain available by
 opening the drawer.
 
+Admin **Orders** uses server-side pagination and requests only the current page.
+Search across reference, client name, email, phone, service and description, plus
+the status filter, are applied by the backend before the total is calculated.
+Pages are sorted newest first. The default page size is 25, available sizes are
+10/25/50/100 and the maximum is 100. CSV export contains the currently visible
+page. Order details, status/note actions, attachments and the public Order form
+retain their existing APIs and behaviour.
+
 ## Backup and restore
 
 Operational PostgreSQL and uploads backup/restore procedures are documented in

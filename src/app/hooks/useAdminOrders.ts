@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ApiError } from "../../api/apiClient";
 import {
   addAdminOrderNote,
@@ -8,6 +8,7 @@ import {
   getAdminOrder,
   getAdminOrders,
   type AdminOrderDetail,
+  type AdminOrderListQuery,
   type AdminOrderListItem,
   type AdminOrderStatus,
   updateAdminOrderStatus,
@@ -15,6 +16,10 @@ import {
 
 interface UseAdminOrdersResult {
   orders: AdminOrderListItem[];
+  page: number;
+  pageSize: number;
+  totalItems: number;
+  totalPages: number;
   selectedOrder: AdminOrderDetail | null;
   isLoading: boolean;
   isDetailLoading: boolean;
@@ -31,8 +36,15 @@ interface UseAdminOrdersResult {
   clearSelection(): void;
 }
 
-export function useAdminOrders(onUnauthorized: () => void): UseAdminOrdersResult {
+export function useAdminOrders(
+  onUnauthorized: () => void,
+  query: AdminOrderListQuery,
+): UseAdminOrdersResult {
   const [orders, setOrders] = useState<AdminOrderListItem[]>([]);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
+  const [totalItems, setTotalItems] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
   const [selectedOrder, setSelectedOrder] = useState<AdminOrderDetail | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isDetailLoading, setIsDetailLoading] = useState(false);
@@ -40,6 +52,7 @@ export function useAdminOrders(onUnauthorized: () => void): UseAdminOrdersResult
   const [deletingAttachmentId, setDeletingAttachmentId] = useState<string | null>(null);
   const [deletingOrderId, setDeletingOrderId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const latestRequestIdRef = useRef(0);
 
   const handleError = useCallback(
     (requestError: unknown) => {
@@ -54,16 +67,32 @@ export function useAdminOrders(onUnauthorized: () => void): UseAdminOrdersResult
   );
 
   const reload = useCallback(async () => {
+    const requestId = ++latestRequestIdRef.current;
     setIsLoading(true);
     setError(null);
     try {
-      setOrders(await getAdminOrders());
+      const result = await getAdminOrders(query);
+      if (requestId !== latestRequestIdRef.current) {
+        return;
+      }
+
+      setOrders(result.items);
+      setPage(result.page);
+      setPageSize(result.pageSize);
+      setTotalItems(result.totalItems);
+      setTotalPages(result.totalPages);
     } catch (requestError) {
+      if (requestId !== latestRequestIdRef.current) {
+        return;
+      }
+
       handleError(requestError);
     } finally {
-      setIsLoading(false);
+      if (requestId === latestRequestIdRef.current) {
+        setIsLoading(false);
+      }
     }
-  }, [handleError]);
+  }, [handleError, query]);
 
   useEffect(() => {
     void reload();
@@ -84,23 +113,6 @@ export function useAdminOrders(onUnauthorized: () => void): UseAdminOrdersResult
     [handleError],
   );
 
-  const updateListItem = useCallback((detail: AdminOrderDetail) => {
-    setOrders((currentOrders) =>
-      currentOrders.map((order) =>
-        order.id === detail.id
-          ? {
-              ...order,
-              status: detail.status,
-              description: detail.description,
-              clientName: detail.client.fullName,
-              clientEmail: detail.client.email,
-              clientPhone: detail.client.phone,
-            }
-          : order,
-      ),
-    );
-  }, []);
-
   const changeStatus = useCallback(
     async (status: AdminOrderStatus) => {
       if (!selectedOrder || selectedOrder.status === status) {
@@ -112,14 +124,14 @@ export function useAdminOrders(onUnauthorized: () => void): UseAdminOrdersResult
       try {
         const updatedOrder = await updateAdminOrderStatus(selectedOrder.id, status);
         setSelectedOrder(updatedOrder);
-        updateListItem(updatedOrder);
+        await reload();
       } catch (requestError) {
         handleError(requestError);
       } finally {
         setIsSaving(false);
       }
     },
-    [handleError, selectedOrder, updateListItem],
+    [handleError, reload, selectedOrder],
   );
 
   const addNote = useCallback(
@@ -133,7 +145,7 @@ export function useAdminOrders(onUnauthorized: () => void): UseAdminOrdersResult
       try {
         const updatedOrder = await addAdminOrderNote(selectedOrder.id, text);
         setSelectedOrder(updatedOrder);
-        updateListItem(updatedOrder);
+        await reload();
         return true;
       } catch (requestError) {
         handleError(requestError);
@@ -142,7 +154,7 @@ export function useAdminOrders(onUnauthorized: () => void): UseAdminOrdersResult
         setIsSaving(false);
       }
     },
-    [handleError, selectedOrder, updateListItem],
+    [handleError, reload, selectedOrder],
   );
 
 
@@ -157,7 +169,7 @@ export function useAdminOrders(onUnauthorized: () => void): UseAdminOrdersResult
       try {
         const updatedOrder = await deleteAdminOrderAttachment(selectedOrder.id, attachmentId);
         setSelectedOrder(updatedOrder);
-        updateListItem(updatedOrder);
+        await reload();
         return true;
       } catch (requestError) {
         handleError(requestError);
@@ -166,7 +178,7 @@ export function useAdminOrders(onUnauthorized: () => void): UseAdminOrdersResult
         setDeletingAttachmentId(null);
       }
     },
-    [handleError, selectedOrder, updateListItem],
+    [handleError, reload, selectedOrder],
   );
 
 
@@ -176,10 +188,10 @@ export function useAdminOrders(onUnauthorized: () => void): UseAdminOrdersResult
       setError(null);
       try {
         await deleteAdminOrder(orderId);
-        setOrders((currentOrders) => currentOrders.filter((order) => order.id !== orderId));
         setSelectedOrder((currentOrder) =>
           currentOrder?.id === orderId ? null : currentOrder,
         );
+        await reload();
         return true;
       } catch (requestError) {
         handleError(requestError);
@@ -188,11 +200,15 @@ export function useAdminOrders(onUnauthorized: () => void): UseAdminOrdersResult
         setDeletingOrderId(null);
       }
     },
-    [handleError],
+    [handleError, reload],
   );
 
   return {
     orders,
+    page,
+    pageSize,
+    totalItems,
+    totalPages,
     selectedOrder,
     isLoading,
     isDetailLoading,
