@@ -2,6 +2,8 @@
 
 ## Закрыто
 
+- Task 61 — Email outbox + retry: owner/customer Order и Contact emails теперь сохраняются в `EmailOutboxMessages` вместе со связанной Email Log записью `Queued`; `EmailOutboxWorker` выполняет отправку через существующий provider, атомарно claim'ит due jobs, восстанавливает stale `Processing`, применяет retry 1/5/15/60 минут с максимумом 5 попыток и обновляет Email Log в `Retrying`, `Sent` или `Failed`. Migration `20260704181514_AddEmailOutboxMessages` применена к локальной PostgreSQL. Public Order/Contact contracts и auth не изменены; SMTP secrets в outbox не хранятся.
+
 - Task 51.2 — Admin Contact Messages server-side pagination: protected `GET /api/admin/contact-messages` возвращает typed page response и применяет status/search до `CountAsync`, затем стабильную newest-first сортировку и `Skip/Take`. Search покрывает reference, sender name/email/phone, subject, message и status. Admin UI загружает только текущую страницу, показывает total/page size, сбрасывает page при filters/search и refetch текущей страницы после status/delete/SignalR events. Default page size — 25, разрешены 10/25/50/100, максимум — 100. Public `POST /api/contact-messages`, validation, anti-spam и email side effects не изменены; migration не потребовалась.
 
 - Task 51.1 — Admin Orders server-side pagination: protected `GET /api/orders` возвращает typed page response и применяет status/search до `CountAsync`, затем стабильную newest-first сортировку и `Skip/Take`. Search покрывает reference, client name/email/phone, service snapshot и description. Admin UI загружает только текущую страницу, показывает total/page size, сбрасывает page при filters/search и refetch текущей страницы после actions/SignalR events. Default page size — 25, разрешены 10/25/50/100, максимум — 100. Public `POST /api/orders`, details и attachment APIs не изменены; migration не потребовалась.
@@ -122,7 +124,7 @@
 - SMTP provider реализован; есть два режима: developer-managed SMTP через user-secrets/env/secret store и owner-managed Gmail SMTP через Admin Settings с protected App Password. Persistent Data Protection path теперь обязателен при production startup; до production остаются его фактическая настройка, deliverability (SPF/DKIM/DMARC), мониторинг bounce/rejection и операционная ротация credentials.
 - Task 59 реализован: admin access token хранится только в module-level memory и не записывается в `sessionStorage`/`localStorage`; reload восстанавливает сессию через HttpOnly refresh cookie и `/api/auth/refresh`, API выполняет не более одного refresh/retry, а SignalR берёт актуальный memory token при connect/reconnect. Оставшиеся browser storage usages отсутствуют; memory-only token снижает persistence risk при XSS, но не заменяет CSP и XSS prevention.
 - Task 60 реализован: успешный DB save является границей создания Order; email notification/email delivery logging и SignalR выполняются после сохранения как независимые best-effort side effects. Их ошибка логируется с OrderId/reference и не превращает сохранённый заказ в HTTP 500; request cancellation token после commit не используется.
-- Task 61 остаётся будущей отдельной задачей: durable email outbox/background retry пока не реализованы, текущая отправка выполняется inline после сохранения.
+- Для Email Outbox остаются future-задачи: manual retry/admin dashboard, alerting по exhausted jobs, retention/очистка завершённых outbox bodies, multi-instance locking hardening и PostgreSQL integration tests.
 - Service image upload пока не реализован; advanced money/currency model и drag-and-drop reorder для Services/Portfolio можно добавить позже. Rich text page CMS ещё не реализован.
 - Полноценный rich-text editor/page builder не реализован: Content CMS и Repeatable Content CMS используют безопасные plain-text поля. Version history/drafts остаются будущими задачами. Multilingual CMS не планируется: проект принят как English-only.
 - Production secret management для admin seed и JWT signing key ещё требует внешнего secret store и operational rotation process.
@@ -141,7 +143,7 @@
 - Проверить реальную доставку через **Send test email**, затем через public Contact form и public Order form.
 - Разделять owner notifications и customer confirmation emails; подтверждения клиенту имеют отдельный toggle и редактируемые plain-text templates в Admin Settings.
 - До production настроить SPF, DKIM, DMARC, мониторинг SMTP errors/bounce/rejection, operational credential rotation.
-- Позже заменить inline отправку на background queue + retry policy, чтобы временная SMTP-недоступность не влияла на user flow.
+- Мониторить `Retrying`/`Failed` Email Log и outbox jobs; настроить alerting на исчерпанные попытки и определить production retention policy для подготовленных email bodies.
 
 ## Рекомендации на следующие задачи
 

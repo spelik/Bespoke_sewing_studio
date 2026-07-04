@@ -1,7 +1,6 @@
 using System.Text;
 using BespokeStudio.Application.Abstractions;
 using BespokeStudio.Application.Contracts.ContactMessages;
-using BespokeStudio.Application.Contracts.EmailDeliveryLog;
 using BespokeStudio.Application.Contracts.Notifications;
 using BespokeStudio.Application.Contracts.Orders;
 using Microsoft.Extensions.Logging;
@@ -12,8 +11,7 @@ public sealed class NotificationService(
     IOrderService orderService,
     IContactMessageService contactMessageService,
     ISiteSettingsService siteSettingsService,
-    IEmailNotificationSender emailSender,
-    IEmailDeliveryLogService emailDeliveryLogService,
+    IEmailOutboxService emailOutboxService,
     ILogger<NotificationService> logger) : INotificationService
 {
     public async Task NotifyNewOrderCreatedAsync(
@@ -34,9 +32,10 @@ public sealed class NotificationService(
             if (settings.EmailNotificationsEnabled && !string.IsNullOrWhiteSpace(settings.Email))
             {
                 var subject = $"New enquiry: {order.ServiceName} from {order.Client.FullName}";
-                await SendAndRecordEmailAsync(
+                await EnqueueEmailAsync(
                     messageType: "owner_order_notification",
                     recipientEmail: settings.Email,
+                    recipientName: settings.StudioName,
                     subject: subject,
                     body: BuildOrderEmailBody(order),
                     relatedEntityType: "Order",
@@ -49,9 +48,10 @@ public sealed class NotificationService(
             if (settings.CustomerConfirmationEmailsEnabled && !string.IsNullOrWhiteSpace(order.Client.Email))
             {
                 var subject = RenderOrderTemplate(settings.CustomerOrderConfirmationSubject, settings.StudioName, order);
-                await SendAndRecordEmailAsync(
+                await EnqueueEmailAsync(
                     messageType: "customer_order_confirmation",
                     recipientEmail: order.Client.Email,
+                    recipientName: order.Client.FullName,
                     subject: subject,
                     body: RenderOrderTemplate(settings.CustomerOrderConfirmationBody, settings.StudioName, order),
                     relatedEntityType: "Order",
@@ -64,7 +64,10 @@ public sealed class NotificationService(
         }
         catch (Exception exception)
         {
-            logger.LogError(exception, "Notifications could not be prepared for order {OrderId}.", orderId);
+            TryLog(() => logger.LogError(
+                exception,
+                "Notifications could not be prepared for order {OrderId}.",
+                orderId));
         }
     }
 
@@ -91,9 +94,10 @@ public sealed class NotificationService(
                     ? $"New contact message from {message.FullName}"
                     : $"New contact message: {message.Subject}";
 
-                await SendAndRecordEmailAsync(
+                await EnqueueEmailAsync(
                     messageType: "owner_contact_notification",
                     recipientEmail: settings.Email,
+                    recipientName: settings.StudioName,
                     subject: subject,
                     body: BuildContactMessageEmailBody(message),
                     relatedEntityType: "ContactMessage",
@@ -106,9 +110,10 @@ public sealed class NotificationService(
             if (settings.CustomerConfirmationEmailsEnabled)
             {
                 var subject = RenderContactTemplate(settings.CustomerContactConfirmationSubject, settings.StudioName, message);
-                await SendAndRecordEmailAsync(
+                await EnqueueEmailAsync(
                     messageType: "customer_contact_confirmation",
                     recipientEmail: message.Email,
+                    recipientName: message.FullName,
                     subject: subject,
                     body: RenderContactTemplate(settings.CustomerContactConfirmationBody, settings.StudioName, message),
                     relatedEntityType: "ContactMessage",
@@ -120,17 +125,18 @@ public sealed class NotificationService(
         }
         catch (Exception exception)
         {
-            logger.LogError(
+            TryLog(() => logger.LogError(
                 exception,
                 "Notifications could not be prepared for contact message {ContactMessageId}.",
-                contactMessageId);
+                contactMessageId));
         }
     }
 
 
-    private async Task SendAndRecordEmailAsync(
+    private async Task EnqueueEmailAsync(
         string messageType,
         string recipientEmail,
+        string? recipientName,
         string subject,
         string body,
         string? relatedEntityType,
@@ -141,82 +147,17 @@ public sealed class NotificationService(
     {
         try
         {
-            var result = await emailSender.SendAsync(
-                recipientEmail,
-                subject,
-                body,
-                cancellationToken);
-
-            if (!result.Success)
-            {
-                logger.LogWarning(
-                    "{WarningContext} used {Provider}: {Message}",
-                    warningContext,
-                    result.Provider,
-                    result.Message);
-            }
-
-            await RecordEmailLogAsync(
-                messageType,
-                recipientEmail,
-                subject,
-                result,
-                relatedEntityType,
-                relatedEntityId,
-                relatedEntityLabel,
-                cancellationToken);
-        }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-        {
-            throw;
-        }
-        catch (Exception exception)
-        {
-            logger.LogError(exception, "{WarningContext} failed.", warningContext);
-            await RecordEmailLogAsync(
-                messageType,
-                recipientEmail,
-                subject,
-                new EmailNotificationResult(
-                    Success: false,
-                    Provider: "Unknown",
-                    SentExternally: false,
-                    Message: "Email delivery threw an exception."),
-                relatedEntityType,
-                relatedEntityId,
-                relatedEntityLabel,
-                cancellationToken,
-                exception.Message);
-        }
-    }
-
-    private async Task RecordEmailLogAsync(
-        string messageType,
-        string recipientEmail,
-        string subject,
-        EmailNotificationResult result,
-        string? relatedEntityType,
-        string? relatedEntityId,
-        string? relatedEntityLabel,
-        CancellationToken cancellationToken,
-        string? errorMessage = null)
-    {
-        try
-        {
-            await emailDeliveryLogService.RecordAsync(
-                new EmailDeliveryLogWriteRequest(
+            await emailOutboxService.EnqueueAsync(
+                new EmailOutboxEnqueueRequest(
                     messageType,
                     recipientEmail,
+                    recipientName,
                     subject,
-                    result.Provider,
-                    result.Success ? "Sent" : "Failed",
-                    result.SentExternally,
-                    result.Message,
-                    errorMessage,
+                    HtmlBody: null,
+                    TextBody: body,
                     relatedEntityType,
                     relatedEntityId,
-                    relatedEntityLabel,
-                    DateTimeOffset.UtcNow),
+                    relatedEntityLabel),
                 cancellationToken);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -225,7 +166,10 @@ public sealed class NotificationService(
         }
         catch (Exception exception)
         {
-            logger.LogWarning(exception, "Email delivery log entry could not be saved for {MessageType}.", messageType);
+            TryLog(() => logger.LogError(
+                exception,
+                "{WarningContext} could not be queued.",
+                warningContext));
         }
     }
 
@@ -297,5 +241,17 @@ public sealed class NotificationService(
             .AppendLine("Admin: /admin");
 
         return body.ToString();
+    }
+
+    private static void TryLog(Action write)
+    {
+        try
+        {
+            write();
+        }
+        catch
+        {
+            // Notification preparation and enqueue are best-effort after persistence.
+        }
     }
 }

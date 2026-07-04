@@ -59,7 +59,10 @@
 - проверить test email из Admin → Settings → Email delivery;
 - проверить owner notification на Order и Contact Message;
 - проверить customer confirmation emails;
-- проверить, что сбой SMTP/email delivery log или SignalR после сохранения Order записывается в backend logs, но публичный `POST /api/orders` всё равно возвращает `201 Created` для сохранённого заказа;
+- применить migration `AddEmailOutboxMessages` через `dotnet ef database update`;
+- проверить, что Order/Contact создают outbox jobs и Email Log состояния `Queued` → `Sent` или `Retrying`/`Failed`;
+- проверить, что сбой SMTP или SignalR после сохранения Order/Contact записывается в backend logs, но публичный create endpoint всё равно возвращает success для сохранённой записи;
+- настроить production monitoring/alerting для exhausted outbox jobs и `Failed` Email Log;
 - настроить SPF, DKIM и DMARC для production-домена, если используется доменная почта;
 - проверить, что email templates не содержат тестовых данных.
 

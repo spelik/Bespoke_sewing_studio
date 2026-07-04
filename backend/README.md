@@ -19,6 +19,7 @@ Current status:
 - Site Settings and Brand/Logo/SEO settings provide public contact, navigation, logo, CTA and metadata configuration
 - public Order and Contact submissions use rate limits plus lightweight honeypot/timing anti-spam checks
 - email notification foundation supports owner notifications for Orders and Contact Messages through Logging and SMTP providers; WhatsApp/SMS channels are intentionally not implemented
+- email notifications use a PostgreSQL outbox and background worker with bounded retry/backoff; Email Log reflects queued, retrying, sent and failed states
 - the product is English-only; multilingual CMS, language fields and EN/UA switching are not part of the current scope
 
 ## Production request pipeline and health checks
@@ -761,9 +762,9 @@ destination. Migrations `NormalizeSiteSettingsContacts` and
 
 After `POST /api/orders` persists an enquiry or `POST /api/contact-messages`
 persists a contact message, `INotificationService` loads the saved record and
-current Site Settings. When owner notifications are enabled it calls
-`IEmailNotificationSender` with the Site Settings owner email. When customer
-confirmations are enabled it also sends a separate plain-text confirmation to
+current Site Settings. When owner notifications are enabled it queues a prepared
+message in `EmailOutboxMessages` for the Site Settings owner email. When customer
+confirmations are enabled it queues a separate plain-text confirmation for
 the customer email from the Order or Contact form. Customer confirmation subject
 and body templates are stored in `SiteSettings` and are editable in Admin
 Settings. Supported placeholders include `{{studioName}}`, `{{customerName}}`,
@@ -772,14 +773,20 @@ Settings. Supported placeholders include `{{studioName}}`, `{{customerName}}`,
 `{{contactReference}}`. The reference placeholders render the human-readable
 request numbers, not raw GUIDs.
 
-For order creation, the successful database save is the commit boundary and
-source of truth. Email notification preparation/delivery logging and the
-SignalR admin event run afterward as independent best-effort operations using a
-non-request cancellation token. Either failure is warning/error logged with the
-order ID and reference number and does not replace the `201 Created` response.
-The public response contract and `Location` header are unchanged. A durable
-email outbox/retry mechanism is not implemented here and remains a separate
-future improvement.
+For order creation, the successful business-record save is the commit boundary
+and source of truth. Outbox enqueue and the SignalR admin event run afterward as
+independent best-effort operations. Enqueue or provider failure does not replace
+the public `201 Created` response. The public contracts and `Location` headers
+are unchanged.
+
+`EmailOutboxWorker` claims due `Pending`/`Failed` rows atomically, sends through
+the existing `IEmailNotificationSender`, and updates the linked Email Log row.
+Success becomes `Sent`; temporary failure becomes `Retrying` with delays of 1,
+5, 15 and up to 60 minutes; exhausted attempts become `Failed`. Defaults are a
+30-second worker interval, batch size 20 and maximum five attempts. Interrupted
+`Processing` rows are recovered after five minutes. Configuration is under
+`EmailOutbox`; it contains no secrets. Single-instance and basic concurrent
+claiming are supported; stronger distributed coordination remains future work.
 
 Admin-managed email delivery settings are checked first: `Configuration` keeps
 the existing configuration-based provider, while `GmailSmtp` sends through Gmail
@@ -792,7 +799,7 @@ changing the successful order or contact message response.
 
 
 `GET /api/admin/email-log` is protected by the `AdminOnly` policy. It returns
-the newest email delivery attempts and supports `take`, `search`,
+the newest email delivery attempts and supports `page`, `pageSize`, `search`,
 `messageType`, `status`, `recipientEmail` and `provider` query filters. It is
 used by Admin → Email Log. The frontend auto-applies filters, refreshes from
 admin realtime events when entries are written and can export the visible rows
@@ -800,10 +807,11 @@ to CSV.
 
 Email log entries are written for owner order notifications, customer order
 confirmations, owner contact notifications, customer contact confirmations and
-test emails. Only metadata is persisted: recipient, subject, provider, sent/failed
-status, external-delivery flag, result/error summary, related entity reference
-and timestamps. Email bodies, SMTP credentials, Google App Passwords and tokens
-are intentionally never stored in the email log.
+test emails. Only metadata is persisted in the log: recipient, subject, provider,
+queued/retrying/sent/failed status, external-delivery flag, result/error summary,
+related entity reference and timestamps. Prepared bodies are stored in the
+protected outbox table for deferred delivery but are not returned by Email Log
+APIs. SMTP credentials, Google App Passwords and tokens are never stored there.
 
 `POST /api/admin/notifications/test-email` is protected by the `AdminOnly`
 policy. It requires enabled email notifications and a Site Settings email, then
@@ -838,9 +846,16 @@ Mandatory production email checklist:
   email address
 - verify real delivery with `POST /api/admin/notifications/test-email`, then by
   submitting the public Contact form and Order form
+- monitor `Retrying` and `Failed` Email Log/outbox records in production
 - configure SPF, DKIM and DMARC before production use
 - add operational monitoring for SMTP failures, bounce/rejection handling,
-  credential rotation and a later background queue/retry policy
+  exhausted retries and credential rotation
+
+Apply the outbox migration before starting the updated API:
+
+```powershell
+dotnet ef database update --project backend/src/BespokeStudio.Infrastructure --startup-project backend/src/BespokeStudio.Api
+```
 
 Generic local SMTP setup:
 

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AlertTriangle, CheckCircle2, Download, RefreshCw, Search, X } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Clock3, Download, RefreshCw, Search, X } from "lucide-react";
 import { ApiError } from "../../api/apiClient";
 import {
   getEmailDeliveryLog,
@@ -41,6 +41,8 @@ const DEFAULT_FILTERS: EmailLogFilters = {
 };
 
 const STATUS_OPTIONS: FilterOption[] = [
+  { value: "Queued", label: "Queued" },
+  { value: "Retrying", label: "Retrying" },
   { value: "Sent", label: "Sent" },
   { value: "Failed", label: "Failed" },
 ];
@@ -53,7 +55,7 @@ const MESSAGE_TYPE_LABELS: Record<string, string> = {
   test_email: "Test email",
 };
 
-const KNOWN_EMAIL_PROVIDERS = ["Logging", "LoggingFallback", "SMTP", "GmailSmtp"];
+const KNOWN_EMAIL_PROVIDERS = ["Outbox", "Logging", "LoggingFallback", "SMTP", "GmailSmtp"];
 
 export function AdminEmailLogPanel({
   onUnauthorized,
@@ -223,7 +225,7 @@ export function AdminEmailLogPanel({
               Email delivery log
             </h2>
             <p className="text-[10px] text-muted-foreground font-sans mt-0.5">
-              Review owner notifications, customer confirmations and test email attempts. Email bodies and secrets are not stored.
+              Review queued owner notifications, customer confirmations and test email attempts. Email bodies are not exposed here and secrets are never stored in the log.
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -449,10 +451,13 @@ function EmailLogStatCard({
 
 function EmailLogRow({ entry }: { entry: EmailDeliveryLogEntry }) {
   const isSent = entry.status === "Sent";
+  const isPending = entry.status === "Queued" || entry.status === "Retrying";
   const statusClass = isSent
     ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-    : "border-destructive/30 bg-destructive/5 text-destructive";
-  const StatusIcon = isSent ? CheckCircle2 : AlertTriangle;
+    : isPending
+      ? "border-amber-200 bg-amber-50 text-amber-700"
+      : "border-destructive/30 bg-destructive/5 text-destructive";
+  const StatusIcon = isSent ? CheckCircle2 : isPending ? Clock3 : AlertTriangle;
   const relatedLabel = entry.relatedEntityLabel ?? entry.relatedEntityId ?? "—";
 
   return (

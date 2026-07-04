@@ -70,6 +70,7 @@ Current backend status:
 - admin Orders and Contact Messages lists use styled filters, fixed-width tables, server-side pagination and shared destructive confirmation dialogs with keyboard focus management and ARIA labelling
 - the Admin **Audit Log** section lists important administrator actions from the protected backend audit log
 - the Admin **Email Log** section lists owner notifications, customer confirmations and test email attempts
+- Order and Contact emails are queued in PostgreSQL and delivered by a background worker with bounded retry/backoff
 
 Local PostgreSQL and backend setup:
 
@@ -243,8 +244,11 @@ visible page to CSV.
 
 The log stores delivery metadata only: recipient email, subject, provider,
 status, result/error summary, related Order/Contact reference and timestamps.
-It intentionally does not store email bodies, SMTP credentials, Google App
-Passwords or JWT tokens.
+It intentionally does not expose email bodies, SMTP credentials, Google App
+Passwords or JWT tokens. Prepared email bodies are stored only in the protected
+`EmailOutboxMessages` table so the worker can deliver them after the request ends.
+Queued rows appear as `Queued`, temporary failures as `Retrying`, successful
+delivery as `Sent`, and exhausted retries as `Failed`.
 
 
 ## Order attachment management
@@ -334,6 +338,13 @@ placeholders include `{{studioName}}`, `{{customerName}}`, `{{customerEmail}}`,
 planned for the current product scope. Public pages keep their typed fallback
 content if the API cannot be reached.
 
+Order and Contact notification preparation now writes an email job and a linked
+Email Log entry to PostgreSQL. `EmailOutboxWorker` sends due jobs outside the
+public request, retries temporary failures after 1, 5, 15 and up to 60 minutes,
+and stops after five attempts by default. Public Order/Contact creation therefore
+does not depend on immediate SMTP availability. Delivery can be delayed by the
+configured worker interval (30 seconds by default).
+
 Orders and Contact Messages now keep human-readable request references in addition
 to their internal GUID IDs. Order references use `BSS-ORD-YYYY-000001`; Contact
 Message references use `BSS-CON-YYYY-000001`. Admin lists, detail drawers, owner
@@ -403,9 +414,9 @@ Before production release:
 - test real delivery through **Admin > Settings > Send test email**
 - test real delivery from the public Contact form and Order form
 - keep owner notifications separate from customer confirmation emails and test both toggles independently
+- monitor Admin Email Log for `Retrying`/`Failed` rows and alert on exhausted outbox jobs
 - before production, configure deliverability records and operations:
-  SPF, DKIM, DMARC, bounce/rejection monitoring, background retry/queueing and
-  credential rotation
+  SPF, DKIM, DMARC, bounce/rejection monitoring and credential rotation
 
 Example local Gmail SMTP setup uses user-secrets only:
 
@@ -526,7 +537,8 @@ dotnet restore backend/BespokeStudio.sln --configfile backend/NuGet.Config
 ## Backend tests
 
 The backend test foundation uses xUnit and currently covers pure order-request
-validation without PostgreSQL, SMTP, ClamAV or production secrets. Run it before
+validation, pagination normalization and email-outbox retry timing without
+PostgreSQL, SMTP, ClamAV or production secrets. Run it before
 commits that change backend code and before a production release:
 
 ```powershell

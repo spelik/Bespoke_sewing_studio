@@ -7,7 +7,7 @@ export interface EmailDeliveryLogEntry {
   recipientEmail: string;
   subject: string;
   provider: string;
-  status: "Sent" | "Failed" | string;
+  status: "Queued" | "Retrying" | "Sent" | "Failed" | string;
   sentExternally: boolean;
   resultMessage: string;
   errorMessage: string | null;

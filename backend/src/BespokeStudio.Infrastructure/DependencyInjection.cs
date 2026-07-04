@@ -40,6 +40,17 @@ public static class DependencyInjection
             .Bind(configuration.GetSection(EmailNotificationOptions.SectionName));
 
         services
+            .AddOptions<EmailOutboxOptions>()
+            .Bind(configuration.GetSection(EmailOutboxOptions.SectionName))
+            .Validate(options => options.WorkerIntervalSeconds is >= 5 and <= 3600, "EmailOutbox:WorkerIntervalSeconds must be between 5 and 3600.")
+            .Validate(options => options.BatchSize is >= 1 and <= 200, "EmailOutbox:BatchSize must be between 1 and 200.")
+            .Validate(options => options.MaxAttempts is >= 1 and <= 20, "EmailOutbox:MaxAttempts must be between 1 and 20.")
+            .Validate(options => options.RetryBaseSeconds is >= 1 and <= 86400, "EmailOutbox:RetryBaseSeconds must be between 1 and 86400.")
+            .Validate(options => options.RetryMaxMinutes is >= 1 and <= 1440, "EmailOutbox:RetryMaxMinutes must be between 1 and 1440.")
+            .Validate(options => options.ProcessingTimeoutMinutes is >= 1 and <= 1440, "EmailOutbox:ProcessingTimeoutMinutes must be between 1 and 1440.")
+            .ValidateOnStart();
+
+        services
             .AddOptions<UploadSecurityOptions>()
             .Bind(configuration.GetSection(UploadSecurityOptions.SectionName))
             .Validate(options => IsSupportedMalwareScannerProvider(options.MalwareScanner.Provider), "UploadSecurity:MalwareScanner:Provider must be Disabled, ClamAV or CommandLine.")
@@ -80,6 +91,7 @@ public static class DependencyInjection
         services.AddScoped<ISiteSettingsService, SiteSettingsService>();
         services.AddScoped<IEmailDeliverySettingsService, EmailDeliverySettingsService>();
         services.AddScoped<IEmailDeliveryLogService, EmailDeliveryLogService>();
+        services.AddScoped<IEmailOutboxService, EmailOutboxService>();
         services.AddScoped<INotificationService, NotificationService>();
         services.AddScoped<LoggingEmailNotificationSender>();
         services.AddScoped<SmtpEmailNotificationSender>();
@@ -91,6 +103,8 @@ public static class DependencyInjection
         services.AddScoped<IUploadFileDeletionScheduler, UploadFileDeletionScheduler>();
         services.AddScoped<IUploadFileDeletionProcessor, UploadFileDeletionProcessor>();
         services.AddHostedService<UploadFileDeletionWorker>();
+        services.AddScoped<IEmailOutboxProcessor, EmailOutboxProcessor>();
+        services.AddHostedService<EmailOutboxWorker>();
 
         return services;
     }
