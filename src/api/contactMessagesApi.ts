@@ -7,6 +7,7 @@ import type {
   UpdateContactMessageStatusRequest,
 } from "../app/types";
 import { ApiError, apiClient } from "./apiClient";
+import type { AdminPageSize, PagedResponse } from "./pagination";
 
 interface CreateContactMessageApiRequest {
   fullName: string;
@@ -24,6 +25,13 @@ export interface DeleteContactMessageResponse {
   referenceNumber: string;
   fullName: string;
   email: string;
+}
+
+export interface AdminContactMessageListQuery {
+  page?: number;
+  pageSize?: AdminPageSize;
+  search?: string;
+  status?: ContactMessageStatus;
 }
 
 export const CONTACT_MESSAGE_STATUSES: readonly ContactMessageStatus[] = [
@@ -53,8 +61,24 @@ export function createContactMessage(
   );
 }
 
-export function getAdminContactMessages(take = 200): Promise<AdminContactMessageListItem[]> {
-  return apiClient.get<AdminContactMessageListItem[]>(`/admin/contact-messages?take=${take}`);
+export function getAdminContactMessages(
+  query: AdminContactMessageListQuery = {},
+): Promise<PagedResponse<AdminContactMessageListItem>> {
+  const params = new URLSearchParams();
+  params.set("page", String(query.page ?? 1));
+  params.set("pageSize", String(query.pageSize ?? 25));
+
+  if (query.search?.trim()) {
+    params.set("search", query.search.trim());
+  }
+
+  if (query.status) {
+    params.set("status", query.status);
+  }
+
+  return apiClient.get<PagedResponse<AdminContactMessageListItem>>(
+    `/admin/contact-messages?${params.toString()}`,
+  );
 }
 
 export function getAdminContactMessage(id: string): Promise<AdminContactMessageDetail> {

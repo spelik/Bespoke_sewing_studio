@@ -67,7 +67,7 @@ Current backend status:
 - the admin sidebar exposes only backend-backed Dashboard, Orders, Contact Messages, Services, Portfolio, Content, Repeatable Content, Brand/SEO, Users, My account, Audit Log, Email Log, Storage and Settings modules
 - the Admin Dashboard includes production-readiness checks for contact details, notifications, email delivery, upload security, admin API access and DNS email records
 - admin Orders, Contact Messages, Dashboard counters, sidebar badges and Email Log can refresh through the protected SignalR admin-notifications hub
-- admin Orders and Contact Messages lists use styled filters, fixed-width tables, client-side 25-item pagination and shared destructive confirmation dialogs with keyboard focus management and ARIA labelling
+- admin Orders and Contact Messages lists use styled filters, fixed-width tables, server-side pagination and shared destructive confirmation dialogs with keyboard focus management and ARIA labelling
 - the Admin **Audit Log** section lists important administrator actions from the protected backend audit log
 - the Admin **Email Log** section lists owner notifications, customer confirmations and test email attempts
 
@@ -272,6 +272,13 @@ Pages are sorted newest first. The default page size is 25, available sizes are
 10/25/50/100 and the maximum is 100. CSV export contains the currently visible
 page. Order details, status/note actions, attachments and the public Order form
 retain their existing APIs and behaviour.
+
+Admin **Contact Messages** also requests only the current server-side page.
+Reference, sender name, email, phone, subject, message and status search, plus the
+status filter, are applied before the backend calculates the total. Results keep
+newest-first ordering. The default page size is 25, supported sizes are
+10/25/50/100 and the maximum is 100. Status changes, deletion and SignalR events
+refetch the current page; the public Contact form submission flow is unchanged.
 
 ## Backup and restore
 
@@ -524,6 +531,9 @@ commits that change backend code and before a production release:
 
 ```powershell
 dotnet test backend\BespokeStudio.sln
+npm.cmd run typecheck
+npm.cmd run build
+dotnet build backend\BespokeStudio.sln
 ```
 
 Task 49.1 adds the test project and initial unit tests without changing production

@@ -1,7 +1,9 @@
 using BespokeStudio.Application.Abstractions;
 using BespokeStudio.Application.Contracts.AdminAuditLog;
 using BespokeStudio.Application.Contracts.ContactMessages;
+using BespokeStudio.Application.Contracts.Common;
 using BespokeStudio.Domain.Entities;
+using BespokeStudio.Domain.Enums;
 using BespokeStudio.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -41,27 +43,61 @@ public sealed class ContactMessageService(
         return ToResponse(message);
     }
 
-    public async Task<IReadOnlyList<ContactMessageListItemResponse>> GetAllAsync(
-        int take,
+    public async Task<PagedResponse<ContactMessageListItemResponse>> GetAsync(
+        ContactMessageListQueryRequest request,
         CancellationToken cancellationToken = default)
     {
-        var messages = await dbContext.ContactMessages
-            .AsNoTracking()
+        var pagination = PaginationQuery.Normalize(request.Page, request.PageSize);
+        var search = NormalizeSearch(request.Search);
+        var matchingStatuses = string.IsNullOrWhiteSpace(search)
+            ? []
+            : Enum.GetValues<ContactMessageStatus>()
+                .Where(status => status.ToString().Contains(search, StringComparison.OrdinalIgnoreCase))
+                .ToArray();
+
+        var query = dbContext.ContactMessages.AsNoTracking();
+
+        if (request.Status is not null)
+        {
+            query = query.Where(message => message.Status == request.Status);
+        }
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            query = query.Where(message =>
+                message.ReferenceNumber.ToLower().Contains(search) ||
+                message.FullName.ToLower().Contains(search) ||
+                message.Email.ToLower().Contains(search) ||
+                (message.Phone != null && message.Phone.ToLower().Contains(search)) ||
+                (message.Subject != null && message.Subject.ToLower().Contains(search)) ||
+                message.Message.ToLower().Contains(search) ||
+                matchingStatuses.Contains(message.Status));
+        }
+
+        var totalItems = await query.CountAsync(cancellationToken);
+        var messages = await query
             .OrderByDescending(message => message.CreatedAt)
-            .Take(take)
+            .ThenByDescending(message => message.Id)
+            .Skip(pagination.Skip)
+            .Take(pagination.PageSize)
+            .Select(message => new ContactMessageListItemResponse(
+                message.Id,
+                message.ReferenceNumber,
+                message.FullName,
+                message.Email,
+                message.Phone,
+                message.Subject,
+                Preview(message.Message),
+                message.Status,
+                message.CreatedAt,
+                message.UpdatedAt))
             .ToListAsync(cancellationToken);
 
-        return messages.Select(message => new ContactMessageListItemResponse(
-            message.Id,
-            message.ReferenceNumber,
-            message.FullName,
-            message.Email,
-            message.Phone,
-            message.Subject,
-            Preview(message.Message),
-            message.Status,
-            message.CreatedAt,
-            message.UpdatedAt)).ToArray();
+        return PagedResponse<ContactMessageListItemResponse>.Create(
+            messages,
+            pagination.Page,
+            pagination.PageSize,
+            totalItems);
     }
 
     public async Task<ContactMessageResponse?> GetByIdAsync(
@@ -154,6 +190,9 @@ public sealed class ContactMessageService(
         var trimmed = value.Trim();
         return trimmed.Length <= 180 ? trimmed : trimmed[..180] + "…";
     }
+
+    private static string? NormalizeSearch(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : value.Trim().ToLowerInvariant();
 
     private static string? N(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 }

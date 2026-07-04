@@ -14,7 +14,7 @@ Current status:
 - Portfolio/Gallery CMS manages categories, work items, images, publication state and ordering
 - Website Content CMS manages page sections, copy, CTA data and page images
 - Repeatable Content CMS manages process steps, studio values, testimonials and privacy subsections
-- Admin Contact Messages module lists messages, filters by status and updates workflow state
+- Admin Contact Messages module loads paged message lists, applies search/status filters server-side and updates workflow state
 - a protected SignalR admin-notifications hub broadcasts Order and Contact Message changes to open admin sessions
 - Site Settings and Brand/Logo/SEO settings provide public contact, navigation, logo, CTA and metadata configuration
 - public Order and Contact submissions use rate limits plus lightweight honeypot/timing anti-spam checks
@@ -216,6 +216,11 @@ apply filters before counting, sort newest first and return `items`, `page`,
 `pageSize`, `totalItems` and `totalPages`. The default page size is 25; supported
 sizes are 10, 25, 50 and 100, with 100 as the maximum. Invalid values are safely
 normalised. No database schema change is required.
+
+The protected Orders and Contact Messages list endpoints use the same pagination
+shape and limits. Contact Messages search covers reference, sender name, email,
+phone, subject, message and matching workflow status values. Its status filter,
+counting, newest-first ordering and `Skip`/`Take` are all applied server-side.
 
 ## PostgreSQL and EF Core
 
@@ -477,7 +482,7 @@ Public endpoint:
 
 Admin JWT endpoints:
 
-- `GET /api/admin/contact-messages?take=100&status=New` returns newest messages, optionally filtered by status
+- `GET /api/admin/contact-messages?page=1&pageSize=25&search=sample&status=New` returns a typed page of newest messages after applying search and status filters server-side; supported page sizes are 10, 25, 50 and 100, with 25 as the default and 100 as the maximum
 - `GET /api/admin/contact-messages/{id}` returns one message
 - `PATCH /api/admin/contact-messages/{id}/status` updates the workflow status
 
@@ -1004,6 +1009,9 @@ before each production release:
 
 ```powershell
 dotnet test backend\BespokeStudio.sln
+npm.cmd run typecheck
+npm.cmd run build
+dotnet build backend\BespokeStudio.sln
 ```
 
 The initial suite contains infrastructure-independent unit tests for order request

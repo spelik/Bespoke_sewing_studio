@@ -272,9 +272,15 @@ export function AdminPage() {
 
   const loadContactMessagesForDashboard = useCallback(async () => {
     try {
-      const messages = await getAdminContactMessages();
-      setContactMessages(messages);
-      setContactAttentionCounts(calculateContactAttentionCounts(messages));
+      const [allMessages, newMessages] = await Promise.all([
+        getAdminContactMessages({ page: 1, pageSize: 10 }),
+        getAdminContactMessages({ page: 1, pageSize: 10, status: "New" }),
+      ]);
+      setContactMessages(allMessages.items);
+      setContactAttentionCounts({
+        newCount: newMessages.totalItems,
+        totalCount: allMessages.totalItems,
+      });
     } catch (reason: unknown) {
       if (
         reason instanceof ApiError &&
@@ -599,8 +605,8 @@ export function AdminPage() {
           {section === "contactMessages" ? (
             <AdminContactMessagesPanel
               onUnauthorized={logout}
-              onCountsChange={setContactAttentionCounts}
-              onMessagesChange={setContactMessages}
+              attentionCounts={contactAttentionCounts}
+              onDataChanged={() => void loadContactMessagesForDashboard()}
               realtimeRefreshKey={contactRefreshKey}
             />
           ) : null}
@@ -1234,15 +1240,6 @@ function exportOrdersCsv(orders: readonly AdminOrderListItem[]): void {
     { header: "Created at", value: (order) => order.createdAt },
     { header: "Message", value: (order) => order.description },
   ]);
-}
-
-function calculateContactAttentionCounts(
-  messages: readonly AdminContactMessageListItem[],
-): AttentionCounts {
-  return {
-    newCount: messages.filter((message) => message.status === "New").length,
-    totalCount: messages.length,
-  };
 }
 
 function getNavAttentionCounts(

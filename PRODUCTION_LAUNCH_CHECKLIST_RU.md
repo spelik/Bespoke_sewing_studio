@@ -151,7 +151,7 @@ Order, Contact и upload flows.
 - admin login;
 - Admin Dashboard;
 - Orders: проверить server-side search/status filter, total, page size 10/25/50/100, Previous/Next, details drawer и действия;
-- Contact Messages;
+- Contact Messages: проверить server-side search/status filter, total, page size 10/25/50/100, Previous/Next, details/status/delete actions и realtime refresh без дубликатов;
 - Email delivery;
 - Audit Log: проверить server-side filters, total, page size 10/25/50/100 и Previous/Next;
 - Email Log: проверить server-side filters, total, page size, Previous/Next и realtime refresh без дубликатов;

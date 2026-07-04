@@ -3,8 +3,10 @@ using System.Text.Json;
 using BespokeStudio.Api.Configuration;
 using BespokeStudio.Application.Abstractions;
 using BespokeStudio.Application.Contracts.ContactMessages;
+using BespokeStudio.Application.Contracts.Common;
 using BespokeStudio.Application.Security;
 using BespokeStudio.Application.Validation;
+using BespokeStudio.Domain.Enums;
 
 namespace BespokeStudio.Api.Endpoints;
 
@@ -27,9 +29,9 @@ public static class ContactMessageEndpoints
             .RequireAuthorization(AdminAccess.PolicyName)
             .WithTags("Admin Contact Messages");
 
-        admin.MapGet(string.Empty, GetAllAsync)
+        admin.MapGet(string.Empty, GetAsync)
             .WithName("GetAdminContactMessages")
-            .Produces<IReadOnlyList<ContactMessageListItemResponse>>()
+            .Produces<PagedResponse<ContactMessageListItemResponse>>()
             .Produces(StatusCodes.Status401Unauthorized)
             .Produces(StatusCodes.Status403Forbidden);
 
@@ -78,22 +80,22 @@ public static class ContactMessageEndpoints
         return TypedResults.Created($"/api/contact-messages/{result.Id}", result);
     }
 
-    private static async Task<IResult> GetAllAsync(
-        int? take,
+    private static async Task<IResult> GetAsync(
+        int? page,
+        int? pageSize,
+        string? search,
+        ContactMessageStatus? status,
         IContactMessageService service,
         CancellationToken cancellationToken)
     {
-        var limit = take ?? 100;
-
-        if (limit is < 1 or > 200)
-        {
-            return TypedResults.ValidationProblem(new Dictionary<string, string[]>
-            {
-                ["take"] = ["Take must be between 1 and 200."]
-            });
-        }
-
-        var messages = await service.GetAllAsync(limit, cancellationToken);
+        var pagination = PaginationQuery.Normalize(page, pageSize);
+        var messages = await service.GetAsync(
+            new ContactMessageListQueryRequest(
+                pagination.Page,
+                pagination.PageSize,
+                search,
+                status),
+            cancellationToken);
         return TypedResults.Ok(messages);
     }
 

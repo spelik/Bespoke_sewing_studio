@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Download, Eye, LoaderCircle, Mail, Trash2, X } from "lucide-react";
 import { ApiError } from "../../api/apiClient";
 import {
@@ -13,12 +13,13 @@ import type {
   AdminContactMessageListItem,
   ContactMessageStatus,
 } from "../types";
+import type { AdminPageSize } from "../../api/pagination";
 import { createCsvFileName, downloadCsv } from "../utils/csvExport";
 import {
   AdminActionButton,
   AdminConfirmDialog,
   AdminFilterDropdown,
-  AdminPagination,
+  AdminServerPagination,
   AdminSearchInput,
   AdminTableState,
   type AdminFilterOption,
@@ -27,8 +28,8 @@ import { formatAdminDate } from "./adminOrderFormatting";
 
 interface AdminContactMessagesPanelProps {
   onUnauthorized(): void;
-  onCountsChange?(counts: { newCount: number; totalCount: number }): void;
-  onMessagesChange?(messages: AdminContactMessageListItem[]): void;
+  attentionCounts: { newCount: number; totalCount: number } | null;
+  onDataChanged?(): void;
   realtimeRefreshKey?: number;
 }
 
@@ -41,8 +42,6 @@ const STATUS_LABELS: Readonly<Record<ContactMessageStatus, string>> = {
   Archived: "Archived",
 };
 
-
-const CONTACT_MESSAGES_PAGE_SIZE = 25;
 
 const STATUS_FILTER_OPTIONS: AdminFilterOption[] = [
   { value: "All", label: "All statuses" },
@@ -61,8 +60,8 @@ const STATUS_COLORS: Readonly<Record<ContactMessageStatus, string>> = {
 
 export function AdminContactMessagesPanel({
   onUnauthorized,
-  onCountsChange,
-  onMessagesChange,
+  attentionCounts,
+  onDataChanged,
   realtimeRefreshKey = 0,
 }: AdminContactMessagesPanelProps) {
   const [messages, setMessages] = useState<AdminContactMessageListItem[]>([]);
@@ -70,8 +69,12 @@ export function AdminContactMessagesPanel({
     useState<AdminContactMessageDetail | null>(null);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("All");
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const [statusFilterOpen, setStatusFilterOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState<AdminPageSize>(25);
+  const [totalItems, setTotalItems] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
   const [deleteCandidate, setDeleteCandidate] = useState<AdminContactMessageListItem | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isDetailLoading, setIsDetailLoading] = useState(false);
@@ -79,68 +82,74 @@ export function AdminContactMessagesPanel({
   const [deletingMessageId, setDeletingMessageId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const latestRequestIdRef = useRef(0);
 
-  useEffect(() => {
-    void loadMessages();
-  }, [realtimeRefreshKey]);
-
-  const messageCounts = useMemo(
-    () => calculateMessageCounts(messages),
-    [messages],
-  );
-
-  const filteredMessages = useMemo(() => {
-    const normalizedQuery = normalizeSearchValue(searchQuery);
-    return messages.filter((item) => {
-      if (statusFilter !== "All" && item.status !== statusFilter) {
-        return false;
+  const handleRequestError = useCallback(
+    (reason: unknown) => {
+      if (
+        reason instanceof ApiError &&
+        (reason.status === 401 || reason.status === 403)
+      ) {
+        onUnauthorized();
+        return;
       }
 
-      if (!normalizedQuery) {
-        return true;
-      }
-
-      return [
-        item.referenceNumber,
-        item.fullName,
-        item.email,
-        item.phone,
-        item.subject,
-        item.messagePreview,
-      ]
-        .map((value) => normalizeSearchValue(value))
-        .some((value) => value.includes(normalizedQuery));
-    });
-  }, [messages, searchQuery, statusFilter]);
-
-  const totalPages = Math.max(1, Math.ceil(filteredMessages.length / CONTACT_MESSAGES_PAGE_SIZE));
-  const paginatedMessages = useMemo(
-    () => paginateItems(filteredMessages, currentPage, CONTACT_MESSAGES_PAGE_SIZE),
-    [filteredMessages, currentPage],
+      setError(getErrorMessage(reason));
+    },
+    [onUnauthorized],
   );
 
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchQuery, statusFilter]);
-
-  useEffect(() => {
-    setCurrentPage((page) => Math.min(page, totalPages));
-  }, [totalPages]);
-
-  async function loadMessages() {
+  const loadMessages = useCallback(async () => {
+    const requestId = ++latestRequestIdRef.current;
     setIsLoading(true);
     setError(null);
     try {
-      const loadedMessages = await getAdminContactMessages();
-      setMessages(loadedMessages);
-      onCountsChange?.(calculateMessageCounts(loadedMessages));
-      onMessagesChange?.(loadedMessages);
+      const result = await getAdminContactMessages({
+        page: currentPage,
+        pageSize,
+        search: debouncedSearchQuery.trim() || undefined,
+        status: statusFilter === "All" ? undefined : statusFilter,
+      });
+      if (requestId !== latestRequestIdRef.current) {
+        return;
+      }
+
+      setMessages(result.items);
+      setTotalItems(result.totalItems);
+      setTotalPages(result.totalPages);
+      if (result.page > result.totalPages) {
+        setCurrentPage(result.totalPages);
+      }
     } catch (reason: unknown) {
+      if (requestId !== latestRequestIdRef.current) {
+        return;
+      }
+
       handleRequestError(reason);
     } finally {
-      setIsLoading(false);
+      if (requestId === latestRequestIdRef.current) {
+        setIsLoading(false);
+      }
     }
-  }
+  }, [currentPage, debouncedSearchQuery, handleRequestError, pageSize, statusFilter]);
+
+  useEffect(() => {
+    const delay = searchQuery.trim() ? 300 : 0;
+    const timeoutId = window.setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+    }, delay);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [searchQuery]);
+
+  useEffect(() => {
+    void loadMessages();
+  }, [loadMessages, realtimeRefreshKey]);
+
+  const messageCounts = attentionCounts ?? {
+    newCount: 0,
+    totalCount: 0,
+  };
 
   async function selectMessage(id: string) {
     setIsDetailLoading(true);
@@ -169,26 +178,8 @@ export function AdminContactMessagesPanel({
         status,
       );
       setSelectedMessage(saved);
-      setMessages((current) => {
-        const updatedMessages = current.map((item) =>
-          item.id === saved.id
-            ? {
-                ...item,
-                fullName: saved.fullName,
-                referenceNumber: saved.referenceNumber,
-                email: saved.email,
-                phone: saved.phone,
-                subject: saved.subject,
-                messagePreview: toPreview(saved.message),
-                status: saved.status,
-                updatedAt: saved.updatedAt,
-              }
-            : item,
-        );
-        onCountsChange?.(calculateMessageCounts(updatedMessages));
-        onMessagesChange?.(updatedMessages);
-        return updatedMessages;
-      });
+      await loadMessages();
+      onDataChanged?.();
       setMessage(`Contact message marked as ${STATUS_LABELS[saved.status]}.`);
     } catch (reason: unknown) {
       handleRequestError(reason);
@@ -197,45 +188,29 @@ export function AdminContactMessagesPanel({
     }
   }
 
-
   async function confirmDeleteMessage() {
     if (!deleteCandidate) {
       return;
     }
 
-    setDeletingMessageId(deleteCandidate.id);
+    const candidate = deleteCandidate;
+    setDeletingMessageId(candidate.id);
     setError(null);
     setMessage(null);
     try {
-      await deleteAdminContactMessage(deleteCandidate.id);
-      setMessages((current) => {
-        const updatedMessages = current.filter((item) => item.id !== deleteCandidate.id);
-        onCountsChange?.(calculateMessageCounts(updatedMessages));
-        onMessagesChange?.(updatedMessages);
-        return updatedMessages;
-      });
+      await deleteAdminContactMessage(candidate.id);
       setSelectedMessage((current) =>
-        current?.id === deleteCandidate.id ? null : current,
+        current?.id === candidate.id ? null : current,
       );
       setDeleteCandidate(null);
-      setMessage(`Contact message ${deleteCandidate.referenceNumber} was deleted.`);
+      await loadMessages();
+      onDataChanged?.();
+      setMessage(`Contact message ${candidate.referenceNumber} was deleted.`);
     } catch (reason: unknown) {
       handleRequestError(reason);
     } finally {
       setDeletingMessageId(null);
     }
-  }
-
-  function handleRequestError(reason: unknown) {
-    if (
-      reason instanceof ApiError &&
-      (reason.status === 401 || reason.status === 403)
-    ) {
-      onUnauthorized();
-      return;
-    }
-
-    setError(getErrorMessage(reason));
   }
 
   return (
@@ -276,25 +251,31 @@ export function AdminContactMessagesPanel({
             isOpen={statusFilterOpen}
             onToggle={() => setStatusFilterOpen((current) => !current)}
             onClose={() => setStatusFilterOpen(false)}
-            onChange={(value) => setStatusFilter(value as StatusFilter)}
+            onChange={(value) => {
+              setCurrentPage(1);
+              setStatusFilter(value as StatusFilter);
+            }}
             className="xl:col-span-2"
           />
           <AdminSearchInput
             label="Search"
             value={searchQuery}
-            onChange={setSearchQuery}
+            onChange={(value) => {
+              setCurrentPage(1);
+              setSearchQuery(value);
+            }}
             placeholder="Reference, sender, email, subject..."
             ariaLabel="Search contact messages"
             className="xl:col-span-5"
           />
           <div className="xl:col-span-2 text-[10px] text-muted-foreground font-sans">
-            {filteredMessages.length} visible / {messages.length} total
+            {messages.length} visible / {totalItems} total
           </div>
           <div className="xl:col-span-3 flex flex-wrap items-center justify-start xl:justify-end gap-2">
             <AdminActionButton
               icon={<Download size={12} aria-hidden="true" />}
-              onClick={() => exportContactMessagesCsv(filteredMessages)}
-              disabled={filteredMessages.length === 0}
+              onClick={() => exportContactMessagesCsv(messages)}
+              disabled={messages.length === 0}
             >
               Export CSV
             </AdminActionButton>
@@ -320,17 +301,23 @@ export function AdminContactMessagesPanel({
       ) : null}
 
       <ContactMessagesTable
-        messages={paginatedMessages}
+        messages={messages}
         isLoading={isLoading}
         deletingMessageId={deletingMessageId}
         onSelect={(id) => void selectMessage(id)}
         onRequestDelete={setDeleteCandidate}
       />
-      <AdminPagination
-        currentPage={currentPage}
-        pageSize={CONTACT_MESSAGES_PAGE_SIZE}
-        totalItems={filteredMessages.length}
+      <AdminServerPagination
+        page={currentPage}
+        pageSize={pageSize}
+        totalItems={totalItems}
+        totalPages={totalPages}
+        isLoading={isLoading}
         onPageChange={setCurrentPage}
+        onPageSizeChange={(value) => {
+          setCurrentPage(1);
+          setPageSize(value);
+        }}
       />
 
 
@@ -361,15 +348,6 @@ export function AdminContactMessagesPanel({
       />
     </div>
   );
-}
-
-function calculateMessageCounts(
-  messages: readonly AdminContactMessageListItem[],
-) {
-  return {
-    newCount: messages.filter((item) => item.status === "New").length,
-    totalCount: messages.length,
-  };
 }
 
 function AttentionSummaryCard({
@@ -688,11 +666,6 @@ function Detail({ label, value }: { label: string; value: string }) {
   );
 }
 
-function toPreview(value: string): string {
-  const trimmed = value.trim();
-  return trimmed.length <= 180 ? trimmed : `${trimmed.slice(0, 180)}…`;
-}
-
 function getErrorMessage(reason: unknown): string {
   if (reason instanceof ApiError) {
     const validationMessages = reason.errors
@@ -726,13 +699,4 @@ function exportContactMessagesCsv(
     { header: "Created at", value: (message) => message.createdAt },
     { header: "Message preview", value: (message) => message.messagePreview },
   ]);
-}
-
-function paginateItems<T>(items: readonly T[], page: number, pageSize: number): T[] {
-  const start = Math.max(0, page - 1) * pageSize;
-  return items.slice(start, start + pageSize);
-}
-
-function normalizeSearchValue(value: string | null | undefined): string {
-  return (value ?? "").trim().toLocaleLowerCase();
 }
