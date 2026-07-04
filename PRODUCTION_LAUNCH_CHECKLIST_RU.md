@@ -127,8 +127,13 @@
 Backend health checks на production:
 
 - `/health` и `/health/live` возвращают `200`;
+- `/healthz` возвращает тот же liveness status и не зависит от PostgreSQL;
 - `/health/ready` возвращает `200` при доступном PostgreSQL;
+- `/readyz` возвращает тот же readiness status;
+- `/health/ready` и `/readyz` возвращают non-`200`, когда PostgreSQL недоступен, при этом liveness остаётся `200`;
+- `/api/version` возвращает только safe version/build metadata; проверить application/version/environment/framework, optional commit/build time и startedAt;
 - health responses не раскрывают connection string, stack trace или exception details;
+- `/api/version` не раскрывает credentials, SMTP settings, internal paths или другие secrets;
 - HTTPS/proxy headers дают ожидаемые scheme, host и client IP.
 
 Перед объявлением сайта публичным:

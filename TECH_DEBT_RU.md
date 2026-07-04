@@ -2,6 +2,7 @@
 
 ## Закрыто
 
+- Task 64 — Fix version and compat health endpoints: `/api/version` возвращает stable typed metadata (`application`, version, environment, framework, optional commit/build time и process start time) из `BUILD_VERSION`/`GIT_COMMIT`/`BUILD_TIME` с assembly fallback, без зависимости от PostgreSQL и без секретов. Добавлены `/healthz` и `/readyz` как aliases для tagged liveness/readiness checks; `/api/health` приведён к DB-independent compatibility liveness. Добавлены pure unit tests provider и обновлены HTTP examples/docs/checklist. Migration не требуется.
 - Task 63 — Minimal CI GitHub Actions: добавлен `.github/workflows/ci.yml` для pull requests и push в `main`. Один `ubuntu-latest` job выполняет frontend `npm ci`, typecheck/build и backend restore, Release build/tests на Node.js 24.x и .NET 10.0.x. Используется npm cache по `package-lock.json`; migrations, PostgreSQL, secrets и deployment в CI не запускаются.
 - Task 61 — Email outbox + retry: owner/customer Order и Contact emails теперь сохраняются в `EmailOutboxMessages` вместе со связанной Email Log записью `Queued`; `EmailOutboxWorker` выполняет отправку через существующий provider, атомарно claim'ит due jobs, восстанавливает stale `Processing`, применяет retry 1/5/15/60 минут с максимумом 5 попыток и обновляет Email Log в `Retrying`, `Sent` или `Failed`. Migration `20260704181514_AddEmailOutboxMessages` применена к локальной PostgreSQL. Public Order/Contact contracts и auth не изменены; SMTP secrets в outbox не хранятся.
 
@@ -530,6 +531,7 @@ Migration не нужна: это frontend-only UI polish.
 - Task 49.2: добавить PostgreSQL-backed integration tests для API с отдельной test database и управляемым lifecycle данных.
 - Task 49.3: покрыть integration-сценарии auth/2FA, order/contact APIs и uploads без использования production credentials.
 - Task 63 закрыла минимальную CI automation для frontend typecheck/build и backend build/tests. Остаются отдельными будущими задачами: deployment workflow, Docker/API image build, PostgreSQL integration tests, coverage reports и security/dependency scanning.
+- Task 64 добавила безопасный build/version contract; автоматическая передача точных `BUILD_VERSION`, `GIT_COMMIT` и `BUILD_TIME` остаётся задачей будущего release/deployment pipeline.
 - Текущий foundation не является полным покрытием backend и не заменяет manual production smoke checklist.
 - Для очень большого Orders dataset substring search по нескольким полям потребует отдельного анализа PostgreSQL full-text/trigram indexes; schema migration намеренно не добавлялась в Task 51.1.
 - Для очень большого Contact Messages dataset substring search по reference/name/email/phone/subject/message также потребует отдельного анализа PostgreSQL full-text/trigram indexes; schema migration намеренно не добавлялась в Task 51.2.

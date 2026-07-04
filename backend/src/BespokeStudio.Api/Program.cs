@@ -9,6 +9,7 @@ using BespokeStudio.Api.Endpoints;
 using BespokeStudio.Api.HealthChecks;
 using BespokeStudio.Api.Hubs;
 using BespokeStudio.Api.Services;
+using BespokeStudio.Api.Versioning;
 using BespokeStudio.Application.Abstractions;
 using BespokeStudio.Application.Contracts;
 using BespokeStudio.Application.DependencyInjection;
@@ -99,6 +100,9 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
 });
 builder.Services.AddSignalR();
 builder.Services.AddSingleton<IAdminRealtimeNotifier, SignalRAdminRealtimeNotifier>();
+builder.Services.AddSingleton(new ApiVersionInfoProvider(
+    builder.Environment.EnvironmentName,
+    DateTimeOffset.UtcNow));
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {
@@ -354,13 +358,17 @@ app.MapHub<AdminNotificationsHub>("/hubs/admin-notifications")
 app.MapHealthChecks("/health", CreateHealthCheckOptions("live"));
 app.MapHealthChecks("/health/live", CreateHealthCheckOptions("live"));
 app.MapHealthChecks("/health/ready", CreateHealthCheckOptions("ready"));
+app.MapHealthChecks("/healthz", CreateHealthCheckOptions("live"));
+app.MapHealthChecks("/readyz", CreateHealthCheckOptions("ready"));
 
 var api = app.MapGroup("/api")
     .WithTags("System");
 
 api.MapGet("/health", async (HealthCheckService healthCheckService, CancellationToken cancellationToken) =>
 {
-    var report = await healthCheckService.CheckHealthAsync(cancellationToken);
+    var report = await healthCheckService.CheckHealthAsync(
+        registration => registration.Tags.Contains("live"),
+        cancellationToken);
     var status = report.Status == HealthStatus.Healthy ? "ok" : "degraded";
 
     return TypedResults.Ok(new ApiHealthResponse(
@@ -369,10 +377,8 @@ api.MapGet("/health", async (HealthCheckService healthCheckService, Cancellation
 })
 .WithName("GetApiHealth");
 
-api.MapGet("/version", () =>
-    TypedResults.Ok(new ApiVersionResponse(
-        Name: "Bespoke Sewing Studio API",
-        Mode: "skeleton")))
+api.MapGet("/version", (ApiVersionInfoProvider versionInfoProvider) =>
+    TypedResults.Ok(versionInfoProvider.GetVersionInfo()))
     .WithName("GetApiVersion");
 
 app.MapOrderEndpoints();

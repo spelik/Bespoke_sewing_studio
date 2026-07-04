@@ -33,13 +33,25 @@ and rate-limit responses keep their current status codes and payload semantics.
 Health endpoints are anonymous and intentionally expose only an overall status:
 
 - `GET /health` and `GET /health/live` are liveness checks for the API process;
+- `GET /healthz` is a compatibility alias for `GET /health/live`;
 - `GET /health/ready` is readiness and calls EF Core `CanConnectAsync` against the
   configured `ConnectionStrings:BespokeStudioDb` PostgreSQL database;
-- `GET /api/health` remains as a compatibility application-status endpoint and does
-  not query PostgreSQL.
+- `GET /readyz` is a compatibility alias for `GET /health/ready`;
+- `GET /api/health` remains as a compatibility liveness endpoint and does not
+  query PostgreSQL.
 
 Readiness returns HTTP `503` when PostgreSQL is unavailable. Health responses do not
 contain connection strings, exception messages, stack traces or other secrets.
+Reverse proxies and container orchestrators should use `/health/live` or `/healthz`
+for liveness and `/health/ready` or `/readyz` for readiness.
+
+`GET /api/version` is also database-independent. It returns the typed fields
+`application`, `version`, `environment`, `framework`, `commit`, `buildTime` and
+`startedAt`. `BUILD_VERSION`, `GIT_COMMIT` and an ISO-8601 `BUILD_TIME` can be set
+by CI or a release pipeline. Missing build version falls back to the API assembly
+informational/assembly version; missing commit and build time are returned as null.
+The endpoint never reads or returns connection strings, SMTP settings, credentials,
+internal paths or exception details.
 
 Forwarded headers are processed first, followed by security response headers, HSTS
 (non-Development), exception handling, HTTPS redirection, CORS, authentication and
@@ -1061,6 +1073,8 @@ Available core endpoints after startup include:
 - `/health`
 - `/health/live`
 - `/health/ready`
+- `/healthz`
+- `/readyz`
 - `/api/health`
 - `/api/version`
 - `/api/auth/login`
@@ -1084,15 +1098,18 @@ window:
 
 ```powershell
 Invoke-WebRequest http://localhost:5099/api/health -UseBasicParsing
-Invoke-WebRequest http://localhost:5099/health -UseBasicParsing
-Invoke-WebRequest http://localhost:5099/health/ready -UseBasicParsing
 Invoke-WebRequest http://localhost:5099/api/version -UseBasicParsing
+Invoke-WebRequest http://localhost:5099/health -UseBasicParsing
+Invoke-WebRequest http://localhost:5099/health/live -UseBasicParsing
+Invoke-WebRequest http://localhost:5099/health/ready -UseBasicParsing
+Invoke-WebRequest http://localhost:5099/healthz -UseBasicParsing
+Invoke-WebRequest http://localhost:5099/readyz -UseBasicParsing
 Invoke-WebRequest http://localhost:5099/swagger/index.html -UseBasicParsing
 ```
 
 Expected result with PostgreSQL running: all requests return HTTP `200`.
-`/health/ready` returns `503` when PostgreSQL cannot be reached; the liveness and
-compatibility system endpoints remain available in that condition.
+`/health/ready` and `/readyz` return `503` when PostgreSQL cannot be reached;
+the liveness, version and compatibility endpoints remain available in that condition.
 
 Portfolio/Gallery CRUD and its dedicated image upload are implemented. General
 upload-library management is not implemented. Public pages are backend-first for

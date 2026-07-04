@@ -14,6 +14,26 @@ Accept: application/json
 
 ###
 
+GET {{BespokeStudio.Api_HostAddress}}/health/live
+Accept: application/json
+
+###
+
+GET {{BespokeStudio.Api_HostAddress}}/health/ready
+Accept: application/json
+
+###
+
+GET {{BespokeStudio.Api_HostAddress}}/healthz
+Accept: application/json
+
+###
+
+GET {{BespokeStudio.Api_HostAddress}}/readyz
+Accept: application/json
+
+###
+
 POST {{BespokeStudio.Api_HostAddress}}/api/auth/login
 Content-Type: application/json
 

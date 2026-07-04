@@ -34,7 +34,8 @@ The backend lives in `backend/` as a separate ASP.NET Core Web API skeleton (`ne
 Current backend status:
 
 - Swagger/OpenAPI is enabled
-- `/health` and `/health/live` provide liveness checks, `/health/ready` verifies PostgreSQL readiness, and the compatibility `/api/health` plus `/api/version` endpoints remain available
+- `/health` and `/health/live` provide liveness checks, `/health/ready` verifies PostgreSQL readiness, and `/healthz` plus `/readyz` provide monitoring-compatible aliases
+- `/api/health` remains a database-independent compatibility liveness endpoint, while `/api/version` returns safe application, assembly/build, environment, framework and process-start metadata
 - EF Core persistence is configured for local PostgreSQL development
 - migrations are applied explicitly with `dotnet ef database update`
 - Orders/enquiries API now persists data in PostgreSQL
@@ -87,11 +88,19 @@ Check the container and existing API endpoints with:
 docker compose -f docker-compose.postgres.yml ps
 Invoke-WebRequest http://localhost:5099/api/health -UseBasicParsing
 Invoke-WebRequest http://localhost:5099/api/version -UseBasicParsing
+Invoke-WebRequest http://localhost:5099/health/live -UseBasicParsing
+Invoke-WebRequest http://localhost:5099/health/ready -UseBasicParsing
+Invoke-WebRequest http://localhost:5099/healthz -UseBasicParsing
+Invoke-WebRequest http://localhost:5099/readyz -UseBasicParsing
 Invoke-WebRequest http://localhost:5099/swagger/index.html -UseBasicParsing
 ```
 
-If PostgreSQL is not needed for the current session, the API can still start
-and serve these system endpoints because they do not execute database queries.
+`/health/live`, `/healthz`, `/api/health` and `/api/version` do not query
+PostgreSQL. `/health/ready` and `/readyz` return `503` when PostgreSQL is not
+available. A CI or release pipeline may set `BUILD_VERSION`, `GIT_COMMIT` and
+`BUILD_TIME`; otherwise `/api/version` uses assembly version metadata and null
+values for unavailable optional build fields. None of these endpoints returns
+connection strings, credentials, internal paths or exception details.
 
 Persistence, admin user-secrets, migration, login, and Swagger Bearer commands
 are documented in `backend/README.md`. No administrator credentials are stored

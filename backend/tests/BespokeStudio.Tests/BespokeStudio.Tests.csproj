@@ -19,6 +19,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\src\BespokeStudio.Api\BespokeStudio.Api.csproj" />
     <ProjectReference Include="..\..\src\BespokeStudio.Application\BespokeStudio.Application.csproj" />
   </ItemGroup>
 
