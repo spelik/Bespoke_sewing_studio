@@ -2,6 +2,8 @@
 
 ## Закрыто
 
+- Task 54.0 — Microsoft.OpenApi NU1903: `Swashbuckle.AspNetCore` точечно обновлён с `10.0.0` до `10.2.3`; транзитивный `Microsoft.OpenApi` обновился с уязвимой версии `2.3.0` до `2.7.5`. `dotnet list package --vulnerable --include-transitive` больше не находит уязвимых пакетов. Поведение Swagger/OpenAPI и backend API не менялось; migration не потребовалась.
+
 - Task 50 — Split AdminPage into modules: без изменения поведения и дизайна из `AdminPage.tsx` вынесены admin section/hash navigation, Dashboard overview/cards/readiness helpers, live updates status, attention counters/badges и Orders CSV export. `AdminPage.tsx` уменьшен с 1297 до 590 строк и оставлен orchestrator'ом auth, state, data loading, realtime events и panel wiring. Backend/API contracts/migrations не менялись. Дальнейшее разделение orchestration/data-loading на специализированные hooks оставлено для отдельной задачи, чтобы refactor-only изменения не затрагивали admin behavior.
 
 - Task 65 — Public content output caching: встроенный server-side ASP.NET Core Output Caching подключён одной явной политикой `PublicContent` с TTL 60 секунд только к anonymous JSON GET для services, portfolio metadata, page/repeatable content, public site settings и public brand/SEO settings. Admin/auth/forms/orders/contact/uploads/images/health/version не кэшируются. Query/path входят в cache key, framework defaults исключают authenticated, cookie-setting, non-200 и non-GET/HEAD responses. Browser/CDN `Cache-Control` намеренно не форсируется; migration и внешнее cache storage не требуются.
