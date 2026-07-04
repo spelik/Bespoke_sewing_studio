@@ -1,4 +1,5 @@
 using System.Text.Json;
+using BespokeStudio.Api.Caching;
 using BespokeStudio.Application.Abstractions;
 using BespokeStudio.Application.Contracts.Portfolio;
 using BespokeStudio.Application.Contracts.Uploads;
@@ -14,10 +15,10 @@ public static class PortfolioEndpoints
         var publicGroup = endpoints.MapGroup("/api/portfolio").WithTags("Portfolio");
         publicGroup.MapGet(string.Empty, async (IPortfolioService service, CancellationToken ct) =>
             TypedResults.Ok(await service.GetPublicPortfolioAsync(ct)))
-            .AllowAnonymous().WithName("GetPublicPortfolio").Produces<IReadOnlyList<PublicPortfolioItemResponse>>();
+            .AllowAnonymous().CachePublicContent().WithName("GetPublicPortfolio").Produces<IReadOnlyList<PublicPortfolioItemResponse>>();
         publicGroup.MapGet("/categories", async (IPortfolioService service, CancellationToken ct) =>
             TypedResults.Ok(await service.GetPublicCategoriesAsync(ct)))
-            .AllowAnonymous().WithName("GetPublicPortfolioCategories").Produces<IReadOnlyList<PublicPortfolioCategoryResponse>>();
+            .AllowAnonymous().CachePublicContent().WithName("GetPublicPortfolioCategories").Produces<IReadOnlyList<PublicPortfolioCategoryResponse>>();
         publicGroup.MapGet("/images/{id:guid}", OpenPublicImageAsync)
             .AllowAnonymous().WithName("GetPublicPortfolioImage").Produces(StatusCodes.Status200OK).Produces(StatusCodes.Status404NotFound);
 

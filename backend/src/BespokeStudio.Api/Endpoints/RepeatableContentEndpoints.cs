@@ -1,4 +1,5 @@
 using System.Text.Json;
+using BespokeStudio.Api.Caching;
 using BespokeStudio.Application.Abstractions;
 using BespokeStudio.Application.Contracts.RepeatableContent;
 using BespokeStudio.Application.Security;
@@ -15,12 +16,14 @@ public static class RepeatableContentEndpoints
         pub.MapGet(string.Empty, async (IRepeatableContentService service, CancellationToken cancellationToken) =>
                 TypedResults.Ok(await service.GetPublicGroupsAsync(cancellationToken)))
             .AllowAnonymous()
+            .CachePublicContent()
             .WithName("GetPublicRepeatableContentGroups")
             .Produces<IReadOnlyList<PublicRepeatableContentGroupResponse>>();
 
         pub.MapGet("/groups/{groupKey}", async (string groupKey, IRepeatableContentService service, CancellationToken cancellationToken) =>
                 TypedResults.Ok(await service.GetPublicGroupAsync(groupKey, cancellationToken)))
             .AllowAnonymous()
+            .CachePublicContent()
             .WithName("GetPublicRepeatableContentGroup")
             .Produces<PublicRepeatableContentGroupResponse>();
 

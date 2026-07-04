@@ -136,6 +136,15 @@ Backend health checks на production:
 - `/api/version` не раскрывает credentials, SMTP settings, internal paths или другие secrets;
 - HTTPS/proxy headers дают ожидаемые scheme, host и client IP.
 
+Public output cache:
+
+- два последовательных `GET /api/services` возвращают `200`, а повторный запрос в пределах TTL подтверждает server-side cache hit, например через `Age` header;
+- минимум один content/portfolio endpoint возвращает `200` через server-side output cache и не раскрывает private/admin data;
+- `/api/admin/*`, `/api/auth/*`, Order/Contact POST, uploads/downloads, images, health и version endpoints не используют public cache policy;
+- после admin CMS update публичный ответ обновляется не позднее истечения 60-секундного TTL;
+- browser/CDN `Cache-Control` не считается частью Task 65; отдельные reverse proxy/CDN rules не должны кэшировать authenticated/admin responses;
+- production monitoring учитывает cache hit/miss behavior и нагрузку на PostgreSQL.
+
 Перед объявлением сайта публичным:
 
 - убедиться, что последний GitHub Actions workflow `CI` для release commit завершился успешно;

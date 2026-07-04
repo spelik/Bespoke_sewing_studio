@@ -1,4 +1,5 @@
 using System.Text.Json;
+using BespokeStudio.Api.Caching;
 using BespokeStudio.Application.Abstractions;
 using BespokeStudio.Application.Contracts.Content;
 using BespokeStudio.Application.Contracts.Uploads;
@@ -12,7 +13,7 @@ public static class ContentEndpoints
     public static IEndpointRouteBuilder MapContentEndpoints(this IEndpointRouteBuilder endpoints)
     {
         var pub=endpoints.MapGroup("/api/content").WithTags("Content");
-        pub.MapGet("/pages/{pageKey}",async(string pageKey,IPageContentService s,CancellationToken ct)=>TypedResults.Ok(await s.GetPublicPageAsync(pageKey,ct))).AllowAnonymous().WithName("GetPublicPageContent");
+        pub.MapGet("/pages/{pageKey}",async(string pageKey,IPageContentService s,CancellationToken ct)=>TypedResults.Ok(await s.GetPublicPageAsync(pageKey,ct))).AllowAnonymous().CachePublicContent().WithName("GetPublicPageContent");
         pub.MapGet("/images/{id:guid}",OpenPublicImageAsync).AllowAnonymous().WithName("GetPublicContentImage");
         var admin=endpoints.MapGroup("/api/admin/content").RequireAuthorization(AdminAccess.PolicyName).WithTags("Admin Content");
         admin.MapGet(string.Empty,async(IPageContentService s,CancellationToken ct)=>TypedResults.Ok(await s.GetAdminContentAsync(ct))).WithName("GetAdminContent");

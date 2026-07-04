@@ -1,4 +1,5 @@
 using System.Text.Json;
+using BespokeStudio.Api.Caching;
 using BespokeStudio.Application.Abstractions;
 using BespokeStudio.Application.Contracts.Services;
 using BespokeStudio.Application.Security;
@@ -12,6 +13,7 @@ public static class ServiceOfferingEndpoints
     {
         endpoints.MapGet("/api/services", GetPublicServicesAsync)
             .AllowAnonymous()
+            .CachePublicContent()
             .WithTags("Services")
             .WithName("GetPublicServices")
             .Produces<IReadOnlyList<PublicServiceOfferingResponse>>();

@@ -53,6 +53,33 @@ informational/assembly version; missing commit and build time are returned as nu
 The endpoint never reads or returns connection strings, SMTP settings, credentials,
 internal paths or exception details.
 
+## Public content output caching
+
+Selected anonymous read-only JSON endpoints use the built-in ASP.NET Core output
+cache with the named `PublicContent` policy:
+
+- `GET /api/services`;
+- `GET /api/portfolio` and `GET /api/portfolio/categories`;
+- `GET /api/content/pages/{pageKey}`;
+- `GET /api/repeatable-content` and `GET /api/repeatable-content/groups/{groupKey}`;
+- `GET /api/site-settings/public`;
+- `GET /api/brand-settings/public`.
+
+The policy has a 60-second in-memory TTL. Full path, route values and query string
+remain part of the cache key. Only successful GET/HEAD responses are eligible;
+authenticated requests, requests with an Authorization header, responses that set
+cookies and non-200 responses follow the framework's default no-cache rules.
+This task does not force browser/CDN `Cache-Control` headers; an `Age` header on a
+repeat request can be used to verify a server-side cache hit.
+
+No cache policy is attached to `/api/admin/*`, `/api/auth/*`, Order or Contact
+submissions, uploads/downloads, public or admin image/file responses, Email/Audit
+logs, health checks or `/api/version`. Admin mutations are not evicted explicitly,
+so a CMS update can take up to 60 seconds to appear publicly. Production reverse
+proxy/CDN cache headers require a separate reviewed strategy and must never cache
+private/admin responses. Tag-based invalidation and cache metrics remain future
+improvements.
+
 Forwarded headers are processed first, followed by security response headers, HSTS
 (non-Development), exception handling, HTTPS redirection, CORS, authentication and
 rate limiting. The API accepts `X-Forwarded-For`,

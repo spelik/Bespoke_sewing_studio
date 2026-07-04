@@ -34,6 +34,14 @@ Accept: application/json
 
 ###
 
+# Public CMS response uses the 60-second server-side output cache.
+# A repeated request within the TTL should include an Age header.
+# Browser/CDN Cache-Control headers are intentionally not guaranteed here.
+GET {{BespokeStudio.Api_HostAddress}}/api/services
+Accept: application/json
+
+###
+
 POST {{BespokeStudio.Api_HostAddress}}/api/auth/login
 Content-Type: application/json
 

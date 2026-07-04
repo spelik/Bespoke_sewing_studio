@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using System.Text.Json;
+using BespokeStudio.Api.Caching;
 using BespokeStudio.Application.Abstractions;
 using BespokeStudio.Application.Contracts.SiteSettings;
 using BespokeStudio.Application.Security;
@@ -13,6 +14,7 @@ public static class SiteSettingsEndpoints
     {
         endpoints.MapGet("/api/site-settings/public", GetPublicSettingsAsync)
             .AllowAnonymous()
+            .CachePublicContent()
             .WithTags("Site Settings")
             .WithName("GetPublicSiteSettings")
             .Produces<PublicSiteSettingsResponse>();

@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using System.Text.Json;
+using BespokeStudio.Api.Caching;
 using BespokeStudio.Application.Abstractions;
 using BespokeStudio.Application.Contracts.SiteSettings;
 using BespokeStudio.Application.Contracts.Uploads;
@@ -12,7 +13,7 @@ public static class BrandSettingsEndpoints
 {
     public static IEndpointRouteBuilder MapBrandSettingsEndpoints(this IEndpointRouteBuilder endpoints)
     {
-        endpoints.MapGet("/api/brand-settings/public",async(ISiteSettingsService s,CancellationToken ct)=>TypedResults.Ok(await s.GetPublicBrandSettingsAsync(ct))).AllowAnonymous().WithTags("Brand Settings").WithName("GetPublicBrandSettings").Produces<PublicBrandSettingsResponse>();
+        endpoints.MapGet("/api/brand-settings/public",async(ISiteSettingsService s,CancellationToken ct)=>TypedResults.Ok(await s.GetPublicBrandSettingsAsync(ct))).AllowAnonymous().CachePublicContent().WithTags("Brand Settings").WithName("GetPublicBrandSettings").Produces<PublicBrandSettingsResponse>();
         endpoints.MapGet("/api/brand/images/{id:guid}",OpenPublicImageAsync).AllowAnonymous().WithTags("Brand Settings").WithName("GetPublicBrandImage");
         var admin=endpoints.MapGroup("/api/admin/brand-settings").RequireAuthorization(AdminAccess.PolicyName).WithTags("Admin Brand Settings");
         admin.MapGet(string.Empty,async(ISiteSettingsService s,CancellationToken ct)=>TypedResults.Ok(await s.GetAdminBrandSettingsAsync(ct))).WithName("GetAdminBrandSettings");

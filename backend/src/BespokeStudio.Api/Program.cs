@@ -4,6 +4,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.RateLimiting;
+using BespokeStudio.Api.Caching;
 using BespokeStudio.Api.Configuration;
 using BespokeStudio.Api.Endpoints;
 using BespokeStudio.Api.HealthChecks;
@@ -70,6 +71,10 @@ builder.Services
         options.CustomizeProblemDetails = context =>
             context.ProblemDetails.Extensions["traceId"] = context.HttpContext.TraceIdentifier;
     });
+builder.Services.AddOutputCache(options =>
+    options.AddPolicy(
+        PublicOutputCachePolicy.Name,
+        policy => policy.Expire(PublicOutputCachePolicy.Duration)));
 builder.Services
     .AddHealthChecks()
     .AddCheck(
@@ -349,6 +354,7 @@ if (!app.Environment.IsDevelopment())
 
 app.UseCors(CorsSettings.PolicyName);
 app.UseAuthentication();
+app.UseOutputCache();
 app.UseAuthorization();
 app.UseRateLimiter();
 
