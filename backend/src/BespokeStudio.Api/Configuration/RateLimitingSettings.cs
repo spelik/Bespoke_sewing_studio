@@ -10,6 +10,8 @@ public sealed class RateLimitingSettings
     public int WindowMinutes { get; init; } = 10;
     public int AuthLoginPermitLimit { get; init; } = 10;
     public int AuthLoginWindowMinutes { get; init; } = 15;
+    public int AuthTwoFactorPermitLimit { get; init; } = 10;
+    public int AuthTwoFactorWindowMinutes { get; init; } = 15;
 }
 
 public static class RateLimitPolicies
@@ -18,4 +20,5 @@ public static class RateLimitPolicies
     public const string PublicOrder = "PublicOrder";
     public const string PublicContact = "PublicContact";
     public const string AuthLogin = "AuthLogin";
+    public const string AuthTwoFactor = "AuthTwoFactor";
 }

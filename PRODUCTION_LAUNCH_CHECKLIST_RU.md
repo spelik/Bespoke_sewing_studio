@@ -88,6 +88,13 @@
 - проверить Admin → My account → Active sessions: current marker, safe browser/masked IP, revoke одной session и revoke остальных;
 - проверить, что revoke current session очищает refresh cookie и выводит пользователя из admin;
 - проверить audit actions `auth.session_revoked` и `auth.other_sessions_revoked`;
+- проверить обычный login для admin без 2FA;
+- включить 2FA в Admin → My account, сохранить показанные один раз recovery codes и убедиться, что setup secret больше не отображается после enable;
+- после logout проверить двухступенчатый login сначала с TOTP, затем отдельным неиспользованным recovery code; до успешной второй ступени access/refresh tokens и refresh session не должны создаваться;
+- после 2FA login перезагрузить страницу и проверить восстановление через HttpOnly refresh cookie, Active sessions и SignalR connect/reconnect;
+- проверить regeneration recovery codes, disable 2FA и reset authenticator с текущим паролем, затем login без 2FA после disable;
+- проверить отдельный `POST /api/auth/2fa/verify` rate limit и Identity lockout на неверных кодах; `/api/auth/refresh` и остальные admin endpoints не должны попасть под этот limit;
+- проверить 2FA audit actions и убедиться, что TOTP, recovery codes, authenticator key, `otpauth://` URI, passwords и tokens отсутствуют в audit/logs;
 - убедиться, что raw refresh/access tokens отсутствуют в logs, Git и browser storage;
 - убедиться, что passwords, raw tokens, token hashes и cookie values отсутствуют в audit log;
 

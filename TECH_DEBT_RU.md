@@ -2,6 +2,8 @@
 
 ## Закрыто
 
+- Task 56 — Admin 2FA: добавлены TOTP/authenticator setup в My Account, защищённый пятиминутный HttpOnly Data Protection challenge без выдачи JWT/refresh session до второй ступени, вход по TOTP или одноразовому recovery code, regeneration/disable/reset flows, Identity lockout, отдельный 2FA verify rate limit и audit events без secrets/codes. Использованы существующие Identity поля и `AspNetUserTokens`; migration не нужна. QR остаётся необязательным future UX improvement, manual key и `otpauth://` URI уже поддерживаются.
+
 - Task 55.3 — Active Sessions UI: Admin → My account показывает безопасный список логических refresh sessions, current/active/revoked/expired status, browser/device и masked IP. Добавлены revoke одной session и revoke остальных sessions с audit actions `auth.session_revoked` / `auth.other_sessions_revoked`; raw token/hash/cookie не возвращаются. Новая migration не потребовалась.
 
 - Task 55.2 — Auth invalidation + audit: access JWT проверяет актуального Identity user, Admin role, lockout и security stamp; смена собственного пароля и отключение admin user отзывают все refresh sessions; login success/failure, logout, failed/reused refresh и session revocation записываются в audit без паролей, токенов, hashes и cookies. Новая migration не потребовалась.
@@ -93,8 +95,6 @@
 
 ## Осталось
 
-- Task 56: Admin 2FA.
-
 - Две самые тяжёлые portfolio карточки (`portfolio-1a`, `portfolio-2`) всё ещё заметно крупнее остальных даже после downscale. Следующий шаг по изображениям - отдельные crop-aware thumbnails или AVIF pipeline.
 - SPA fallback всё ещё должен быть настроен на production-сервере. В репозитории добавлена только документация, не серверная конфигурация.
 - Contact Messages API реализован, поэтому Contact form больше не является prototype-only. Public Order form, Contact form и admin-разделы используют реальные backend endpoints.
@@ -107,7 +107,7 @@
 - Client matching пока не защищён уникальным normalized email/phone constraint; при конкурентных запросах возможны дубликаты.
 - Ручную validation можно позже заменить или дополнить FluentValidation при росте числа команд и правил.
 - Task 58 (backend security perimeter) реализован: HSTS вне Development, security headers (`X-Content-Type-Options`, `Referrer-Policy`, `X-Frame-Options: DENY`, `Permissions-Policy`) на всех ответах, baseline CSP (переключается `SecurityHeaders:EnableContentSecurityPolicy`) и per-IP rate limit на `POST /api/auth/login` (`RateLimiting:AuthLoginPermitLimit`/`AuthLoginWindowMinutes`). Оставшееся ограничение: этот backend не отдаёт SPA HTML, поэтому его CSP покрывает только API-ответы; document CSP фронтенда (включая `connect-src` для API и SignalR `wss:`/`ws:`) должен задавать хост фронтенда/reverse proxy. Login rate limit опирается на корректные Forwarded Headers за proxy.
-- Для production auth остаются password recovery/email confirmation, Admin 2FA, session-retention policy и ротация JWT signing key через внешний secret store.
+- Для production auth остаются password recovery/email confirmation, session-retention policy и ротация JWT signing key через внешний secret store.
 - Production storage provider (S3/Azure Blob/R2), deep content inspection, thumbnail/AVIF generation и image cropper пока не реализованы. Для локального storage добавлены quarantine flow, scan metadata и configurable ClamAV/command-line scanner; production ещё требует фактической настройки ClamAV и мониторинга обновления signatures.
 - Автоматическая очистка orphan `PortfolioImage` пока не реализована; существующий cleanup обрабатывает только orphan order attachments. Архивирование portfolio item намеренно сохраняет физический файл.
 - Автоматический background orphan cleanup пока не реализован; доступен защищённый ручной endpoint. Для production нужны distributed rate limiting/abuse protection и точные deployment-specific `KnownProxies`/`KnownNetworks` для уже добавленной forwarded-header обработки.

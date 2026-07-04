@@ -5,10 +5,45 @@ namespace BespokeStudio.Application.Abstractions;
 
 public interface IAuthService
 {
-    Task<AuthSessionResult?> LoginAsync(
+    Task<AuthLoginResult?> LoginAsync(
         LoginRequest request,
         string? ipAddress,
         string? userAgent,
+        CancellationToken cancellationToken);
+
+    Task<AuthSessionResult?> VerifyTwoFactorAsync(
+        Guid userId,
+        string code,
+        string? ipAddress,
+        string? userAgent,
+        CancellationToken cancellationToken);
+
+    Task<TwoFactorStatusResponse?> GetTwoFactorStatusAsync(
+        Guid userId,
+        CancellationToken cancellationToken);
+
+    Task<TwoFactorSetupResponse?> BeginTwoFactorSetupAsync(
+        Guid userId,
+        CancellationToken cancellationToken);
+
+    Task<TwoFactorEnableResponse?> EnableTwoFactorAsync(
+        Guid userId,
+        string code,
+        CancellationToken cancellationToken);
+
+    Task<TwoFactorStatusUpdateResponse?> DisableTwoFactorAsync(
+        Guid userId,
+        string currentPassword,
+        CancellationToken cancellationToken);
+
+    Task<TwoFactorRecoveryCodesResponse?> ResetTwoFactorRecoveryCodesAsync(
+        Guid userId,
+        string currentPassword,
+        CancellationToken cancellationToken);
+
+    Task<TwoFactorSetupResponse?> ResetAuthenticatorAsync(
+        Guid userId,
+        string currentPassword,
         CancellationToken cancellationToken);
 
     Task<AuthSessionResult?> RefreshAsync(

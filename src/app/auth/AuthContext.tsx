@@ -11,6 +11,7 @@ import {
   getMe,
   login as requestLogin,
   logout as requestLogout,
+  verifyTwoFactor as requestTwoFactorVerification,
   type AdminUser,
 } from "../../api/authApi";
 import {
@@ -22,7 +23,8 @@ interface AuthContextValue {
   user: AdminUser | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login(email: string, password: string): Promise<void>;
+  login(email: string, password: string): Promise<"authenticated" | "requiresTwoFactor">;
+  verifyTwoFactor(code: string): Promise<void>;
   logout(): Promise<void>;
 }
 
@@ -46,6 +48,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = useCallback(async (email: string, password: string) => {
     const response = await requestLogin(email, password);
+    if ("requiresTwoFactor" in response) {
+      clearAccessToken();
+      setUser(null);
+      setIsLoading(false);
+      return "requiresTwoFactor" as const;
+    }
+
+    setAccessToken(response.accessToken);
+    setUser(response.user);
+    setIsLoading(false);
+    return "authenticated" as const;
+  }, []);
+
+  const verifyTwoFactor = useCallback(async (code: string) => {
+    const response = await requestTwoFactorVerification(code);
     setAccessToken(response.accessToken);
     setUser(response.user);
     setIsLoading(false);
@@ -83,9 +100,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isAuthenticated: user !== null,
       isLoading,
       login,
+      verifyTwoFactor,
       logout,
     }),
-    [isLoading, login, logout, user],
+    [isLoading, login, logout, user, verifyTwoFactor],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

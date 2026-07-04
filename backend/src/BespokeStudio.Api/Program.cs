@@ -128,6 +128,8 @@ builder.Services
     .Validate(settings => settings.WindowMinutes is >= 1 and <= 1440, "RateLimiting:WindowMinutes must be between 1 and 1440.")
     .Validate(settings => settings.AuthLoginPermitLimit > 0, "RateLimiting:AuthLoginPermitLimit must be positive.")
     .Validate(settings => settings.AuthLoginWindowMinutes is >= 1 and <= 1440, "RateLimiting:AuthLoginWindowMinutes must be between 1 and 1440.")
+    .Validate(settings => settings.AuthTwoFactorPermitLimit > 0, "RateLimiting:AuthTwoFactorPermitLimit must be positive.")
+    .Validate(settings => settings.AuthTwoFactorWindowMinutes is >= 1 and <= 1440, "RateLimiting:AuthTwoFactorWindowMinutes must be between 1 and 1440.")
     .ValidateOnStart();
 builder.Services.AddRateLimiter(options =>
 {
@@ -179,6 +181,12 @@ builder.Services.AddRateLimiter(options =>
             rateLimitingSettings.AuthLoginPermitLimit,
             rateLimitingSettings.AuthLoginWindowMinutes,
             RateLimitPolicies.AuthLogin));
+    options.AddPolicy(RateLimitPolicies.AuthTwoFactor, context =>
+        CreateFixedWindowPartition(
+            context,
+            rateLimitingSettings.AuthTwoFactorPermitLimit,
+            rateLimitingSettings.AuthTwoFactorWindowMinutes,
+            RateLimitPolicies.AuthTwoFactor));
 });
 
 builder.Services

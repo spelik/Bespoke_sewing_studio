@@ -28,10 +28,12 @@ public sealed class JwtAuthService(
     IOptions<RefreshTokenSettings> refreshTokenSettings,
     ILogger<JwtAuthService> logger) : IAuthService
 {
+    private const string TwoFactorIssuer = "Bespoke Sewing Studio";
+    private const int RecoveryCodeCount = 10;
     private readonly JwtSettings _jwtSettings = jwtSettings.Value;
     private readonly RefreshTokenSettings _refreshTokenSettings = refreshTokenSettings.Value;
 
-    public async Task<AuthSessionResult?> LoginAsync(
+    public async Task<AuthLoginResult?> LoginAsync(
         LoginRequest request,
         string? ipAddress,
         string? userAgent,
@@ -92,19 +94,282 @@ public sealed class JwtAuthService(
             return null;
         }
 
-        var session = CreateRefreshToken(user.Id, Guid.NewGuid(), ipAddress, userAgent);
-        dbContext.AdminRefreshTokens.Add(session.Entity);
-        auditLogService.AddPending(CreateAuthEvent(
-            user,
-            email,
-            "auth.login_succeeded",
-            "Admin login succeeded."));
-        await dbContext.SaveChangesAsync(cancellationToken);
+        if (user.TwoFactorEnabled)
+        {
+            await RecordAuthEventAsync(
+                user,
+                email,
+                "auth.2fa_challenge_required",
+                "Password verification succeeded; a two-factor challenge is required.",
+                cancellationToken);
+            return new AuthLoginResult(null, user.Id);
+        }
 
-        return new AuthSessionResult(
-            CreateAccessToken(user, roles, email),
-            session.RawToken,
-            session.Entity.ExpiresAtUtc);
+        return new AuthLoginResult(
+            await CreateSessionAsync(
+                user,
+                roles,
+                email,
+                ipAddress,
+                userAgent,
+                "auth.login_succeeded",
+                "Admin login succeeded.",
+                cancellationToken),
+            null);
+    }
+
+    public async Task<AuthSessionResult?> VerifyTwoFactorAsync(
+        Guid userId,
+        string code,
+        string? ipAddress,
+        string? userAgent,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var user = await userManager.FindByIdAsync(userId.ToString());
+        if (user is null ||
+            !user.TwoFactorEnabled ||
+            await userManager.IsLockedOutAsync(user) ||
+            !await userManager.IsInRoleAsync(user, AdminAccess.RoleName))
+        {
+            await RecordAuthEventAsync(
+                user,
+                user?.Email,
+                "auth.2fa_challenge_failed",
+                "Two-factor verification was rejected.",
+                cancellationToken);
+            return null;
+        }
+
+        var submittedCode = code?.Trim() ?? string.Empty;
+        var authenticatorCode = NormalizeAuthenticatorCode(submittedCode);
+        var isValid = authenticatorCode.Length > 0 &&
+            await userManager.VerifyTwoFactorTokenAsync(
+                user,
+                TokenOptions.DefaultAuthenticatorProvider,
+                authenticatorCode);
+        if (!isValid && submittedCode.Length > 0)
+        {
+            var recoveryResult = await userManager.RedeemTwoFactorRecoveryCodeAsync(user, submittedCode);
+            isValid = recoveryResult.Succeeded;
+        }
+
+        if (!isValid)
+        {
+            await userManager.AccessFailedAsync(user);
+            await RecordAuthEventAsync(
+                user,
+                user.Email,
+                "auth.2fa_challenge_failed",
+                "Two-factor verification was rejected.",
+                cancellationToken);
+            return null;
+        }
+
+        await userManager.ResetAccessFailedCountAsync(user);
+        var roles = (await userManager.GetRolesAsync(user)).ToArray();
+        return await CreateSessionAsync(
+            user,
+            roles,
+            user.Email ?? user.UserName ?? string.Empty,
+            ipAddress,
+            userAgent,
+            "auth.2fa_challenge_succeeded",
+            "Two-factor verification succeeded and an admin session was created.",
+            cancellationToken);
+    }
+
+    public async Task<TwoFactorStatusResponse?> GetTwoFactorStatusAsync(
+        Guid userId,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var user = await userManager.FindByIdAsync(userId.ToString());
+        return user is null ? null : await CreateTwoFactorStatusAsync(user);
+    }
+
+    public async Task<TwoFactorSetupResponse?> BeginTwoFactorSetupAsync(
+        Guid userId,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var user = await userManager.FindByIdAsync(userId.ToString());
+        if (user is null)
+        {
+            return null;
+        }
+
+        if (user.TwoFactorEnabled)
+        {
+            throw CreateTwoFactorError("Two-factor authentication is already enabled.");
+        }
+
+        var response = await GetOrCreateAuthenticatorSetupAsync(user);
+        await RecordAuthEventAsync(
+            user,
+            user.Email,
+            "auth.2fa_setup_started",
+            "Authenticator setup was started.",
+            cancellationToken);
+        return response;
+    }
+
+    public async Task<TwoFactorEnableResponse?> EnableTwoFactorAsync(
+        Guid userId,
+        string code,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var user = await userManager.FindByIdAsync(userId.ToString());
+        if (user is null)
+        {
+            return null;
+        }
+
+        if (user.TwoFactorEnabled)
+        {
+            throw CreateTwoFactorError("Two-factor authentication is already enabled.");
+        }
+
+        var key = await userManager.GetAuthenticatorKeyAsync(user);
+        var normalizedCode = NormalizeAuthenticatorCode(code);
+        if (string.IsNullOrWhiteSpace(key) ||
+            string.IsNullOrWhiteSpace(normalizedCode) ||
+            !await userManager.VerifyTwoFactorTokenAsync(
+                user,
+                TokenOptions.DefaultAuthenticatorProvider,
+                normalizedCode))
+        {
+            await RecordAuthEventAsync(
+                user,
+                user.Email,
+                "auth.2fa_enable_failed",
+                "Two-factor enablement was rejected because the verification code was invalid.",
+                cancellationToken);
+            throw CreateTwoFactorError("The authenticator code is invalid.", nameof(TwoFactorCodeRequest.Code));
+        }
+
+        var enableResult = await userManager.SetTwoFactorEnabledAsync(user, true);
+        ThrowTwoFactorFailure(enableResult);
+
+        string[] recoveryCodes;
+        try
+        {
+            recoveryCodes = (await userManager.GenerateNewTwoFactorRecoveryCodesAsync(user, RecoveryCodeCount)
+                ?? []).ToArray();
+        }
+        catch
+        {
+            await userManager.SetTwoFactorEnabledAsync(user, false);
+            throw;
+        }
+
+        if (recoveryCodes.Length != RecoveryCodeCount)
+        {
+            await userManager.SetTwoFactorEnabledAsync(user, false);
+            await RecordAuthEventAsync(
+                user,
+                user.Email,
+                "auth.2fa_enable_failed",
+                "Two-factor enablement failed because recovery codes could not be generated.",
+                cancellationToken);
+            throw CreateTwoFactorError("Recovery codes could not be generated. Two-factor authentication was not enabled.");
+        }
+        await RecordAuthEventAsync(
+            user,
+            user.Email,
+            "auth.2fa_enabled",
+            "Two-factor authentication was enabled.",
+            cancellationToken);
+
+        return new TwoFactorEnableResponse(
+            await CreateTwoFactorStatusAsync(user),
+            recoveryCodes,
+            await CreateCurrentAccessTokenAsync(user));
+    }
+
+    public async Task<TwoFactorStatusUpdateResponse?> DisableTwoFactorAsync(
+        Guid userId,
+        string currentPassword,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var user = await userManager.FindByIdAsync(userId.ToString());
+        if (user is null)
+        {
+            return null;
+        }
+
+        await RequireCurrentPasswordAsync(user, currentPassword);
+        var result = await userManager.SetTwoFactorEnabledAsync(user, false);
+        ThrowTwoFactorFailure(result);
+        await RecordAuthEventAsync(
+            user,
+            user.Email,
+            "auth.2fa_disabled",
+            "Two-factor authentication was disabled.",
+            cancellationToken);
+        return new TwoFactorStatusUpdateResponse(
+            await CreateTwoFactorStatusAsync(user),
+            await CreateCurrentAccessTokenAsync(user));
+    }
+
+    public async Task<TwoFactorRecoveryCodesResponse?> ResetTwoFactorRecoveryCodesAsync(
+        Guid userId,
+        string currentPassword,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var user = await userManager.FindByIdAsync(userId.ToString());
+        if (user is null)
+        {
+            return null;
+        }
+
+        if (!user.TwoFactorEnabled)
+        {
+            throw CreateTwoFactorError("Enable two-factor authentication before resetting recovery codes.");
+        }
+
+        await RequireCurrentPasswordAsync(user, currentPassword);
+        var recoveryCodes = (await userManager.GenerateNewTwoFactorRecoveryCodesAsync(user, RecoveryCodeCount)
+            ?? []).ToArray();
+        await RecordAuthEventAsync(
+            user,
+            user.Email,
+            "auth.2fa_recovery_codes_regenerated",
+            "Two-factor recovery codes were regenerated.",
+            cancellationToken);
+        return new TwoFactorRecoveryCodesResponse(
+            recoveryCodes,
+            recoveryCodes.Length,
+            await CreateCurrentAccessTokenAsync(user));
+    }
+
+    public async Task<TwoFactorSetupResponse?> ResetAuthenticatorAsync(
+        Guid userId,
+        string currentPassword,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var user = await userManager.FindByIdAsync(userId.ToString());
+        if (user is null)
+        {
+            return null;
+        }
+
+        await RequireCurrentPasswordAsync(user, currentPassword);
+        ThrowTwoFactorFailure(await userManager.SetTwoFactorEnabledAsync(user, false));
+        ThrowTwoFactorFailure(await userManager.ResetAuthenticatorKeyAsync(user));
+        var response = await GetOrCreateAuthenticatorSetupAsync(user);
+        await RecordAuthEventAsync(
+            user,
+            user.Email,
+            "auth.2fa_authenticator_reset",
+            "The authenticator key was reset and two-factor authentication was disabled pending setup.",
+            cancellationToken);
+        return response;
     }
 
     public async Task<AuthSessionResult?> RefreshAsync(
@@ -379,6 +644,115 @@ public sealed class JwtAuthService(
             $"Other active admin sessions were revoked; count: {otherTokens.Count}."));
         await dbContext.SaveChangesAsync(cancellationToken);
         return new AdminOtherSessionsRevocationResult(otherTokens.Count);
+    }
+
+    private async Task<AuthSessionResult> CreateSessionAsync(
+        AdminUser user,
+        string[] roles,
+        string fallbackEmail,
+        string? ipAddress,
+        string? userAgent,
+        string auditAction,
+        string auditSummary,
+        CancellationToken cancellationToken)
+    {
+        var session = CreateRefreshToken(user.Id, Guid.NewGuid(), ipAddress, userAgent);
+        dbContext.AdminRefreshTokens.Add(session.Entity);
+        auditLogService.AddPending(CreateAuthEvent(
+            user,
+            fallbackEmail,
+            auditAction,
+            auditSummary));
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        return new AuthSessionResult(
+            CreateAccessToken(user, roles, fallbackEmail),
+            session.RawToken,
+            session.Entity.ExpiresAtUtc);
+    }
+
+    private async Task<TwoFactorStatusResponse> CreateTwoFactorStatusAsync(AdminUser user)
+    {
+        var key = await userManager.GetAuthenticatorKeyAsync(user);
+        var recoveryCodesRemaining = user.TwoFactorEnabled
+            ? await userManager.CountRecoveryCodesAsync(user)
+            : 0;
+        return new TwoFactorStatusResponse(
+            user.TwoFactorEnabled,
+            !string.IsNullOrWhiteSpace(key),
+            recoveryCodesRemaining);
+    }
+
+    private async Task<AuthTokenResponse> CreateCurrentAccessTokenAsync(AdminUser user)
+    {
+        user.SecurityStamp = await userManager.GetSecurityStampAsync(user);
+        var roles = (await userManager.GetRolesAsync(user)).ToArray();
+        return CreateAccessToken(
+            user,
+            roles,
+            user.Email ?? user.UserName ?? string.Empty);
+    }
+
+    private async Task<TwoFactorSetupResponse> GetOrCreateAuthenticatorSetupAsync(AdminUser user)
+    {
+        var key = await userManager.GetAuthenticatorKeyAsync(user);
+        if (string.IsNullOrWhiteSpace(key))
+        {
+            ThrowTwoFactorFailure(await userManager.ResetAuthenticatorKeyAsync(user));
+            key = await userManager.GetAuthenticatorKeyAsync(user);
+        }
+
+        if (string.IsNullOrWhiteSpace(key))
+        {
+            throw CreateTwoFactorError("Authenticator setup could not be created.");
+        }
+
+        var accountName = user.Email ?? user.UserName ?? user.Id.ToString();
+        var authenticatorUri =
+            $"otpauth://totp/{Uri.EscapeDataString(TwoFactorIssuer)}:{Uri.EscapeDataString(accountName)}" +
+            $"?secret={Uri.EscapeDataString(key)}&issuer={Uri.EscapeDataString(TwoFactorIssuer)}&digits=6";
+        return new TwoFactorSetupResponse(
+            FormatAuthenticatorKey(key),
+            authenticatorUri,
+            TwoFactorIssuer,
+            accountName,
+            await CreateCurrentAccessTokenAsync(user));
+    }
+
+    private async Task RequireCurrentPasswordAsync(AdminUser user, string currentPassword)
+    {
+        if (string.IsNullOrWhiteSpace(currentPassword) ||
+            !await userManager.CheckPasswordAsync(user, currentPassword))
+        {
+            throw CreateTwoFactorError(
+                "Current password is incorrect.",
+                nameof(TwoFactorPasswordRequest.CurrentPassword));
+        }
+    }
+
+    private static string NormalizeAuthenticatorCode(string? code) =>
+        new((code ?? string.Empty)
+            .Where(character => !char.IsWhiteSpace(character) && character != '-')
+            .ToArray());
+
+    private static string FormatAuthenticatorKey(string key) =>
+        string.Join(' ', Enumerable.Range(0, (key.Length + 3) / 4)
+            .Select(index => key.Substring(index * 4, Math.Min(4, key.Length - index * 4))))
+        .ToUpperInvariant();
+
+    private static AdminAccountException CreateTwoFactorError(
+        string message,
+        string field = "TwoFactor") =>
+        new(new Dictionary<string, string[]> { [field] = [message] });
+
+    private static void ThrowTwoFactorFailure(IdentityResult result)
+    {
+        if (!result.Succeeded)
+        {
+            throw CreateTwoFactorError(
+                result.Errors.Select(error => error.Description).FirstOrDefault()
+                ?? "The two-factor request could not be completed.");
+        }
     }
 
     private AuthTokenResponse CreateAccessToken(AdminUser user, string[] roles, string fallbackEmail)

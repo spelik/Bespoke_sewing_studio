@@ -6,11 +6,48 @@ export interface AdminUser {
   roles: string[];
 }
 
-export interface LoginResponse {
+export interface AuthTokenResponse {
   accessToken: string;
   tokenType: "Bearer";
   expiresAt: string;
   user: AdminUser;
+}
+
+export interface TwoFactorRequiredResponse {
+  requiresTwoFactor: true;
+}
+
+export type LoginResponse = AuthTokenResponse | TwoFactorRequiredResponse;
+
+export interface TwoFactorStatus {
+  isEnabled: boolean;
+  hasAuthenticatorKey: boolean;
+  recoveryCodesRemaining: number;
+}
+
+export interface TwoFactorSetup {
+  sharedKey: string;
+  authenticatorUri: string;
+  issuer: string;
+  accountName: string;
+  token: AuthTokenResponse;
+}
+
+export interface TwoFactorEnableResult {
+  status: TwoFactorStatus;
+  recoveryCodes: string[];
+  token: AuthTokenResponse;
+}
+
+export interface TwoFactorStatusUpdateResult {
+  status: TwoFactorStatus;
+  token: AuthTokenResponse;
+}
+
+export interface TwoFactorRecoveryCodesResult {
+  recoveryCodes: string[];
+  recoveryCodesRemaining: number;
+  token: AuthTokenResponse;
 }
 
 export interface AdminSession {
@@ -53,6 +90,44 @@ export function login(email: string, password: string): Promise<LoginResponse> {
     email: email.trim(),
     password,
   });
+}
+
+export function verifyTwoFactor(code: string): Promise<AuthTokenResponse> {
+  return apiClient.post<{ code: string }, AuthTokenResponse>("/auth/2fa/verify", { code });
+}
+
+export function getTwoFactorStatus(): Promise<TwoFactorStatus> {
+  return apiClient.get<TwoFactorStatus>("/auth/2fa/status");
+}
+
+export function beginTwoFactorSetup(): Promise<TwoFactorSetup> {
+  return apiClient.post<Record<string, never>, TwoFactorSetup>("/auth/2fa/setup", {});
+}
+
+export function enableTwoFactor(code: string): Promise<TwoFactorEnableResult> {
+  return apiClient.post<{ code: string }, TwoFactorEnableResult>("/auth/2fa/enable", { code });
+}
+
+export function disableTwoFactor(currentPassword: string): Promise<TwoFactorStatusUpdateResult> {
+  return apiClient.post<{ currentPassword: string }, TwoFactorStatusUpdateResult>("/auth/2fa/disable", {
+    currentPassword,
+  });
+}
+
+export function resetTwoFactorRecoveryCodes(
+  currentPassword: string,
+): Promise<TwoFactorRecoveryCodesResult> {
+  return apiClient.post<{ currentPassword: string }, TwoFactorRecoveryCodesResult>(
+    "/auth/2fa/recovery-codes/reset",
+    { currentPassword },
+  );
+}
+
+export function resetAuthenticator(currentPassword: string): Promise<TwoFactorSetup> {
+  return apiClient.post<{ currentPassword: string }, TwoFactorSetup>(
+    "/auth/2fa/authenticator/reset",
+    { currentPassword },
+  );
 }
 
 export function logout(): Promise<void> {

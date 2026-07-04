@@ -96,7 +96,12 @@ async function request<TResponse>(
     );
   }
 
-  const skipsRefresh = ["/auth/login", "/auth/refresh", "/auth/logout"].includes(path);
+  const skipsRefresh = [
+    "/auth/login",
+    "/auth/2fa/verify",
+    "/auth/refresh",
+    "/auth/logout",
+  ].includes(path);
   if (response.status === 401 && allowRefresh && !skipsRefresh) {
     const refreshed = await refreshAccessToken();
     if (refreshed) {

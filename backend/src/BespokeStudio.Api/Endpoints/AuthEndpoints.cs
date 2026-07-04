@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using System.Security.Cryptography;
 using System.Text.Json;
 using BespokeStudio.Application.Abstractions;
 using BespokeStudio.Application.Contracts.Auth;
@@ -7,11 +8,16 @@ using BespokeStudio.Application.Validation;
 using BespokeStudio.Api.Configuration;
 using Microsoft.Extensions.Options;
 using BespokeStudio.Application.Contracts.AdminAuditLog;
+using Microsoft.AspNetCore.DataProtection;
 
 namespace BespokeStudio.Api.Endpoints;
 
 public static class AuthEndpoints
 {
+    private const string TwoFactorChallengeCookieName = "BespokeStudio.Admin2FA";
+    private const string TwoFactorChallengeProtectorPurpose = "BespokeStudio.Admin2FA.Challenge.v1";
+    private static readonly TimeSpan TwoFactorChallengeLifetime = TimeSpan.FromMinutes(5);
+
     public static IEndpointRouteBuilder MapAuthEndpoints(this IEndpointRouteBuilder endpoints)
     {
         var auth = endpoints.MapGroup("/api/auth")
@@ -21,6 +27,15 @@ public static class AuthEndpoints
             .AllowAnonymous()
             .RequireRateLimiting(RateLimitPolicies.AuthLogin)
             .WithName("Login")
+            .Produces<AuthTokenResponse>()
+            .Produces<TwoFactorRequiredResponse>()
+            .Produces(StatusCodes.Status401Unauthorized)
+            .Produces(StatusCodes.Status429TooManyRequests);
+
+        auth.MapPost("/2fa/verify", VerifyTwoFactorAsync)
+            .AllowAnonymous()
+            .RequireRateLimiting(RateLimitPolicies.AuthTwoFactor)
+            .WithName("VerifyAdminTwoFactorChallenge")
             .Produces<AuthTokenResponse>()
             .Produces(StatusCodes.Status401Unauthorized)
             .Produces(StatusCodes.Status429TooManyRequests);
@@ -46,6 +61,53 @@ public static class AuthEndpoints
             .RequireAuthorization(AdminAccess.PolicyName)
             .WithName("ChangeOwnAdminPassword")
             .Produces<CurrentUserResponse>()
+            .ProducesValidationProblem()
+            .Produces(StatusCodes.Status401Unauthorized)
+            .Produces(StatusCodes.Status403Forbidden);
+
+        auth.MapGet("/2fa/status", GetTwoFactorStatusAsync)
+            .RequireAuthorization(AdminAccess.PolicyName)
+            .WithName("GetAdminTwoFactorStatus")
+            .Produces<TwoFactorStatusResponse>()
+            .Produces(StatusCodes.Status401Unauthorized)
+            .Produces(StatusCodes.Status403Forbidden);
+
+        auth.MapPost("/2fa/setup", BeginTwoFactorSetupAsync)
+            .RequireAuthorization(AdminAccess.PolicyName)
+            .WithName("BeginAdminTwoFactorSetup")
+            .Produces<TwoFactorSetupResponse>()
+            .ProducesValidationProblem()
+            .Produces(StatusCodes.Status401Unauthorized)
+            .Produces(StatusCodes.Status403Forbidden);
+
+        auth.MapPost("/2fa/enable", EnableTwoFactorAsync)
+            .RequireAuthorization(AdminAccess.PolicyName)
+            .WithName("EnableAdminTwoFactor")
+            .Produces<TwoFactorEnableResponse>()
+            .ProducesValidationProblem()
+            .Produces(StatusCodes.Status401Unauthorized)
+            .Produces(StatusCodes.Status403Forbidden);
+
+        auth.MapPost("/2fa/disable", DisableTwoFactorAsync)
+            .RequireAuthorization(AdminAccess.PolicyName)
+            .WithName("DisableAdminTwoFactor")
+            .Produces<TwoFactorStatusUpdateResponse>()
+            .ProducesValidationProblem()
+            .Produces(StatusCodes.Status401Unauthorized)
+            .Produces(StatusCodes.Status403Forbidden);
+
+        auth.MapPost("/2fa/recovery-codes/reset", ResetTwoFactorRecoveryCodesAsync)
+            .RequireAuthorization(AdminAccess.PolicyName)
+            .WithName("ResetAdminTwoFactorRecoveryCodes")
+            .Produces<TwoFactorRecoveryCodesResponse>()
+            .ProducesValidationProblem()
+            .Produces(StatusCodes.Status401Unauthorized)
+            .Produces(StatusCodes.Status403Forbidden);
+
+        auth.MapPost("/2fa/authenticator/reset", ResetAuthenticatorAsync)
+            .RequireAuthorization(AdminAccess.PolicyName)
+            .WithName("ResetAdminAuthenticator")
+            .Produces<TwoFactorSetupResponse>()
             .ProducesValidationProblem()
             .Produces(StatusCodes.Status401Unauthorized)
             .Produces(StatusCodes.Status403Forbidden);
@@ -80,6 +142,7 @@ public static class AuthEndpoints
         LoginRequest request,
         HttpContext httpContext,
         IAuthService authService,
+        IDataProtectionProvider dataProtectionProvider,
         IOptions<RefreshTokenSettings> refreshTokenSettings,
         CancellationToken cancellationToken)
     {
@@ -93,8 +156,50 @@ public static class AuthEndpoints
             return TypedResults.Unauthorized();
         }
 
-        SetRefreshCookie(httpContext, refreshTokenSettings.Value, result);
-        return TypedResults.Ok(result.Token);
+        if (result.RequiresTwoFactor && result.TwoFactorUserId.HasValue)
+        {
+            SetTwoFactorChallengeCookie(httpContext, dataProtectionProvider, result.TwoFactorUserId.Value);
+            return TypedResults.Ok(new TwoFactorRequiredResponse());
+        }
+
+        if (result.Session is null)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        SetRefreshCookie(httpContext, refreshTokenSettings.Value, result.Session);
+        return TypedResults.Ok(result.Session.Token);
+    }
+
+    private static async Task<IResult> VerifyTwoFactorAsync(
+        TwoFactorCodeRequest request,
+        HttpContext httpContext,
+        IAuthService authService,
+        IDataProtectionProvider dataProtectionProvider,
+        IOptions<RefreshTokenSettings> refreshTokenSettings,
+        CancellationToken cancellationToken)
+    {
+        var userId = GetTwoFactorChallengeUserId(httpContext, dataProtectionProvider);
+        if (!userId.HasValue)
+        {
+            DeleteTwoFactorChallengeCookie(httpContext);
+            return TypedResults.Unauthorized();
+        }
+
+        var session = await authService.VerifyTwoFactorAsync(
+            userId.Value,
+            request.Code,
+            GetIpAddress(httpContext),
+            GetUserAgent(httpContext),
+            cancellationToken);
+        if (session is null)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        DeleteTwoFactorChallengeCookie(httpContext);
+        SetRefreshCookie(httpContext, refreshTokenSettings.Value, session);
+        return TypedResults.Ok(session.Token);
     }
 
     private static async Task<IResult> RefreshAsync(
@@ -177,6 +282,144 @@ public static class AuthEndpoints
 
             DeleteRefreshCookie(httpContext, refreshTokenSettings.Value);
             return TypedResults.Ok(user);
+        }
+        catch (AdminAccountException exception)
+        {
+            return TypedResults.ValidationProblem(ToJsonPropertyNames(exception.Errors));
+        }
+    }
+
+    private static async Task<IResult> GetTwoFactorStatusAsync(
+        ClaimsPrincipal principal,
+        IAuthService authService,
+        CancellationToken cancellationToken)
+    {
+        var userId = GetCurrentUserId(principal);
+        if (!userId.HasValue)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        var status = await authService.GetTwoFactorStatusAsync(userId.Value, cancellationToken);
+        return status is null ? TypedResults.Unauthorized() : TypedResults.Ok(status);
+    }
+
+    private static async Task<IResult> BeginTwoFactorSetupAsync(
+        ClaimsPrincipal principal,
+        IAuthService authService,
+        CancellationToken cancellationToken)
+    {
+        var userId = GetCurrentUserId(principal);
+        if (!userId.HasValue)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        try
+        {
+            var setup = await authService.BeginTwoFactorSetupAsync(userId.Value, cancellationToken);
+            return setup is null ? TypedResults.Unauthorized() : TypedResults.Ok(setup);
+        }
+        catch (AdminAccountException exception)
+        {
+            return TypedResults.ValidationProblem(ToJsonPropertyNames(exception.Errors));
+        }
+    }
+
+    private static async Task<IResult> EnableTwoFactorAsync(
+        TwoFactorCodeRequest request,
+        ClaimsPrincipal principal,
+        IAuthService authService,
+        CancellationToken cancellationToken)
+    {
+        var userId = GetCurrentUserId(principal);
+        if (!userId.HasValue)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        try
+        {
+            var result = await authService.EnableTwoFactorAsync(userId.Value, request.Code, cancellationToken);
+            return result is null ? TypedResults.Unauthorized() : TypedResults.Ok(result);
+        }
+        catch (AdminAccountException exception)
+        {
+            return TypedResults.ValidationProblem(ToJsonPropertyNames(exception.Errors));
+        }
+    }
+
+    private static async Task<IResult> DisableTwoFactorAsync(
+        TwoFactorPasswordRequest request,
+        ClaimsPrincipal principal,
+        IAuthService authService,
+        CancellationToken cancellationToken)
+    {
+        var userId = GetCurrentUserId(principal);
+        if (!userId.HasValue)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        try
+        {
+            var status = await authService.DisableTwoFactorAsync(
+                userId.Value,
+                request.CurrentPassword,
+                cancellationToken);
+            return status is null ? TypedResults.Unauthorized() : TypedResults.Ok(status);
+        }
+        catch (AdminAccountException exception)
+        {
+            return TypedResults.ValidationProblem(ToJsonPropertyNames(exception.Errors));
+        }
+    }
+
+    private static async Task<IResult> ResetTwoFactorRecoveryCodesAsync(
+        TwoFactorPasswordRequest request,
+        ClaimsPrincipal principal,
+        IAuthService authService,
+        CancellationToken cancellationToken)
+    {
+        var userId = GetCurrentUserId(principal);
+        if (!userId.HasValue)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        try
+        {
+            var result = await authService.ResetTwoFactorRecoveryCodesAsync(
+                userId.Value,
+                request.CurrentPassword,
+                cancellationToken);
+            return result is null ? TypedResults.Unauthorized() : TypedResults.Ok(result);
+        }
+        catch (AdminAccountException exception)
+        {
+            return TypedResults.ValidationProblem(ToJsonPropertyNames(exception.Errors));
+        }
+    }
+
+    private static async Task<IResult> ResetAuthenticatorAsync(
+        TwoFactorPasswordRequest request,
+        ClaimsPrincipal principal,
+        IAuthService authService,
+        CancellationToken cancellationToken)
+    {
+        var userId = GetCurrentUserId(principal);
+        if (!userId.HasValue)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        try
+        {
+            var setup = await authService.ResetAuthenticatorAsync(
+                userId.Value,
+                request.CurrentPassword,
+                cancellationToken);
+            return setup is null ? TypedResults.Unauthorized() : TypedResults.Ok(setup);
         }
         catch (AdminAccountException exception)
         {
@@ -323,6 +566,64 @@ public static class AuthEndpoints
             SameSite = SameSiteMode.Lax,
             Path = "/api/auth"
         });
+
+    private static void SetTwoFactorChallengeCookie(
+        HttpContext context,
+        IDataProtectionProvider dataProtectionProvider,
+        Guid userId)
+    {
+        var protector = dataProtectionProvider
+            .CreateProtector(TwoFactorChallengeProtectorPurpose)
+            .ToTimeLimitedDataProtector();
+        var protectedUserId = protector.Protect(userId.ToString(), TwoFactorChallengeLifetime);
+        context.Response.Cookies.Append(
+            TwoFactorChallengeCookieName,
+            protectedUserId,
+            new CookieOptions
+            {
+                HttpOnly = true,
+                Secure = !context.RequestServices.GetRequiredService<IHostEnvironment>().IsDevelopment(),
+                SameSite = SameSiteMode.Lax,
+                MaxAge = TwoFactorChallengeLifetime,
+                IsEssential = true,
+                Path = "/api/auth"
+            });
+    }
+
+    private static Guid? GetTwoFactorChallengeUserId(
+        HttpContext context,
+        IDataProtectionProvider dataProtectionProvider)
+    {
+        if (!context.Request.Cookies.TryGetValue(TwoFactorChallengeCookieName, out var protectedUserId) ||
+            string.IsNullOrWhiteSpace(protectedUserId))
+        {
+            return null;
+        }
+
+        try
+        {
+            var protector = dataProtectionProvider
+                .CreateProtector(TwoFactorChallengeProtectorPurpose)
+                .ToTimeLimitedDataProtector();
+            return Guid.TryParse(protector.Unprotect(protectedUserId), out var userId)
+                ? userId
+                : null;
+        }
+        catch (CryptographicException)
+        {
+            return null;
+        }
+    }
+
+    private static void DeleteTwoFactorChallengeCookie(HttpContext context) =>
+        context.Response.Cookies.Delete(
+            TwoFactorChallengeCookieName,
+            new CookieOptions
+            {
+                Secure = !context.RequestServices.GetRequiredService<IHostEnvironment>().IsDevelopment(),
+                SameSite = SameSiteMode.Lax,
+                Path = "/api/auth"
+            });
 
     private static string? GetIpAddress(HttpContext context) =>
         context.Connection.RemoteIpAddress?.ToString();

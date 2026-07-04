@@ -10,6 +10,7 @@ import {
   type AdminSession,
 } from "../../api/authApi";
 import { AdminActionButton, AdminConfirmDialog, AdminTableState } from "./AdminUi";
+import { AdminTwoFactorPanel } from "./AdminTwoFactorPanel";
 
 interface AdminAccountPanelProps {
   email: string;
@@ -304,6 +305,8 @@ export function AdminAccountPanel({
           </div>
         </form>
       </section>
+
+      <AdminTwoFactorPanel onUnauthorized={onUnauthorized} />
 
       <section className="bg-card border border-border">
         <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border p-5">

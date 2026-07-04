@@ -893,7 +893,34 @@ token hash or cookie value; user-agent text is bounded and IP addresses are mask
 Manual revocation writes `auth.session_revoked` or `auth.other_sessions_revoked` audit actions.
 
 Authentication uses ASP.NET Core Identity with PostgreSQL-backed users and
-roles. `POST /api/auth/login` accepts an email and password and returns a JWT.
+roles. `POST /api/auth/login` accepts an email and password. Accounts without 2FA
+receive the existing JWT/refresh session. Accounts with 2FA receive only a
+five-minute Data Protection-protected HttpOnly challenge cookie and a
+`requiresTwoFactor` response; no JWT, refresh token or session row is created yet.
+`POST /api/auth/2fa/verify` accepts either an Identity authenticator TOTP or a
+one-time recovery code, clears the challenge and then creates the normal session.
+The login and verify steps have independent per-IP fixed-window limits, and failed
+2FA attempts participate in Identity lockout accounting.
+
+Authenticated current-admin 2FA endpoints are:
+
+- `GET /api/auth/2fa/status`;
+- `POST /api/auth/2fa/setup` and `POST /api/auth/2fa/enable`;
+- `POST /api/auth/2fa/disable`;
+- `POST /api/auth/2fa/recovery-codes/reset`;
+- `POST /api/auth/2fa/authenticator/reset`.
+
+Setup returns a manual key and `otpauth://` URI only to the authenticated current
+admin. Enablement generates ten recovery codes and returns them once. Disable,
+recovery-code regeneration and authenticator reset require the current password.
+Because Identity changes the security stamp for authenticator and 2FA settings,
+each authenticated 2FA mutation response also returns a replacement access-token
+response. The frontend immediately replaces its module-memory token; it does not
+persist that token or create another refresh session.
+Identity's existing `TwoFactorEnabled` field and `AspNetUserTokens` storage are
+used, so this feature requires no new migration. TOTP values, recovery codes,
+authenticator keys, URIs, passwords and tokens are never logged or audited.
+
 Issued JWTs contain an Identity security-stamp claim. Bearer validation loads the
 current user and rejects deleted, locked/disabled, non-Admin or stale-stamp users;
 this applies to protected HTTP endpoints and the SignalR query-string token flow.

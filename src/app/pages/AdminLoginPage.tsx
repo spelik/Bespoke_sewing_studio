@@ -9,11 +9,13 @@ interface LoginLocationState {
 }
 
 export function AdminLoginPage() {
-  const { isAuthenticated, isLoading, login } = useAuth();
+  const { isAuthenticated, isLoading, login, verifyTwoFactor } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [twoFactorCode, setTwoFactorCode] = useState("");
+  const [requiresTwoFactor, setRequiresTwoFactor] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -27,7 +29,13 @@ export function AdminLoginPage() {
     setError(null);
 
     try {
-      await login(email, password);
+      const result = await login(email, password);
+      if (result === "requiresTwoFactor") {
+        setPassword("");
+        setRequiresTwoFactor(true);
+        return;
+      }
+
       const state = location.state as LoginLocationState | null;
       navigate(state?.from === "/admin" ? state.from : "/admin", { replace: true });
     } catch (submitError) {
@@ -43,6 +51,28 @@ export function AdminLoginPage() {
     }
   }
 
+  async function handleTwoFactorSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setIsSubmitting(true);
+    setError(null);
+
+    try {
+      await verifyTwoFactor(twoFactorCode);
+      const state = location.state as LoginLocationState | null;
+      navigate(state?.from === "/admin" ? state.from : "/admin", { replace: true });
+    } catch (submitError) {
+      if (submitError instanceof ApiError && submitError.status === 401) {
+        setError("The authentication or recovery code is incorrect or has expired.");
+      } else if (submitError instanceof ApiError) {
+        setError(submitError.message);
+      } else {
+        setError("Two-factor verification could not be completed. Please try again.");
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
   return (
     <div className="pt-[72px] min-h-screen bg-[#F5F0E8] flex items-center justify-center px-5 py-12">
       <section className="w-full max-w-md bg-card border border-border p-7 sm:p-10">
@@ -52,11 +82,61 @@ export function AdminLoginPage() {
         <p className="text-[10px] tracking-[0.28em] uppercase text-accent font-sans mb-2">
           Studio Administration
         </p>
-        <h1 className="font-serif text-[2rem] font-light text-foreground">Admin sign in</h1>
+        <h1 className="font-serif text-[2rem] font-light text-foreground">
+          {requiresTwoFactor ? "Two-factor verification" : "Admin sign in"}
+        </h1>
         <p className="text-[12px] text-muted-foreground mt-2 mb-7 font-sans">
-          Use your studio administrator account to manage enquiries.
+          {requiresTwoFactor
+            ? "Enter the current code from your authenticator app, or use one recovery code."
+            : "Use your studio administrator account to manage enquiries."}
         </p>
 
+        {requiresTwoFactor ? (
+          <form onSubmit={handleTwoFactorSubmit} className="space-y-5">
+            <div>
+              <label htmlFor="admin-two-factor-code" className="block text-[11px] text-foreground mb-2 font-sans">
+                Authentication or recovery code
+              </label>
+              <input
+                id="admin-two-factor-code"
+                type="text"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                required
+                autoFocus
+                value={twoFactorCode}
+                onChange={(event) => setTwoFactorCode(event.target.value)}
+                className="w-full border border-border bg-background px-4 py-3 text-[13px] font-mono tracking-[0.18em] focus:outline-none focus:border-accent transition-colors"
+              />
+            </div>
+
+            {error ? (
+              <p role="alert" className="border border-destructive/20 bg-destructive/5 px-4 py-3 text-[11px] text-destructive font-sans">
+                {error}
+              </p>
+            ) : null}
+
+            <button
+              type="submit"
+              disabled={isSubmitting || isLoading}
+              className="w-full bg-foreground text-primary-foreground px-5 py-3 text-[11px] tracking-[0.14em] uppercase hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              {isSubmitting ? "Verifying..." : "Verify and sign in"}
+            </button>
+            <button
+              type="button"
+              disabled={isSubmitting}
+              onClick={() => {
+                setRequiresTwoFactor(false);
+                setTwoFactorCode("");
+                setError(null);
+              }}
+              className="w-full border border-border bg-background px-5 py-3 text-[11px] tracking-wide text-foreground hover:border-foreground disabled:opacity-50 font-sans"
+            >
+              Back to password
+            </button>
+          </form>
+        ) : (
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
             <label htmlFor="admin-email" className="block text-[11px] text-foreground mb-2 font-sans">
@@ -101,6 +181,7 @@ export function AdminLoginPage() {
             {isSubmitting ? "Signing in..." : "Sign in"}
           </button>
         </form>
+        )}
       </section>
     </div>
   );

@@ -39,13 +39,13 @@ Current backend status:
 - migrations are applied explicitly with `dotnet ef database update`
 - Orders/enquiries API now persists data in PostgreSQL
 - ASP.NET Core Identity, short-lived JWT Bearer access tokens and rotating HttpOnly refresh cookies protect administration routes
-- `/api/auth/login`, `/api/auth/refresh`, `/api/auth/logout`, `/api/auth/me` and protected `/api/auth/sessions` endpoints provide persistent revocable admin sessions
+- `/api/auth/login`, `/api/auth/2fa/verify`, `/api/auth/refresh`, `/api/auth/logout`, `/api/auth/me` and protected `/api/auth/sessions` endpoints provide optional TOTP two-factor authentication and persistent revocable admin sessions
 - the public Order form calls `POST /api/orders`
 - the public Contact form calls `POST /api/contact-messages` and persists messages in PostgreSQL
 - the public Order form accepts JPG, PNG, WebP and PDF attachments up to 5 MB each
 - attachment metadata, including upload scan status, is stored in PostgreSQL; development files are stored under `backend/storage/uploads`
 - public upload, order creation and Contact form endpoints use configurable per-IP rate limits and lightweight honeypot/timing anti-spam checks
-- `POST /api/auth/login` has its own per-IP rate limit (default 10 attempts / 15 minutes) in addition to Identity account lockout; `/api/auth/refresh` and other admin endpoints are not rate limited
+- `POST /api/auth/login` and `POST /api/auth/2fa/verify` have separate per-IP rate limits (default 10 attempts / 15 minutes) in addition to Identity account lockout; `/api/auth/refresh` and other admin endpoints are not rate limited
 - all API responses include baseline security headers (`X-Content-Type-Options`, `Referrer-Policy`, `X-Frame-Options: DENY`, `Permissions-Policy` and a configurable baseline `Content-Security-Policy`), with HSTS enabled outside Development; the frontend host still sets its own document CSP (see `backend/README.md`)
 - order and attachment deletion schedules DB-backed physical-file cleanup jobs; a hosted worker processes them automatically with retry/backoff
 - administrators can manually remove expired orphan uploads through a protected fallback cleanup endpoint
@@ -118,6 +118,13 @@ so stale tokens are rejected. SignalR reads the latest in-memory token for each
 connection or reconnect. Memory-only storage reduces persistent token exposure
 under XSS but does not replace CSP and normal XSS prevention. Passwords are never
 stored by the frontend.
+
+When two-factor authentication is enabled, a successful password check creates
+only a five-minute Data Protection-protected HttpOnly challenge cookie. It does
+not issue an access token, refresh token or refresh-session row. The final normal
+session is created only after `POST /api/auth/2fa/verify` accepts a TOTP or one-time
+recovery code. The challenge contains no password or token and is inaccessible to
+frontend JavaScript.
 
 Start the frontend in a second PowerShell window:
 
@@ -192,6 +199,19 @@ active, revoked or expired status, safe browser/device details and masked IP dat
 An administrator can revoke one session or all other sessions. Revoking the current
 session clears its HttpOnly cookie and signs the browser out. Raw refresh tokens,
 hashes and cookie values are never returned to the UI.
+
+The **Two-factor authentication** section uses ASP.NET Core Identity authenticator
+keys and TOTP. Setup shows a manual key and `otpauth://` URI to the current admin;
+no external QR dependency is required. Enabling 2FA generates ten recovery codes
+that are returned and shown once, so the administrator must store them securely.
+The current administrator can regenerate recovery codes, disable 2FA or reset the
+authenticator after confirming the current password. Secrets, codes and URIs are
+never written to logs or audit entries.
+
+Identity security-stamp changes during setup/enable/reset invalidate the previous
+access JWT. Those authenticated responses therefore include a replacement JWT,
+which the frontend installs directly into the existing module-memory token store;
+the refresh cookie remains HttpOnly and no extra refresh session is created.
 
 ## Admin audit log
 
