@@ -2,6 +2,8 @@
 
 ## Закрыто
 
+- Task 49.1 — Backend test project foundation: в `backend/tests/BespokeStudio.Tests` добавлен xUnit-проект и включён в `backend/BespokeStudio.sln`. Первые unit-тесты проверяют валидную минимальную заявку, honeypot, формат email, обязательное consent и лимит вложений. Тесты не требуют PostgreSQL, SMTP, ClamAV, файлов или secrets; production behavior и схема БД не изменены.
+
 - Task 56 — Admin 2FA: добавлены TOTP/authenticator setup в My Account, защищённый пятиминутный HttpOnly Data Protection challenge без выдачи JWT/refresh session до второй ступени, вход по TOTP или одноразовому recovery code, regeneration/disable/reset flows, Identity lockout, отдельный 2FA verify rate limit и audit events без secrets/codes. Использованы существующие Identity поля и `AspNetUserTokens`; migration не нужна. QR остаётся необязательным future UX improvement, manual key и `otpauth://` URI уже поддерживаются.
 
 - Task 55.3 — Active Sessions UI: Admin → My account показывает безопасный список логических refresh sessions, current/active/revoked/expired status, browser/device и masked IP. Добавлены revoke одной session и revoke остальных sessions с audit actions `auth.session_revoked` / `auth.other_sessions_revoked`; raw token/hash/cookie не возвращаются. Новая migration не потребовалась.
@@ -513,6 +515,13 @@ Migration не нужна: это frontend-only UI polish.
 - Missing physical file завершается как `Skipped`; ошибки сохраняют только безопасный текст без absolute server path.
 - Admin → Storage показывает Pending/Processing/Failed/completed counts и таблицу failed jobs. Ручной orphan cleanup остаётся диагностическим fallback.
 - Остаются ограничения: filesystem не участвует в distributed transaction с PostgreSQL, scheduled full reconciliation отсутствует, production object storage adapter ещё не реализован.
+
+## Future backend testing
+
+- Task 49.2: добавить PostgreSQL-backed integration tests для API с отдельной test database и управляемым lifecycle данных.
+- Task 49.3: покрыть integration-сценарии auth/2FA, order/contact APIs и uploads без использования production credentials.
+- CI automation, включая запуск `dotnet test backend\BespokeStudio.sln`, остаётся для будущей Task 63.
+- Текущий foundation не является полным покрытием backend и не заменяет manual production smoke checklist.
 
 ## Task 47.4 — Admin table width correction
 

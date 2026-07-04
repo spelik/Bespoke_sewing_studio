@@ -13,6 +13,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BespokeStudio.Domain", "src
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BespokeStudio.Infrastructure", "src\BespokeStudio.Infrastructure\BespokeStudio.Infrastructure.csproj", "{C827B41D-8EB7-46AE-A16C-388ACC8B01F3}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{0AB3BF05-4346-4AA6-1389-037BE0695223}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BespokeStudio.Tests", "tests\BespokeStudio.Tests\BespokeStudio.Tests.csproj", "{B062B339-4FAD-4CA2-AF2D-94AAEE8DDA99}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -71,6 +75,18 @@ Global
 		{C827B41D-8EB7-46AE-A16C-388ACC8B01F3}.Release|x64.Build.0 = Release|Any CPU
 		{C827B41D-8EB7-46AE-A16C-388ACC8B01F3}.Release|x86.ActiveCfg = Release|Any CPU
 		{C827B41D-8EB7-46AE-A16C-388ACC8B01F3}.Release|x86.Build.0 = Release|Any CPU
+		{B062B339-4FAD-4CA2-AF2D-94AAEE8DDA99}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B062B339-4FAD-4CA2-AF2D-94AAEE8DDA99}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B062B339-4FAD-4CA2-AF2D-94AAEE8DDA99}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{B062B339-4FAD-4CA2-AF2D-94AAEE8DDA99}.Debug|x64.Build.0 = Debug|Any CPU
+		{B062B339-4FAD-4CA2-AF2D-94AAEE8DDA99}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{B062B339-4FAD-4CA2-AF2D-94AAEE8DDA99}.Debug|x86.Build.0 = Debug|Any CPU
+		{B062B339-4FAD-4CA2-AF2D-94AAEE8DDA99}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B062B339-4FAD-4CA2-AF2D-94AAEE8DDA99}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B062B339-4FAD-4CA2-AF2D-94AAEE8DDA99}.Release|x64.ActiveCfg = Release|Any CPU
+		{B062B339-4FAD-4CA2-AF2D-94AAEE8DDA99}.Release|x64.Build.0 = Release|Any CPU
+		{B062B339-4FAD-4CA2-AF2D-94AAEE8DDA99}.Release|x86.ActiveCfg = Release|Any CPU
+		{B062B339-4FAD-4CA2-AF2D-94AAEE8DDA99}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -80,5 +96,6 @@ Global
 		{25BE37AD-A8B9-466E-B04F-862FD6F45EB2} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{0DBDF077-B4A3-4A3E-AFE0-FFE08CCF9AB6} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{C827B41D-8EB7-46AE-A16C-388ACC8B01F3} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
+		{B062B339-4FAD-4CA2-AF2D-94AAEE8DDA99} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 	EndGlobalSection
 EndGlobal

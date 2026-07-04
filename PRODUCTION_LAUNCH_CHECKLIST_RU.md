@@ -133,8 +133,14 @@ Backend health checks на production:
 ```powershell
 npm.cmd run typecheck
 npm.cmd run build
+dotnet test backend\BespokeStudio.sln
 dotnet build backend\BespokeStudio.sln
 ```
+
+Backend tests нужно запускать также перед commit, который затрагивает backend.
+Текущий набор является foundation unit-тестов и не заменяет ручные production
+проверки, PostgreSQL-backed integration tests и полную проверку auth/2FA,
+Order, Contact и upload flows.
 
 На production проверить вручную:
 

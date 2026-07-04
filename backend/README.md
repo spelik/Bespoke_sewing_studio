@@ -984,6 +984,20 @@ Commands:
 dotnet restore backend/BespokeStudio.sln
 ```
 
+Run the xUnit backend test foundation before commits that touch backend code and
+before each production release:
+
+```powershell
+dotnet test backend\BespokeStudio.sln
+```
+
+The initial suite contains infrastructure-independent unit tests for order request
+validation. It does not require PostgreSQL, SMTP, ClamAV, uploaded files or local
+secrets, and Task 49.1 does not change API runtime behaviour. API tests backed by a
+dedicated PostgreSQL test database, full auth/2FA flows and order/contact/upload
+integration tests are deferred to Tasks 49.2 and 49.3. A future CI task will run
+the suite automatically; until then the command above is a required local check.
+
 ```powershell
 dotnet build backend/BespokeStudio.sln
 ```

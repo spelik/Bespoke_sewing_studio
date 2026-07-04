@@ -503,6 +503,20 @@ If your environment cannot read the user-level `NuGet.Config`, use the repo-loca
 dotnet restore backend/BespokeStudio.sln --configfile backend/NuGet.Config
 ```
 
+## Backend tests
+
+The backend test foundation uses xUnit and currently covers pure order-request
+validation without PostgreSQL, SMTP, ClamAV or production secrets. Run it before
+commits that change backend code and before a production release:
+
+```powershell
+dotnet test backend\BespokeStudio.sln
+```
+
+Task 49.1 adds the test project and initial unit tests without changing production
+runtime behaviour. PostgreSQL-backed API tests and full auth, 2FA, order, contact
+and upload integration coverage remain future work.
+
 ## Routing
 
 The frontend uses `React Router` with lazy-loaded page routes.
