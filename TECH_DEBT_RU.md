@@ -2,6 +2,7 @@
 
 ## Закрыто
 
+- Task 63 — Minimal CI GitHub Actions: добавлен `.github/workflows/ci.yml` для pull requests и push в `main`. Один `ubuntu-latest` job выполняет frontend `npm ci`, typecheck/build и backend restore, Release build/tests на Node.js 24.x и .NET 10.0.x. Используется npm cache по `package-lock.json`; migrations, PostgreSQL, secrets и deployment в CI не запускаются.
 - Task 61 — Email outbox + retry: owner/customer Order и Contact emails теперь сохраняются в `EmailOutboxMessages` вместе со связанной Email Log записью `Queued`; `EmailOutboxWorker` выполняет отправку через существующий provider, атомарно claim'ит due jobs, восстанавливает stale `Processing`, применяет retry 1/5/15/60 минут с максимумом 5 попыток и обновляет Email Log в `Retrying`, `Sent` или `Failed`. Migration `20260704181514_AddEmailOutboxMessages` применена к локальной PostgreSQL. Public Order/Contact contracts и auth не изменены; SMTP secrets в outbox не хранятся.
 
 - Task 51.2 — Admin Contact Messages server-side pagination: protected `GET /api/admin/contact-messages` возвращает typed page response и применяет status/search до `CountAsync`, затем стабильную newest-first сортировку и `Skip/Take`. Search покрывает reference, sender name/email/phone, subject, message и status. Admin UI загружает только текущую страницу, показывает total/page size, сбрасывает page при filters/search и refetch текущей страницы после status/delete/SignalR events. Default page size — 25, разрешены 10/25/50/100, максимум — 100. Public `POST /api/contact-messages`, validation, anti-spam и email side effects не изменены; migration не потребовалась.
@@ -528,7 +529,7 @@ Migration не нужна: это frontend-only UI polish.
 
 - Task 49.2: добавить PostgreSQL-backed integration tests для API с отдельной test database и управляемым lifecycle данных.
 - Task 49.3: покрыть integration-сценарии auth/2FA, order/contact APIs и uploads без использования production credentials.
-- CI automation, включая запуск `dotnet test backend\BespokeStudio.sln`, остаётся для будущей Task 63.
+- Task 63 закрыла минимальную CI automation для frontend typecheck/build и backend build/tests. Остаются отдельными будущими задачами: deployment workflow, Docker/API image build, PostgreSQL integration tests, coverage reports и security/dependency scanning.
 - Текущий foundation не является полным покрытием backend и не заменяет manual production smoke checklist.
 - Для очень большого Orders dataset substring search по нескольким полям потребует отдельного анализа PostgreSQL full-text/trigram indexes; schema migration намеренно не добавлялась в Task 51.1.
 - Для очень большого Contact Messages dataset substring search по reference/name/email/phone/subject/message также потребует отдельного анализа PostgreSQL full-text/trigram indexes; schema migration намеренно не добавлялась в Task 51.2.

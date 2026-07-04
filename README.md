@@ -534,6 +534,21 @@ If your environment cannot read the user-level `NuGet.Config`, use the repo-loca
 dotnet restore backend/BespokeStudio.sln --configfile backend/NuGet.Config
 ```
 
+## Continuous integration
+
+The minimal GitHub Actions workflow is defined in `.github/workflows/ci.yml`.
+It runs for every pull request and every push to `main`, using Node.js 24.x and
+the .NET 10.0.x SDK to execute:
+
+- `npm run typecheck`
+- `npm run build`
+- `dotnet build backend/BespokeStudio.sln --configuration Release --no-restore`
+- `dotnet test backend/BespokeStudio.sln --configuration Release --no-build`
+
+Frontend dependencies are installed with `npm ci`, and the npm download cache
+uses the committed `package-lock.json`. The workflow does not deploy the site,
+apply EF Core migrations, start PostgreSQL or require production secrets.
+
 ## Backend tests
 
 The backend test foundation uses xUnit and currently covers pure order-request

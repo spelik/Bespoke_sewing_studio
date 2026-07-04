@@ -133,6 +133,9 @@ Backend health checks на production:
 
 Перед объявлением сайта публичным:
 
+- убедиться, что последний GitHub Actions workflow `CI` для release commit завершился успешно;
+- не продолжать release при красных frontend typecheck/build или backend build/tests;
+
 ```powershell
 npm.cmd run typecheck
 npm.cmd run build

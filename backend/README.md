@@ -1030,11 +1030,16 @@ dotnet build backend\BespokeStudio.sln
 ```
 
 The initial suite contains infrastructure-independent unit tests for order request
-validation. It does not require PostgreSQL, SMTP, ClamAV, uploaded files or local
-secrets, and Task 49.1 does not change API runtime behaviour. API tests backed by a
+validation, pagination and email-outbox retry timing. It does not require
+PostgreSQL, SMTP, ClamAV, uploaded files or local secrets. API tests backed by a
 dedicated PostgreSQL test database, full auth/2FA flows and order/contact/upload
-integration tests are deferred to Tasks 49.2 and 49.3. A future CI task will run
-the suite automatically; until then the command above is a required local check.
+integration tests are deferred to Tasks 49.2 and 49.3.
+
+GitHub Actions runs the suite automatically from `.github/workflows/ci.yml` on
+every pull request and every push to `main`. CI restores and builds the solution
+with the .NET 10.0.x SDK in Release configuration, then runs tests with
+`--no-build`. It does not start PostgreSQL, apply migrations, use SMTP credentials
+or deploy the application. The commands above remain the required local checks.
 
 ```powershell
 dotnet build backend/BespokeStudio.sln
