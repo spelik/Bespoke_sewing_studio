@@ -302,6 +302,14 @@ newest-first ordering. The default page size is 25, supported sizes are
 10/25/50/100 and the maximum is 100. Status changes, deletion and SignalR events
 refetch the current page; the public Contact form submission flow is unchanged.
 
+## Admin frontend structure
+
+The admin frontend is split into focused modules for navigation/hash routing,
+dashboard overview, realtime connection status, attention counters and Order CSV
+export. `AdminPage.tsx` remains the orchestration layer for authentication, data
+loading, realtime events, selected-section state and panel wiring; existing admin
+API contracts and visual behaviour are unchanged.
+
 ## Backup and restore
 
 Operational PostgreSQL and uploads backup/restore procedures are documented in
