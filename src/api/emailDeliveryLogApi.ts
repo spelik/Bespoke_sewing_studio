@@ -28,6 +28,16 @@ export interface EmailDeliveryLogQuery {
   provider?: string;
 }
 
+export interface EmailDeliveryManualRetryResult {
+  emailDeliveryLogEntryId: string;
+  outboxMessageId: string;
+  status: string;
+  resultMessage: string;
+  messageType: string;
+  relatedEntityLabel: string | null;
+  queuedAt: string;
+}
+
 export function getEmailDeliveryLog(
   query: EmailDeliveryLogQuery = {},
 ): Promise<PagedResponse<EmailDeliveryLogEntry>> {
@@ -50,6 +60,15 @@ export function getEmailDeliveryLog(
   const queryString = parameters.toString();
   const suffix = queryString ? `?${queryString}` : "";
   return apiClient.get<PagedResponse<EmailDeliveryLogEntry>>(`/admin/email-log${suffix}`);
+}
+
+export function retryEmailDeliveryLogEntry(
+  id: string,
+): Promise<EmailDeliveryManualRetryResult> {
+  return apiClient.post<Record<string, never>, EmailDeliveryManualRetryResult>(
+    `/admin/email-log/${id}/retry`,
+    {},
+  );
 }
 
 export function getEmailDeliveryLogErrorMessage(error: unknown): string {

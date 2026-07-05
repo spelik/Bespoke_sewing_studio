@@ -1,9 +1,12 @@
 using BespokeStudio.Application.Abstractions;
+using BespokeStudio.Application.Contracts.EmailDeliveryLog;
 using BespokeStudio.Application.Contracts.Notifications;
+using BespokeStudio.Application.Notifications;
 using BespokeStudio.Domain.Entities;
 using BespokeStudio.Domain.Enums;
 using BespokeStudio.Infrastructure.Notifications;
 using BespokeStudio.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -85,6 +88,75 @@ public sealed class EmailOutboxService(
         }
 
         return outboxMessage.Id;
+    }
+
+    public async Task<EmailDeliveryManualRetryResponse> QueueManualRetryAsync(
+        Guid emailDeliveryLogEntryId,
+        CancellationToken cancellationToken = default)
+    {
+        var message = await dbContext.EmailOutboxMessages
+            .SingleOrDefaultAsync(
+                candidate => candidate.EmailDeliveryLogEntryId == emailDeliveryLogEntryId,
+                cancellationToken);
+
+        if (message is null)
+        {
+            throw new EmailOutboxMessageNotFoundException(emailDeliveryLogEntryId);
+        }
+
+        if (!EmailOutboxManualRetryPolicy.IsManualRetryEligible(message))
+        {
+            throw new EmailManualRetryNotAllowedException(emailDeliveryLogEntryId);
+        }
+
+        var now = DateTimeOffset.UtcNow;
+        message.Status = EmailOutboxStatus.Pending;
+        message.Attempts = 0;
+        message.MaxAttempts = options.Value.MaxAttempts;
+        message.NextAttemptAt = now;
+        message.ProcessingStartedAt = null;
+        message.SentAt = null;
+        message.LastError = null;
+        message.UpdatedAt = now;
+
+        const string resultMessage = "Manual retry queued for background delivery.";
+        var logEntry = await dbContext.EmailDeliveryLogEntries
+            .SingleOrDefaultAsync(entry => entry.Id == emailDeliveryLogEntryId, cancellationToken);
+        if (logEntry is not null)
+        {
+            logEntry.Provider = "Outbox";
+            logEntry.Status = "Queued";
+            logEntry.SentExternally = false;
+            logEntry.ResultMessage = resultMessage;
+            logEntry.ErrorMessage = null;
+            logEntry.CompletedAt = null;
+        }
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        try
+        {
+            await realtimeNotifier.NotifyEmailDeliveryLogChangedAsync(
+                emailDeliveryLogEntryId,
+                logEntry?.RelatedEntityLabel ?? message.RelatedEntityLabel,
+                cancellationToken);
+        }
+        catch (Exception exception) when (!cancellationToken.IsCancellationRequested)
+        {
+            TryLog(() => logger.LogWarning(
+                exception,
+                "Realtime notification failed after a manual retry was queued for email outbox message {OutboxMessageId}.",
+                message.Id));
+        }
+
+        return new EmailDeliveryManualRetryResponse(
+            emailDeliveryLogEntryId,
+            message.Id,
+            logEntry?.Status ?? "Queued",
+            resultMessage,
+            message.MessageType,
+            logEntry?.RelatedEntityLabel ?? message.RelatedEntityLabel,
+            now);
     }
 
     private static string TrimRequired(string? value, int maxLength, string fallback)

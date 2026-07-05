@@ -265,7 +265,9 @@ filtering by search text, message type, status, recipient email and provider.
 Results use the same server-side pagination contract: 25 items by default and
 100 maximum. The UI applies filters automatically, refreshes the current page
 from admin realtime events without appending duplicate rows and can export the
-visible page to CSV.
+visible page to CSV. Failed rows expose a **Retry** action that queues a manual
+retry for the background worker after the SMTP/provider issue is fixed; email
+bodies are never shown and the automatic retry/backoff behaviour is unchanged.
 
 The log stores delivery metadata only: recipient email, subject, provider,
 status, result/error summary, related Order/Contact reference and timestamps.

@@ -162,7 +162,7 @@ Notes:
 ## K. After launch monitoring
 
 - проверять logs;
-- Email Log / outbox: failed / retrying;
+- Email Log / outbox: failed / retrying; при failed Email Log entry можно использовать manual retry (кнопка **Retry** в строке Failed) после исправления SMTP/provider config — worker переотправит письмо, automatic retry/backoff не меняется, email body не раскрывается;
 - disk space;
 - рост upload storage;
 - статус backup job / manual backup;

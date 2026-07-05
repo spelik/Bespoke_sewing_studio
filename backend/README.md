@@ -917,6 +917,20 @@ used by Admin → Email Log. The frontend auto-applies filters, refreshes from
 admin realtime events when entries are written and can export the visible rows
 to CSV.
 
+`POST /api/admin/email-log/{id}/retry` is protected by the same policy and lets
+an admin queue a manual retry for an exhausted failed outbox message (status
+`Failed`, attempts at the maximum and no scheduled next attempt). It resets the
+existing outbox message to `Pending` with a fresh next-attempt time and zeroed
+attempts so the background `EmailOutboxWorker` picks it up again; it does not
+create a new email, alter the stored body or change the automatic retry/backoff
+behaviour. Attempts increase only when the worker actually claims the message.
+The endpoint returns `404` when no linked message exists and `409` when the
+message is not eligible (for example already queued, processing, sent, or still
+waiting for an automatic retry). Successful retries are recorded in the admin
+audit log (`email_outbox.manual_retry_queued`) with safe metadata only. Email
+bodies and secrets are never exposed in the request, response, audit metadata or
+logs.
+
 Email log entries are written for owner order notifications, customer order
 confirmations, owner contact notifications, customer contact confirmations and
 test emails. Only metadata is persisted in the log: recipient, subject, provider,

@@ -1,6 +1,9 @@
+using System.Security.Claims;
+using System.Text.Json;
 using BespokeStudio.Application.Abstractions;
 using BespokeStudio.Application.Contracts.Common;
 using BespokeStudio.Application.Contracts.EmailDeliveryLog;
+using BespokeStudio.Application.Notifications;
 using BespokeStudio.Application.Security;
 
 namespace BespokeStudio.Api.Endpoints;
@@ -18,6 +21,14 @@ public static class EmailDeliveryLogEndpoints
             .Produces<PagedResponse<EmailDeliveryLogEntryResponse>>()
             .Produces(StatusCodes.Status401Unauthorized)
             .Produces(StatusCodes.Status403Forbidden);
+
+        admin.MapPost("/{id:guid}/retry", RetryAsync)
+            .WithName("RetryAdminEmailDeliveryLogEntry")
+            .Produces<EmailDeliveryManualRetryResponse>()
+            .Produces(StatusCodes.Status401Unauthorized)
+            .Produces(StatusCodes.Status403Forbidden)
+            .Produces(StatusCodes.Status404NotFound)
+            .Produces(StatusCodes.Status409Conflict);
 
         return endpoints;
     }
@@ -47,5 +58,49 @@ public static class EmailDeliveryLogEndpoints
             cancellationToken);
 
         return TypedResults.Ok(entries);
+    }
+
+    private static async Task<IResult> RetryAsync(
+        Guid id,
+        ClaimsPrincipal principal,
+        IEmailOutboxService outboxService,
+        IAdminAuditLogService auditLogService,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var response = await outboxService.QueueManualRetryAsync(id, cancellationToken);
+
+            var metadataJson = JsonSerializer.Serialize(new
+            {
+                emailDeliveryLogEntryId = response.EmailDeliveryLogEntryId,
+                outboxMessageId = response.OutboxMessageId,
+                messageType = response.MessageType
+            });
+
+            await auditLogService.RecordAsync(
+                AdminAuditEndpointHelpers.CreateAuditRequest(
+                    principal,
+                    "email_outbox.manual_retry_queued",
+                    "EmailOutboxMessage",
+                    response.OutboxMessageId.ToString(),
+                    response.RelatedEntityLabel ?? response.MessageType,
+                    "Manual email retry was queued.",
+                    metadataJson),
+                cancellationToken);
+
+            return TypedResults.Ok(response);
+        }
+        catch (EmailOutboxMessageNotFoundException)
+        {
+            return TypedResults.NotFound();
+        }
+        catch (EmailManualRetryNotAllowedException)
+        {
+            return TypedResults.Problem(
+                title: "Manual retry not allowed",
+                detail: "This email is not eligible for manual retry anymore.",
+                statusCode: StatusCodes.Status409Conflict);
+        }
     }
 }

@@ -4,6 +4,7 @@ import { ApiError } from "../../api/apiClient";
 import {
   getEmailDeliveryLog,
   getEmailDeliveryLogErrorMessage,
+  retryEmailDeliveryLogEntry,
   type EmailDeliveryLogEntry,
 } from "../../api/emailDeliveryLogApi";
 import { type AdminPageSize } from "../../api/pagination";
@@ -68,6 +69,8 @@ export function AdminEmailLogPanel({
   const [totalPages, setTotalPages] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [info, setInfo] = useState<string | null>(null);
+  const [retryingId, setRetryingId] = useState<string | null>(null);
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
   const [debouncedSearch, setDebouncedSearch] = useState(filters.search);
   const [debouncedRecipientEmail, setDebouncedRecipientEmail] = useState(
@@ -149,6 +152,38 @@ export function AdminEmailLogPanel({
   useEffect(() => {
     void loadEntries();
   }, [loadEntries, realtimeRefreshKey]);
+
+  const handleRetry = useCallback(
+    async (id: string) => {
+      setRetryingId(id);
+      setError(null);
+      setInfo(null);
+
+      try {
+        await retryEmailDeliveryLogEntry(id);
+        setInfo("Manual retry queued.");
+        await loadEntries();
+      } catch (reason: unknown) {
+        if (
+          reason instanceof ApiError &&
+          (reason.status === 401 || reason.status === 403)
+        ) {
+          onUnauthorized();
+          return;
+        }
+
+        if (reason instanceof ApiError && reason.status === 409) {
+          setError("This email is not eligible for manual retry anymore.");
+          return;
+        }
+
+        setError(getEmailDeliveryLogErrorMessage(reason));
+      } finally {
+        setRetryingId(null);
+      }
+    },
+    [loadEntries, onUnauthorized],
+  );
 
   const messageTypeOptions = useMemo(
     () =>
@@ -367,6 +402,13 @@ export function AdminEmailLogPanel({
           </div>
         ) : null}
 
+        {info ? (
+          <div className="m-5 border border-emerald-200 bg-emerald-50 px-4 py-3 text-[11px] text-emerald-700 flex items-start gap-2">
+            <CheckCircle2 size={14} className="mt-0.5" aria-hidden="true" />
+            <span>{info}</span>
+          </div>
+        ) : null}
+
         <div className="min-w-0 max-w-full overflow-hidden">
           <table className="w-full table-fixed text-left text-[11px] font-sans">
             <colgroup>
@@ -405,7 +447,14 @@ export function AdminEmailLogPanel({
                   </td>
                 </tr>
               ) : (
-                entries.map((entry) => <EmailLogRow key={entry.id} entry={entry} />)
+                entries.map((entry) => (
+                  <EmailLogRow
+                    key={entry.id}
+                    entry={entry}
+                    isRetrying={retryingId === entry.id}
+                    onRetry={handleRetry}
+                  />
+                ))
               )}
             </tbody>
           </table>
@@ -449,9 +498,18 @@ function EmailLogStatCard({
   );
 }
 
-function EmailLogRow({ entry }: { entry: EmailDeliveryLogEntry }) {
+function EmailLogRow({
+  entry,
+  isRetrying,
+  onRetry,
+}: {
+  entry: EmailDeliveryLogEntry;
+  isRetrying: boolean;
+  onRetry(id: string): void;
+}) {
   const isSent = entry.status === "Sent";
   const isPending = entry.status === "Queued" || entry.status === "Retrying";
+  const canRetry = entry.status === "Failed";
   const statusClass = isSent
     ? "border-emerald-200 bg-emerald-50 text-emerald-700"
     : isPending
@@ -494,6 +552,17 @@ function EmailLogRow({ entry }: { entry: EmailDeliveryLogEntry }) {
         <span className="block min-w-0 whitespace-normal break-words [overflow-wrap:anywhere]">{entry.resultMessage}</span>
         {entry.errorMessage ? (
           <span className="mt-1 block min-w-0 whitespace-normal break-words text-destructive [overflow-wrap:anywhere]">{entry.errorMessage}</span>
+        ) : null}
+        {canRetry ? (
+          <button
+            type="button"
+            onClick={() => onRetry(entry.id)}
+            disabled={isRetrying}
+            className="mt-2 inline-flex items-center gap-1.5 border border-border bg-background px-3 py-1 text-[9px] uppercase tracking-wide hover:border-foreground disabled:opacity-50"
+          >
+            <RefreshCw size={11} className={isRetrying ? "animate-spin" : ""} aria-hidden="true" />
+            {isRetrying ? "Retrying…" : "Retry"}
+          </button>
         ) : null}
       </td>
     </tr>
