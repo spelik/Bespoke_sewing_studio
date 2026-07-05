@@ -6,15 +6,18 @@
 
 ## 1. Домен, SEO и публичные URL
 
+Production-домен выбран: `https://oksanalogosha.com` (apex, без `www`). `www.oksanalogosha.com` не используется в canonical/sitemap; www → apex redirect настраивается отдельно на Cloudflare/сервере.
+
 Перед публичным запуском обязательно:
 
-- выбрать и подключить реальный production-домен;
-- заменить `https://replace-with-production-domain.example` в `public/robots.txt`;
-- заменить `https://replace-with-production-domain.example` в `public/sitemap.xml`;
-- задать `VITE_PUBLIC_SITE_URL=https://your-production-domain.example` для frontend production build;
+- подключить production-домен `https://oksanalogosha.com` и настроить DNS/HTTPS;
+- убедиться, что `public/robots.txt` ссылается на `https://oksanalogosha.com/sitemap.xml` (уже сделано);
+- убедиться, что `public/sitemap.xml` использует `https://oksanalogosha.com` (уже сделано);
+- задать `VITE_PUBLIC_SITE_URL=https://oksanalogosha.com` для frontend production build;
 - проверить canonical URL, Open Graph URL и Twitter card URL в HTML `<head>`;
-- открыть `/robots.txt` и `/sitemap.xml` на production-домене и убедиться, что там нет placeholder-домена;
-- проверить, что `/admin` и `/admin/login` остаются `noindex, nofollow`.
+- открыть `/robots.txt` и `/sitemap.xml` на `https://oksanalogosha.com` и убедиться, что там нет placeholder-домена;
+- проверить, что `/admin` и `/admin/login` остаются `noindex, nofollow`;
+- настроить www → apex redirect на Cloudflare/сервере (отдельный deployment-шаг, не часть этой задачи).
 
 ## 2. Public content and legal notices
 

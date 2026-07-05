@@ -22,10 +22,11 @@ attachments are uploaded first and linked to the created enquiry by ID.
 The UI is English-only. Header and mobile language switchers have been removed, and typed fallback/default content should remain English-only.
 
 API configuration lives in `src/config/appConfig.ts`. `VITE_API_BASE_URL`
-defaults to `http://localhost:5099/api` for local development. `VITE_PUBLIC_SITE_URL`
-can be set in production to the canonical public origin used for client-side
-canonical and Open Graph URLs. Copy `.env.example` to `.env.local` when an
-explicit override is needed; `.env.local` is ignored by Git.
+defaults to `http://localhost:5099/api` for local development. Production frontend
+builds should set `VITE_PUBLIC_SITE_URL=https://oksanalogosha.com` (the canonical
+apex origin, no `www`), which is used for client-side canonical and Open Graph
+URLs. Copy `.env.example` to `.env.local` when an explicit override is needed;
+`.env.local` is ignored by Git.
 
 ## Backend
 
@@ -322,11 +323,12 @@ Core Data Protection keys in production.
 ## Production launch checklist
 
 Before the first public launch or a production-domain migration, review
-`PRODUCTION_LAUNCH_CHECKLIST_RU.md`. At minimum, replace the placeholder
-`https://replace-with-production-domain.example` in `public/robots.txt` and
-`public/sitemap.xml`, set `VITE_PUBLIC_SITE_URL` to the real public origin,
-verify `/robots.txt` and `/sitemap.xml` on the production domain, and complete
-the backup, email, upload-security, HTTPS, secrets and legal-text checks.
+`PRODUCTION_LAUNCH_CHECKLIST_RU.md`. The canonical production origin is
+`https://oksanalogosha.com` and is already used in `public/robots.txt` and
+`public/sitemap.xml`. Set `VITE_PUBLIC_SITE_URL=https://oksanalogosha.com` for the
+production frontend build, verify `/robots.txt` and `/sitemap.xml` resolve on
+`https://oksanalogosha.com`, and complete the backup, email, upload-security,
+HTTPS, secrets and legal-text checks.
 The production reverse proxy must supply trusted forwarded headers and its exact
 proxy addresses or networks must be configured. `DataProtection__KeysPath` must
 point to persistent storage outside the repository and deployment directory.
@@ -535,10 +537,9 @@ frontend SEO manager. If the backend is unavailable, the bundled logo and typed
 defaults keep the public site usable. SVG upload is intentionally disabled.
 
 The static `public/robots.txt` blocks `/admin` and `/admin/login`. The static
-`public/sitemap.xml` lists public routes only. Both files intentionally contain
-a placeholder host until the production domain is chosen; replace
-`https://replace-with-production-domain.example` before public launch. Do not
-include admin routes in the sitemap.
+`public/sitemap.xml` lists public routes only and uses the canonical production
+origin `https://oksanalogosha.com`. Admin routes must never be added to the
+sitemap and are served with `noindex, nofollow` by the frontend SEO manager.
 
 Commands:
 
