@@ -22,7 +22,7 @@
 
 1. PostgreSQL dump в custom format (`pg_dump --format=custom`).
 2. Архив `backend/storage` или production uploads/object-storage snapshot.
-3. Production Data Protection keys, если используется owner-managed Gmail SMTP или другие protected values. Без этих keys сохранённый protected Google App Password станет нечитаемым после restore/redeploy, и owner-managed Gmail SMTP перестанет отправлять письма (упадёт в logging fallback). Подробности и smoke test — в [`SMTP_PRODUCTION_RU.md`](SMTP_PRODUCTION_RU.md).
+3. Production Data Protection keys — обязательная часть полного backup/restore, если используются protected values (owner-managed Gmail SMTP App Password, 2FA challenge cookie). Без этих keys DB restore приведёт к нечитаемому protected Google App Password (owner-managed Gmail SMTP упадёт в logging fallback), а 2FA challenge cookie перестанет приниматься. При потере keys нужно re-enter/rotate protected secrets (например, заново сохранить Gmail App Password в Admin). Keys backup не хранить без защиты и не коммитить. Подробности и smoke test — в [`DATA_PROTECTION_PRODUCTION_RU.md`](DATA_PROTECTION_PRODUCTION_RU.md) и [`SMTP_PRODUCTION_RU.md`](SMTP_PRODUCTION_RU.md).
 4. Информацию о версии приложения: Git commit/tag, дата, применённые migrations.
 5. Production конфигурацию окружения без публикации секретов в Git.
 
@@ -273,7 +273,7 @@ tar -czf "$BACKUP_ROOT/backend-storage.tar.gz" -C /var/www/bespoke-studio/backen
 9. Apply newer migrations only if restoring an older dump into newer application code.
 10. Check Admin login, Orders, Contact Messages, uploaded attachments, Settings, Users, My account, Audit Log and public forms.
 11. Uploads storage is mandatory for a complete restore: run Admin → Storage → Maintenance scan, confirm existing attachments download, do one clean test upload and verify the delete-attachment flow. If the ClamAV/scanner config is restored incorrectly, uploads may be rejected or recorded as `ScanFailed`. See [`UPLOADS_PRODUCTION_RU.md`](UPLOADS_PRODUCTION_RU.md); do not store EICAR test files in the backup or repository.
-12. Send a test email from Admin Settings if SMTP is configured.
+12. Verify Data Protection: confirm the restored keys folder is in place, send a test email from Admin Settings if owner-managed Gmail SMTP is configured (the protected App Password must stay decryptable), and run the 2FA challenge flow if 2FA is enabled. If keys were lost, re-enter/rotate the Gmail App Password in Admin. See [`DATA_PROTECTION_PRODUCTION_RU.md`](DATA_PROTECTION_PRODUCTION_RU.md).
 13. Record the restore date, backup source and Git commit used.
 
 Example Docker Compose restore on Linux:

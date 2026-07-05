@@ -140,6 +140,14 @@ production connection strings, JWT signing keys or SMTP credentials. Environment
 variables are supported by configuration; a managed secret store remains preferable
 for production secrets.
 
+Production startup intentionally fails without `DataProtection:KeysPath` to prevent
+ephemeral key storage, and `DataProtection:ApplicationName` must stay stable
+(`BespokeSewingStudio`) so previously protected values remain decryptable. The keys
+folder must live outside the repository and publish/release folder and be included
+in a protected backup. The full production Data Protection runbook (persistent keys
+path, permissions, backup/restore/redeploy smoke tests and troubleshooting) is in
+[`../DATA_PROTECTION_PRODUCTION_RU.md`](../DATA_PROTECTION_PRODUCTION_RU.md).
+
 ## Language and content scope
 
 Bespoke Sewing Studio is maintained as an English-only product. Backend models,

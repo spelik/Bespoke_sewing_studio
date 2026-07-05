@@ -336,8 +336,12 @@ production frontend build, verify `/robots.txt` and `/sitemap.xml` resolve on
 `https://oksanalogosha.com`, and complete the backup, email, upload-security,
 HTTPS, secrets and legal-text checks.
 The production reverse proxy must supply trusted forwarded headers and its exact
-proxy addresses or networks must be configured. `DataProtection__KeysPath` must
-point to persistent storage outside the repository and deployment directory.
+proxy addresses or networks must be configured. `DataProtection__KeysPath` is
+required in production (startup fails without it) and must point to persistent
+storage outside the repository and deployment directory. These keys protect the
+owner-managed Gmail SMTP App Password and the 2FA challenge cookie, so they must
+be persistent and backed up. The full production Data Protection runbook is in
+[`DATA_PROTECTION_PRODUCTION_RU.md`](DATA_PROTECTION_PRODUCTION_RU.md).
 
 ## Site settings
 

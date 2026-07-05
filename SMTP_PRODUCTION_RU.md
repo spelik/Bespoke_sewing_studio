@@ -94,9 +94,12 @@ Notifications__Email__Smtp__UseSsl=true
 - Google App Password показывается один раз — сохраните его в secret store;
 - backend хранит App Password только в защищённом виде (ASP.NET Core Data
   Protection) в singleton `SiteSettings`; admin API его не возвращает;
-- при redeploy/смене инфраструктуры на production обязательно сохранять persistent
-  Data Protection keys, иначе ранее сохранённый protected App Password станет
-  нечитаемым и письма перестанут уходить (упадут в logging fallback);
+- перед настройкой Gmail SMTP в Admin production должен иметь persistent Data
+  Protection keys; при redeploy/смене инфраструктуры их обязательно сохранять,
+  иначе ранее сохранённый protected App Password станет нечитаемым и письма
+  перестанут уходить (упадут в logging fallback). Детали — в
+  [`DATA_PROTECTION_PRODUCTION_RU.md`](DATA_PROTECTION_PRODUCTION_RU.md);
+- после redeploy/restart проверить test email (App Password остался decryptable);
 - если App Password скомпрометирован — удалить/rotate его в Google и заново
   сохранить в Admin.
 

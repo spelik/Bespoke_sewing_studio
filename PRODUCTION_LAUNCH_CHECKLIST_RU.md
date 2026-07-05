@@ -132,8 +132,16 @@ path, ClamAV install, EICAR smoke test, backup/restore, troubleshooting).
 - убедиться, что HSTS (`Strict-Transport-Security`) отдаётся вне Development и что HTTPS redirection работает;
 - проверить, что baseline CSP не ломает публичный сайт, admin, portfolio/service/uploaded images, downloads и SignalR realtime; помнить, что этот backend не отдаёт SPA HTML — document CSP (включая `connect-src` для API и `wss:`/`ws:` SignalR) задаёт хост фронтенда/reverse proxy;
 - проверить login rate limit: несколько неверных попыток `POST /api/auth/login` с одного IP приводят к `429`; нормальный вход не заблокирован в пределах окна; `/api/auth/refresh` и admin API не затронуты; за reverse proxy лимит опирается на корректные Forwarded Headers (реальный client IP);
-- задать `DataProtection__KeysPath` для persistent ASP.NET Core Data Protection keys; без него production startup намеренно завершается ошибкой;
-- убедиться, что keys path находится вне repository и release/deployment directory, закрыт правами API process identity и включён в защищённый backup;
+- Data Protection (полный runbook: [`DATA_PROTECTION_PRODUCTION_RU.md`](DATA_PROTECTION_PRODUCTION_RU.md)):
+  - задать `DataProtection__ApplicationName=BespokeSewingStudio` (стабильный, не менять);
+  - задать `DataProtection__KeysPath` (absolute, persistent);
+  - проверить, что без `KeysPath` production startup fails (`DataProtection:KeysPath is required in Production.`);
+  - проверить, что с `KeysPath` production startup succeeds;
+  - проверить, что key XML появился в keys folder после старта;
+  - перезапустить backend и проверить owner-managed Gmail SMTP test email после restart (App Password остаётся decryptable);
+  - проверить 2FA flow после restart, если 2FA включена;
+  - убедиться, что keys path находится вне repository и release/deployment directory, закрыт правами API process identity, не отдаётся как public static и включён в защищённый backup;
+  - не хранить keys в Git / release folder / public static folder;
 
 Перед public launch:
 
