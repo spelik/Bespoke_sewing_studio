@@ -409,8 +409,12 @@ migration is enabled yet.
 
 ## Backup and restore operations
 
-Full backup/restore instructions live in `../BACKUP_RESTORE_RU.md`. The short
-version for this backend is:
+Full backup/restore instructions live in `../BACKUP_RESTORE_RU.md`, the final
+production backup/restore runbook (full backup inventory, restore rehearsal,
+post-restore smoke test and rollback plan). A database-only backup is not enough:
+it omits physical uploads and, without the ASP.NET Core Data Protection keys, the
+protected owner-managed Gmail App Password becomes undecryptable and the 2FA
+challenge cookie stops working. The short version for this backend is:
 
 - create a PostgreSQL dump with `pg_dump --format=custom`;
 - back up `backend/storage` separately because database dumps store upload
@@ -421,7 +425,9 @@ version for this backend is:
 - preserve ASP.NET Core Data Protection keys in production when using protected
   owner-managed Gmail SMTP settings;
 - verify every important dump with `pg_restore --list`;
-- test restore before relying on a backup procedure.
+- run a restore rehearsal on a test/staging environment before relying on a backup
+  procedure, and back up the Data Protection keys together with the database and
+  uploads.
 
 Local Docker Compose backup example from the repository root:
 

@@ -44,12 +44,28 @@ Production-домен выбран: `https://oksanalogosha.com` (apex, без `w
 
 ## 4. Backups
 
+Полный production backup/restore runbook: [`BACKUP_RESTORE_RU.md`](BACKUP_RESTORE_RU.md)
+(inventory, classification, cadence/retention, verification, restore rehearsal,
+post-restore smoke test, rollback). Связанные runbooks:
+[`DATA_PROTECTION_PRODUCTION_RU.md`](DATA_PROTECTION_PRODUCTION_RU.md),
+[`UPLOADS_PRODUCTION_RU.md`](UPLOADS_PRODUCTION_RU.md),
+[`SMTP_PRODUCTION_RU.md`](SMTP_PRODUCTION_RU.md),
+[`REVERSE_PROXY_HTTPS_PRODUCTION_RU.md`](REVERSE_PROXY_HTTPS_PRODUCTION_RU.md).
+
 Перед запуском и перед каждым серьёзным обновлением:
 
+- проверить full backup inventory (DB + uploads + Data Protection keys + secrets/config + proxy/TLS config);
 - сделать PostgreSQL backup;
-- сделать backup `backend/storage`;
+- сделать backup uploads storage (`backend/storage` / production uploads);
+- сделать backup Data Protection keys folder;
+- сохранить secrets/env/config snapshot вне Git (secret store);
+- сохранить reverse proxy / TLS operational config вне Git;
 - проверить dump через `pg_restore --list`;
-- хранить backups вне Git repository;
+- выполнить restore rehearsal хотя бы один раз перед launch (на test/staging, не production);
+- задокументировать post-restore smoke test (health, admin auth/2FA, orders/contact, uploads, email);
+- иметь rollback plan перед migrations/deploy (backup + текущий commit + previous artifact + restore-команды);
+- выбрать policy: backups encrypted / restricted / offsite;
+- хранить backups вне Git repository; никаких backup-файлов (`.dump`/`.sql`/архивы) в Git;
 - отдельно сохранить production secrets и Data Protection keys;
 - свериться с `BACKUP_RESTORE_RU.md`.
 

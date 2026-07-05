@@ -320,11 +320,16 @@ API contracts and visual behaviour are unchanged.
 ## Backup and restore
 
 Operational PostgreSQL and uploads backup/restore procedures are documented in
-`BACKUP_RESTORE_RU.md`. Before production deploys or EF migration updates, make
-a PostgreSQL dump and a matching `backend/storage` backup, verify the dump, and
-keep backups outside the repository. Database backups do not include physical
-upload files, and owner-managed Gmail SMTP also depends on persistent ASP.NET
-Core Data Protection keys in production.
+`BACKUP_RESTORE_RU.md`, which is the final production backup/restore runbook. A
+complete production backup includes the PostgreSQL database dump, the full uploads
+storage root, the ASP.NET Core Data Protection keys, protected secrets/config
+kept outside Git, and the reverse proxy / TLS operational config. Before
+production deploys or EF migration updates, make a PostgreSQL dump and a matching
+`backend/storage` backup, verify the dump with `pg_restore --list`, and keep
+backups outside the repository. A database-only backup is not enough: it omits
+physical upload files, and owner-managed Gmail SMTP plus 2FA depend on persistent
+Data Protection keys. Run a restore rehearsal on a test/staging environment at
+least once before the production launch.
 
 ## Production launch checklist
 

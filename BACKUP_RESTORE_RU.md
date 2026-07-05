@@ -37,6 +37,162 @@ SMTP/Gmail secrets (Gmail App Password, SMTP password/username) не должн�
 
 Backup содержит персональные данные клиентов и администраторов. Храни его в защищённом месте, лучше с шифрованием и ограниченным доступом.
 
+## Production final pass
+
+Этот раздел — итоговый production-обзор перед публичным запуском: что именно
+бэкапить, как классифицировать, как проверять backup, как проводить restore
+rehearsal и rollback. Практические PowerShell/bash команды остаются в разделах
+ниже.
+
+### A. Production backup inventory
+
+Полный production backup состоит из нескольких независимых частей. Одного DB dump
+недостаточно.
+
+| # | Что бэкапить | Где хранится | В Git? |
+| - | ------------ | ------------ | ------ |
+| 1 | PostgreSQL database dump (`pg_dump --format=custom`) | защищённое backup-хранилище вне Git | нет |
+| 2 | Uploads storage root целиком (`backend/storage` / production uploads) | защищённое backup-хранилище вне Git | нет |
+| 3 | ASP.NET Core Data Protection keys folder | защищённое backup-хранилище вне Git | нет |
+| 4 | Production environment variables / secret store metadata (какие ключи существуют, где хранятся) | secret store / защищённая заметка | нет |
+| 5 | SMTP / Gmail provider settings (без raw secrets) | secret store | нет |
+| 6 | Reverse proxy / TLS operational config (Nginx/IIS/Caddy) | защищённое хранилище конфигов | нет |
+| 7 | TLS certificates / private keys, Cloudflare Origin Cert private key | только защищённый backup | нет |
+| 8 | Git commit SHA / release version | текст рядом с backup | commit — да, backup metadata — нет |
+| 9 | Applied migrations list | текст рядом с backup | нет |
+| 10 | Runbooks / checklists version (эти `.md` файлы) | Git repository | да |
+
+Ключевые взаимозависимости:
+
+- DB dump сам по себе недостаточен — без uploads пропадут физические файлы вложений;
+- uploads без DB тоже недостаточны — пропадут metadata, orders, settings, users;
+- DB restore без Data Protection keys может сделать protected Gmail App Password
+  нечитаемым (owner-managed Gmail SMTP уйдёт в logging fallback), а 2FA challenge
+  cookie перестанет приниматься;
+- reverse proxy / TLS config нужен для полного service restore, но хранится
+  отдельно и защищённо, не в Git.
+
+### B. Backup classification
+
+Разделяй, что и как хранится:
+
+- **repository state** — Git commit/tag (код, миграции как файлы, runbooks). Git
+  сам по себе **НЕ** является backup runtime state;
+- **runtime state** — PostgreSQL database, uploads storage, Data Protection keys.
+  Это то, что нельзя восстановить из Git;
+- **secrets / config** — environment variables, SMTP/Gmail credentials, TLS
+  private keys, Cloudflare tokens. Хранятся в secret store, не в Git;
+- **operational docs / runbooks** — эти `.md` файлы, версионируются в Git.
+
+### C. Production backup cadence / retention
+
+Рекомендации (без автоматизации, выбор владельца):
+
+- daily backup DB + uploads для маленького production сайта;
+- хранить минимум 7–14 daily copies;
+- weekly/monthly copy, если позволяет место;
+- перед каждым migration/deploy — всегда manual backup;
+- держать хотя бы одну offsite/encrypted copy;
+- retention policy выбирает владелец;
+- backups содержат персональные данные — защищать и удалять по policy (GDPR-style).
+
+### D. Consistent (согласованный) backup
+
+Чтобы DB и uploads не рассинхронизировались:
+
+- на маленьком сайте самый безопасный вариант — кратко остановить backend или
+  включить maintenance window на время согласованного backup DB + uploads;
+- если backend не останавливается, возможна рассинхронизация DB metadata и
+  physical files (запись между dump БД и архивом storage);
+- перед deploy/migration лучше остановить write operations;
+- для production restore использовать **matching набор**: DB dump + uploads archive
+  + Data Protection keys одного момента времени.
+
+### E. Backup verification
+
+После каждого важного backup:
+
+- `pg_restore --list` по dump (структура читается, dump не пустой/не битый);
+- проверить размер dump и uploads archive (не подозрительно малый);
+- проверить, что archive открывается (`tar -tzf` / `Expand-Archive` в temp);
+- проверить наличие Data Protection key files в защищённом backup;
+- проверить, что рядом с backup записан Git commit SHA;
+- проверить, что secrets/backup files не попали в Git;
+- периодически выполнять restore rehearsal (см. F) на отдельном test/staging.
+
+### F. Restore rehearsal / disaster recovery drill
+
+Хотя бы один раз перед launch и затем периодически провести полную репетицию
+восстановления **не на production**:
+
+1. подготовить временное/staging окружение (не production);
+2. восстановить DB dump;
+3. восстановить uploads storage;
+4. восстановить Data Protection keys;
+5. восстановить env vars / secrets из secret store;
+6. применить/проверить migrations;
+7. запустить backend и frontend;
+8. выполнить post-restore smoke test (см. G);
+9. записать результат: дата, backup source, Git commit, длительность, проблемы.
+
+Важно во время rehearsal:
+
+- restore rehearsal не должен отправлять реальные письма клиентам без контроля;
+- test email только на controlled address;
+- не использовать production DNS / Cloudflare без понимания последствий
+  (можно перехватить трафик или сломать production).
+
+### G. Post-restore smoke test
+
+Consolidated checklist после restore:
+
+- backend health: `/health/live`, `/health/ready`, `/healthz`, `/readyz`, `/api/version`;
+- Admin login;
+- 2FA flow, если включена;
+- refresh session after page reload;
+- active sessions list;
+- orders list;
+- contact messages;
+- existing attachment download;
+- Storage Maintenance scan (Admin → Storage);
+- clean upload test;
+- delete attachment test на тестовом файле;
+- owner-managed Gmail SMTP test email, если настроен (controlled address);
+- Email Log / outbox statuses;
+- public Contact form;
+- public Order form;
+- frontend public pages (Home/Services/Portfolio/About/Contact/Privacy);
+- `/robots.txt` и `/sitemap.xml`;
+- HTTPS / reverse proxy health, если restore делает полный service restore
+  (см. [`REVERSE_PROXY_HTTPS_PRODUCTION_RU.md`](REVERSE_PROXY_HTTPS_PRODUCTION_RU.md)).
+
+### H. Rollback plan before migration/deploy
+
+Перед каждым deploy/migration:
+
+- сделать backup DB + uploads + Data Protection keys + config snapshot;
+- записать текущий Git commit;
+- знать предыдущий release artifact или commit для отката;
+- знать точные restore-команды заранее;
+- определить decision point: при каком симптоме откатываемся;
+- не запускать destructive restore без last-minute emergency backup текущего
+  состояния.
+
+### I. Security / privacy notes
+
+- backups содержат персональные данные (orders, contacts, users);
+- шифровать backups at rest;
+- ограничить доступ к backup-хранилищу;
+- не заливать backups в случайные cloud-папки без защиты;
+- не прикреплять backups к чату/email;
+- не коммитить backups в Git;
+- не хранить EICAR test files в backup/repo;
+- защищать TLS private keys и Data Protection keys.
+
+Future automation (scheduled backup job, encryption/offsite upload, automated
+restore test, backup monitoring, object storage / CDN backup flow) — см. раздел
+[«Что пока не автоматизировано»](#что-пока-не-автоматизировано) в конце документа.
+
 ## Когда делать backup
 
 Обязательно делать backup:
