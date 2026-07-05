@@ -22,6 +22,12 @@ public static class EmailDeliveryLogEndpoints
             .Produces(StatusCodes.Status401Unauthorized)
             .Produces(StatusCodes.Status403Forbidden);
 
+        admin.MapGet("/summary", GetSummaryAsync)
+            .WithName("GetAdminEmailOutboxMonitoringSummary")
+            .Produces<EmailOutboxMonitoringSummaryResponse>()
+            .Produces(StatusCodes.Status401Unauthorized)
+            .Produces(StatusCodes.Status403Forbidden);
+
         admin.MapPost("/{id:guid}/retry", RetryAsync)
             .WithName("RetryAdminEmailDeliveryLogEntry")
             .Produces<EmailDeliveryManualRetryResponse>()
@@ -58,6 +64,14 @@ public static class EmailDeliveryLogEndpoints
             cancellationToken);
 
         return TypedResults.Ok(entries);
+    }
+
+    private static async Task<IResult> GetSummaryAsync(
+        IEmailDeliveryLogService service,
+        CancellationToken cancellationToken)
+    {
+        var summary = await service.GetOutboxMonitoringSummaryAsync(cancellationToken);
+        return TypedResults.Ok(summary);
     }
 
     private static async Task<IResult> RetryAsync(

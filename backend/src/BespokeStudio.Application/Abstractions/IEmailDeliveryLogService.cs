@@ -12,4 +12,7 @@ public interface IEmailDeliveryLogService
     Task RecordAsync(
         EmailDeliveryLogWriteRequest request,
         CancellationToken cancellationToken = default);
+
+    Task<EmailOutboxMonitoringSummaryResponse> GetOutboxMonitoringSummaryAsync(
+        CancellationToken cancellationToken = default);
 }

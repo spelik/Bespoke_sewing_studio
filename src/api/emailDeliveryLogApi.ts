@@ -28,6 +28,23 @@ export interface EmailDeliveryLogQuery {
   provider?: string;
 }
 
+export interface EmailOutboxMonitoringSummary {
+  pendingCount: number;
+  processingCount: number;
+  retryingCount: number;
+  failedCount: number;
+  exhaustedFailedCount: number;
+  stalePendingCount: number;
+  sentLast24HoursCount: number;
+  failedLast24HoursCount: number;
+  oldestPendingCreatedAt: string | null;
+  oldestFailedUpdatedAt: string | null;
+  generatedAt: string;
+  stalePendingThresholdMinutes: number;
+  healthStatus: "Healthy" | "Warning" | "Critical" | string;
+  summaryMessage: string;
+}
+
 export interface EmailDeliveryManualRetryResult {
   emailDeliveryLogEntryId: string;
   outboxMessageId: string;
@@ -60,6 +77,10 @@ export function getEmailDeliveryLog(
   const queryString = parameters.toString();
   const suffix = queryString ? `?${queryString}` : "";
   return apiClient.get<PagedResponse<EmailDeliveryLogEntry>>(`/admin/email-log${suffix}`);
+}
+
+export function getEmailOutboxMonitoringSummary(): Promise<EmailOutboxMonitoringSummary> {
+  return apiClient.get<EmailOutboxMonitoringSummary>("/admin/email-log/summary");
 }
 
 export function retryEmailDeliveryLogEntry(

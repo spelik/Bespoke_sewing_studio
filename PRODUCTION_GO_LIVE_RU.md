@@ -162,6 +162,7 @@ Notes:
 ## K. After launch monitoring
 
 - проверять logs;
+- Email outbox health: на Admin Dashboard / Email Log проверить outbox summary (Healthy/Warning/Critical) — не должно быть exhausted failed и stale pending; retrying допустим и понятен; summary read-only, не меняет retry behavior и не раскрывает email body/secrets;
 - Email Log / outbox: failed / retrying; при failed Email Log entry можно использовать manual retry (кнопка **Retry** в строке Failed) после исправления SMTP/provider config — worker переотправит письмо, automatic retry/backoff не меняется, email body не раскрывается;
 - disk space;
 - рост upload storage;
@@ -176,8 +177,7 @@ Notes:
 - automated scheduled backups;
 - backup encryption / offsite upload automation;
 - PostgreSQL-backed integration tests;
-- email manual retry button;
-- email monitoring / alerting;
+- external email alerting / notifications (базовый admin outbox monitoring уже есть на Dashboard / Email Log);
 - object storage adapter;
 - external Data Protection key store для multi-instance;
 - CDN / cache strategy.

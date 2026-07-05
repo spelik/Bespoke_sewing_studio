@@ -269,6 +269,13 @@ visible page to CSV. Failed rows expose a **Retry** action that queues a manual
 retry for the background worker after the SMTP/provider issue is fixed; email
 bodies are never shown and the automatic retry/backoff behaviour is unchanged.
 
+The Admin **Dashboard** and **Email Log** also show a read-only outbox health
+summary (Healthy/Warning/Critical) with global failed, retrying, pending/stale
+and sent-in-24h counts, so the owner can quickly spot exhausted failed messages,
+scheduled retries or stale pending messages. The summary comes from
+`GET /api/admin/email-log/summary`, is monitoring-only and never exposes email
+bodies or secrets.
+
 The log stores delivery metadata only: recipient email, subject, provider,
 status, result/error summary, related Order/Contact reference and timestamps.
 It intentionally does not expose email bodies, SMTP credentials, Google App

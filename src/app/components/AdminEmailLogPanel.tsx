@@ -6,6 +6,7 @@ import {
   getEmailDeliveryLogErrorMessage,
   retryEmailDeliveryLogEntry,
   type EmailDeliveryLogEntry,
+  type EmailOutboxMonitoringSummary,
 } from "../../api/emailDeliveryLogApi";
 import { type AdminPageSize } from "../../api/pagination";
 import { createCsvFileName, downloadCsv } from "../utils/csvExport";
@@ -15,6 +16,10 @@ import { AdminServerPagination } from "./AdminUi";
 interface AdminEmailLogPanelProps {
   onUnauthorized(): void;
   realtimeRefreshKey?: number;
+  monitoringSummary?: EmailOutboxMonitoringSummary | null;
+  monitoringSummaryError?: string | null;
+  isMonitoringSummaryLoading?: boolean;
+  onRefreshMonitoringSummary?: () => void;
 }
 
 interface EmailLogFilters {
@@ -61,6 +66,10 @@ const KNOWN_EMAIL_PROVIDERS = ["Outbox", "Logging", "LoggingFallback", "SMTP", "
 export function AdminEmailLogPanel({
   onUnauthorized,
   realtimeRefreshKey = 0,
+  monitoringSummary = null,
+  monitoringSummaryError = null,
+  isMonitoringSummaryLoading = false,
+  onRefreshMonitoringSummary,
 }: AdminEmailLogPanelProps) {
   const [entries, setEntries] = useState<EmailDeliveryLogEntry[]>([]);
   const [filters, setFilters] = useState<EmailLogFilters>(DEFAULT_FILTERS);
@@ -163,6 +172,7 @@ export function AdminEmailLogPanel({
         await retryEmailDeliveryLogEntry(id);
         setInfo("Manual retry queued.");
         await loadEntries();
+        onRefreshMonitoringSummary?.();
       } catch (reason: unknown) {
         if (
           reason instanceof ApiError &&
@@ -182,7 +192,7 @@ export function AdminEmailLogPanel({
         setRetryingId(null);
       }
     },
-    [loadEntries, onUnauthorized],
+    [loadEntries, onRefreshMonitoringSummary, onUnauthorized],
   );
 
   const messageTypeOptions = useMemo(
@@ -247,6 +257,12 @@ export function AdminEmailLogPanel({
 
   return (
     <section className="space-y-5">
+      <OutboxMonitoringSummary
+        summary={monitoringSummary}
+        error={monitoringSummaryError}
+        isLoading={isMonitoringSummaryLoading}
+      />
+
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <EmailLogStatCard label="Page entries" value={entries.length} tone="neutral" />
         <EmailLogStatCard label="Sent on page" value={sentCount} tone="success" />
@@ -473,19 +489,111 @@ export function AdminEmailLogPanel({
   );
 }
 
+function OutboxMonitoringSummary({
+  summary,
+  error,
+  isLoading,
+}: {
+  summary: EmailOutboxMonitoringSummary | null;
+  error: string | null;
+  isLoading: boolean;
+}) {
+  if (error) {
+    return (
+      <div className="border border-amber-200 bg-amber-50 px-4 py-3 text-[11px] text-amber-700 flex items-start gap-2">
+        <AlertTriangle size={14} className="mt-0.5" aria-hidden="true" />
+        <span>
+          Email outbox monitoring is unavailable right now. The page entries below
+          still reflect recent attempts.
+        </span>
+      </div>
+    );
+  }
+
+  if (!summary) {
+    return (
+      <div className="border border-border bg-card px-4 py-3 text-[11px] text-muted-foreground">
+        {isLoading ? "Checking email outbox health…" : "Email outbox health is unavailable."}
+      </div>
+    );
+  }
+
+  const healthTone =
+    summary.healthStatus === "Healthy"
+      ? "success"
+      : summary.healthStatus === "Critical"
+        ? "danger"
+        : "warning";
+  const healthLabel =
+    summary.healthStatus === "Healthy"
+      ? "Healthy"
+      : summary.healthStatus === "Critical"
+        ? "Issues"
+        : "Needs review";
+
+  return (
+    <div className="space-y-3">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+        <EmailLogStatCard
+          label="Outbox health"
+          value={healthLabel}
+          tone={healthTone}
+        />
+        <EmailLogStatCard label="Failed" value={summary.failedCount} tone="danger" />
+        <EmailLogStatCard label="Retrying" value={summary.retryingCount} tone="warning" />
+        <EmailLogStatCard
+          label="Pending / stale"
+          value={`${summary.pendingCount} / ${summary.stalePendingCount}`}
+          tone={summary.stalePendingCount > 0 ? "warning" : "neutral"}
+        />
+        <EmailLogStatCard
+          label="Sent 24h"
+          value={summary.sentLast24HoursCount}
+          tone="success"
+        />
+      </div>
+
+      {summary.exhaustedFailedCount > 0 ? (
+        <div className="border border-destructive/30 bg-destructive/5 px-4 py-3 text-[11px] text-destructive flex items-start gap-2">
+          <AlertTriangle size={14} className="mt-0.5" aria-hidden="true" />
+          <span>
+            There are failed email messages that need review. Fix SMTP/provider
+            settings, then use Retry on failed rows.
+          </span>
+        </div>
+      ) : null}
+
+      {summary.stalePendingCount > 0 ? (
+        <div className="border border-amber-200 bg-amber-50 px-4 py-3 text-[11px] text-amber-700 flex items-start gap-2">
+          <AlertTriangle size={14} className="mt-0.5" aria-hidden="true" />
+          <span>Some pending messages appear stale. Check the background worker.</span>
+        </div>
+      ) : null}
+
+      {summary.retryingCount > 0 ? (
+        <div className="border border-border bg-muted/40 px-4 py-3 text-[11px] text-muted-foreground flex items-start gap-2">
+          <Clock3 size={14} className="mt-0.5" aria-hidden="true" />
+          <span>Some messages are scheduled for automatic retry.</span>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 function EmailLogStatCard({
   label,
   value,
   tone,
 }: {
   label: string;
-  value: number;
-  tone: "neutral" | "success" | "danger";
+  value: number | string;
+  tone: "neutral" | "success" | "danger" | "warning";
 }) {
-  const toneClass: Record<"neutral" | "success" | "danger", string> = {
+  const toneClass: Record<"neutral" | "success" | "danger" | "warning", string> = {
     neutral: "border-border bg-card text-foreground",
     success: "border-emerald-200 bg-emerald-50 text-emerald-700",
     danger: "border-destructive/30 bg-destructive/5 text-destructive",
+    warning: "border-amber-200 bg-amber-50 text-amber-700",
   };
 
   return (

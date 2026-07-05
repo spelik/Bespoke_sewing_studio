@@ -7,6 +7,7 @@ import {
   ShieldCheck,
   type LucideIcon,
 } from "lucide-react";
+import type { EmailOutboxMonitoringSummary } from "../../api/emailDeliveryLogApi";
 import type { AdminOrderListItem } from "../../api/ordersApi";
 import type { AdminSection } from "../admin/adminSections";
 import type {
@@ -33,6 +34,9 @@ interface AdminDashboardOverviewProps {
   contactAttentionCounts: AttentionCounts | null;
   emailDeliverySettings: AdminEmailDeliverySettings | null;
   emailDeliveryError: string | null;
+  emailOutboxSummary: EmailOutboxMonitoringSummary | null;
+  emailOutboxSummaryError: string | null;
+  isEmailOutboxSummaryLoading: boolean;
   siteSettings: AdminSiteSettings | null;
   siteSettingsError: string | null;
   isOrdersLoading: boolean;
@@ -48,6 +52,9 @@ export function AdminDashboardOverview({
   contactAttentionCounts,
   emailDeliverySettings,
   emailDeliveryError,
+  emailOutboxSummary,
+  emailOutboxSummaryError,
+  isEmailOutboxSummaryLoading,
   siteSettings,
   siteSettingsError,
   isOrdersLoading,
@@ -74,6 +81,9 @@ export function AdminDashboardOverview({
         emailDeliveryError,
         isOrdersLoading,
         ordersError,
+        emailOutboxSummary,
+        emailOutboxSummaryError,
+        isEmailOutboxSummaryLoading,
       ),
     [
       siteSettings,
@@ -82,6 +92,9 @@ export function AdminDashboardOverview({
       emailDeliveryError,
       isOrdersLoading,
       ordersError,
+      emailOutboxSummary,
+      emailOutboxSummaryError,
+      isEmailOutboxSummaryLoading,
     ],
   );
 
@@ -106,16 +119,18 @@ export function AdminDashboardOverview({
         />
         <DashboardStatusCard
           icon={Mail}
-          label="Email delivery"
-          title={getEmailDeliveryTitle(
-            emailDeliverySettings,
-            emailDeliveryError,
+          label="Email outbox"
+          title={getEmailOutboxTitle(
+            emailOutboxSummary,
+            emailOutboxSummaryError,
+            isEmailOutboxSummaryLoading,
           )}
-          caption={getEmailDeliveryCaption(
-            emailDeliverySettings,
-            emailDeliveryError,
+          caption={getEmailOutboxCaption(
+            emailOutboxSummary,
+            emailOutboxSummaryError,
+            isEmailOutboxSummaryLoading,
           )}
-          onClick={() => onOpenSection("settings")}
+          onClick={() => onOpenSection("emailLog")}
         />
         <DashboardStatusCard
           icon={ShieldCheck}
@@ -411,6 +426,9 @@ function buildProductionReadinessItems(
   emailDeliveryError: string | null,
   isOrdersLoading: boolean,
   ordersError: string | null,
+  emailOutboxSummary: EmailOutboxMonitoringSummary | null,
+  emailOutboxSummaryError: string | null,
+  isEmailOutboxSummaryLoading: boolean,
 ): ProductionReadinessItem[] {
   const settingsUnavailable = Boolean(siteSettingsError);
   const emailUnavailable = Boolean(emailDeliveryError);
@@ -472,6 +490,21 @@ function buildProductionReadinessItems(
             : "Complete Gmail SMTP settings and send a test email.",
     },
     {
+      label: "Email outbox",
+      status:
+        !emailOutboxSummaryError &&
+        !isEmailOutboxSummaryLoading &&
+        emailOutboxSummary?.healthStatus === "Healthy"
+          ? "ready"
+          : "warning",
+      detail: emailOutboxSummaryError
+        ? "Email outbox monitoring is unavailable. Open Email Log to review."
+        : isEmailOutboxSummaryLoading && !emailOutboxSummary
+          ? "Checking email outbox health."
+          : (emailOutboxSummary?.summaryMessage ??
+            "Checking email outbox health."),
+    },
+    {
       label: "Upload security",
       status: "review",
       detail:
@@ -495,38 +528,58 @@ function buildProductionReadinessItems(
   ];
 }
 
-function getEmailDeliveryTitle(
-  settings: AdminEmailDeliverySettings | null,
+function getEmailOutboxTitle(
+  summary: EmailOutboxMonitoringSummary | null,
   error: string | null,
+  isLoading: boolean,
 ): string {
   if (error) {
-    return "Status unavailable";
+    return "Email monitoring unavailable";
   }
 
-  if (!settings) {
-    return "Loading status...";
+  if (isLoading && !summary) {
+    return "Checking email...";
   }
 
-  return settings.provider === "GmailSmtp" ? "Gmail SMTP" : "Configuration";
+  if (!summary) {
+    return "Checking email...";
+  }
+
+  if (summary.healthStatus === "Critical") {
+    return "Email issues";
+  }
+
+  if (summary.healthStatus === "Warning") {
+    return "Email needs review";
+  }
+
+  return "Email healthy";
 }
 
-function getEmailDeliveryCaption(
-  settings: AdminEmailDeliverySettings | null,
+function getEmailOutboxCaption(
+  summary: EmailOutboxMonitoringSummary | null,
   error: string | null,
+  isLoading: boolean,
 ): string {
   if (error) {
-    return error;
+    return "Email outbox monitoring is unavailable. Open Email Log to review.";
   }
 
-  if (!settings) {
-    return "Checking configured delivery mode.";
+  if (isLoading && !summary) {
+    return "Checking outbox health.";
   }
 
-  if (settings.provider === "GmailSmtp") {
-    return settings.appPasswordConfigured
-      ? `${settings.gmailAddress ?? "Gmail address"} is configured.`
-      : "Gmail SMTP is selected, but the App Password is missing.";
+  if (!summary) {
+    return "Checking outbox health.";
   }
 
-  return "Email delivery is managed by server configuration or user-secrets.";
+  if (summary.healthStatus === "Critical") {
+    return `${summary.exhaustedFailedCount} failed · ${summary.retryingCount} retrying`;
+  }
+
+  if (summary.healthStatus === "Warning") {
+    return `${summary.retryingCount} retrying · ${summary.stalePendingCount} stale pending`;
+  }
+
+  return `${summary.sentLast24HoursCount} sent in last 24h`;
 }

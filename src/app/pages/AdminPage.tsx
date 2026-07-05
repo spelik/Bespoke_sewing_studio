@@ -14,6 +14,10 @@ import {
   type AdminOrderListItem,
   type AdminOrderStatus,
 } from "../../api/ordersApi";
+import {
+  getEmailOutboxMonitoringSummary,
+  type EmailOutboxMonitoringSummary,
+} from "../../api/emailDeliveryLogApi";
 import { type AdminPageSize } from "../../api/pagination";
 import {
   ADMIN_NAV_ITEMS,
@@ -98,6 +102,13 @@ export function AdminPage() {
   >([]);
   const [contactRefreshKey, setContactRefreshKey] = useState(0);
   const [emailLogRefreshKey, setEmailLogRefreshKey] = useState(0);
+  const [emailOutboxSummary, setEmailOutboxSummary] =
+    useState<EmailOutboxMonitoringSummary | null>(null);
+  const [emailOutboxSummaryError, setEmailOutboxSummaryError] = useState<
+    string | null
+  >(null);
+  const [isEmailOutboxSummaryLoading, setIsEmailOutboxSummaryLoading] =
+    useState(true);
   const [contactAttentionCounts, setContactAttentionCounts] =
     useState<AttentionCounts | null>(null);
   const [emailDeliverySettings, setEmailDeliverySettings] =
@@ -190,6 +201,32 @@ export function AdminPage() {
     void loadContactMessagesForDashboard();
   }, [loadContactMessagesForDashboard]);
 
+  const loadEmailOutboxSummary = useCallback(async () => {
+    setIsEmailOutboxSummaryLoading(true);
+    setEmailOutboxSummaryError(null);
+
+    try {
+      const summary = await getEmailOutboxMonitoringSummary();
+      setEmailOutboxSummary(summary);
+    } catch (reason: unknown) {
+      if (
+        reason instanceof ApiError &&
+        (reason.status === 401 || reason.status === 403)
+      ) {
+        logout();
+        return;
+      }
+
+      setEmailOutboxSummaryError("Email outbox monitoring could not be loaded.");
+    } finally {
+      setIsEmailOutboxSummaryLoading(false);
+    }
+  }, [logout]);
+
+  useEffect(() => {
+    void loadEmailOutboxSummary();
+  }, [loadEmailOutboxSummary]);
+
   useEffect(() => {
     const syncSectionFromUrl = () => {
       setSection(getAdminSectionFromHash());
@@ -228,8 +265,14 @@ export function AdminPage() {
       }
 
       setEmailLogRefreshKey((current) => current + 1);
+      void loadEmailOutboxSummary();
     },
-    [adminOrders.reload, loadContactMessagesForDashboard, loadDashboardOrders],
+    [
+      adminOrders.reload,
+      loadContactMessagesForDashboard,
+      loadDashboardOrders,
+      loadEmailOutboxSummary,
+    ],
   );
 
   const adminRealtime = useAdminRealtimeUpdates({
@@ -307,6 +350,22 @@ export function AdminPage() {
     }
   }, [adminOrders.totalPages, orderPage]);
 
+  const emailOutboxAttentionCounts = useMemo<AttentionCounts | null>(() => {
+    if (!emailOutboxSummary) {
+      return null;
+    }
+
+    return {
+      newCount:
+        emailOutboxSummary.exhaustedFailedCount +
+        emailOutboxSummary.stalePendingCount,
+      totalCount:
+        emailOutboxSummary.failedCount +
+        emailOutboxSummary.retryingCount +
+        emailOutboxSummary.pendingCount,
+    };
+  }, [emailOutboxSummary]);
+
   async function confirmOrderDelete() {
     if (!orderDeleteCandidate) {
       return;
@@ -338,6 +397,7 @@ export function AdminPage() {
               item.id,
               orderAttentionCounts,
               contactAttentionCounts,
+              emailOutboxAttentionCounts,
             );
             return (
               <button
@@ -407,6 +467,9 @@ export function AdminPage() {
               contactAttentionCounts={contactAttentionCounts}
               emailDeliverySettings={emailDeliverySettings}
               emailDeliveryError={emailDeliveryError}
+              emailOutboxSummary={emailOutboxSummary}
+              emailOutboxSummaryError={emailOutboxSummaryError}
+              isEmailOutboxSummaryLoading={isEmailOutboxSummaryLoading}
               siteSettings={siteSettings}
               siteSettingsError={siteSettingsError}
               isOrdersLoading={isDashboardOrdersLoading}
@@ -538,6 +601,10 @@ export function AdminPage() {
             <AdminEmailLogPanel
               onUnauthorized={logout}
               realtimeRefreshKey={emailLogRefreshKey}
+              monitoringSummary={emailOutboxSummary}
+              monitoringSummaryError={emailOutboxSummaryError}
+              isMonitoringSummaryLoading={isEmailOutboxSummaryLoading}
+              onRefreshMonitoringSummary={() => void loadEmailOutboxSummary()}
             />
           ) : null}
           {section === "storage" ? (

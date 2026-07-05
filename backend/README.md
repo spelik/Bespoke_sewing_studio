@@ -931,6 +931,18 @@ audit log (`email_outbox.manual_retry_queued`) with safe metadata only. Email
 bodies and secrets are never exposed in the request, response, audit metadata or
 logs.
 
+`GET /api/admin/email-log/summary` is protected by the same policy and returns
+a read-only outbox monitoring summary for Admin → Dashboard and Admin → Email
+Log. It aggregates `EmailOutboxMessages` counts only: pending, processing,
+retrying (failed with attempts remaining and a scheduled next attempt), failed,
+exhausted-failed (failed with attempts at the maximum and no next attempt), stale
+pending (pending older than 15 minutes), sent in the last 24h and failed in the
+last 24h, plus the oldest pending/failed timestamps and a derived
+`healthStatus` (`Healthy`/`Warning`/`Critical`) and safe `summaryMessage`. The
+endpoint is read-only: it does not enqueue, send or change automatic
+retry/backoff or manual retry behaviour, and it never selects or exposes email
+bodies (`HtmlBody`/`TextBody`), recipients, subjects or secrets.
+
 Email log entries are written for owner order notifications, customer order
 confirmations, owner contact notifications, customer contact confirmations and
 test emails. Only metadata is persisted in the log: recipient, subject, provider,

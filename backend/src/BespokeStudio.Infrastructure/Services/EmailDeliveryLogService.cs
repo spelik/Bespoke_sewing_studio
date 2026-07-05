@@ -1,7 +1,9 @@
 using BespokeStudio.Application.Abstractions;
 using BespokeStudio.Application.Contracts.Common;
 using BespokeStudio.Application.Contracts.EmailDeliveryLog;
+using BespokeStudio.Application.Notifications;
 using BespokeStudio.Domain.Entities;
+using BespokeStudio.Domain.Enums;
 using BespokeStudio.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -11,6 +13,8 @@ public sealed class EmailDeliveryLogService(
     BespokeStudioDbContext dbContext,
     IAdminRealtimeNotifier realtimeNotifier) : IEmailDeliveryLogService
 {
+    private const int StalePendingThresholdMinutes = 15;
+
     public async Task<PagedResponse<EmailDeliveryLogEntryResponse>> GetAsync(
         EmailDeliveryLogQueryRequest request,
         CancellationToken cancellationToken = default)
@@ -118,6 +122,83 @@ public sealed class EmailDeliveryLogService(
             entry.Id,
             entry.RelatedEntityLabel,
             cancellationToken);
+    }
+
+    public async Task<EmailOutboxMonitoringSummaryResponse> GetOutboxMonitoringSummaryAsync(
+        CancellationToken cancellationToken = default)
+    {
+        var now = DateTimeOffset.UtcNow;
+        var staleBefore = now.AddMinutes(-StalePendingThresholdMinutes);
+        var last24Hours = now.AddHours(-24);
+
+        var messages = dbContext.EmailOutboxMessages.AsNoTracking();
+
+        var pendingCount = await messages.CountAsync(
+            message => message.Status == EmailOutboxStatus.Pending,
+            cancellationToken);
+        var processingCount = await messages.CountAsync(
+            message => message.Status == EmailOutboxStatus.Processing,
+            cancellationToken);
+        var retryingCount = await messages.CountAsync(
+            message => message.Status == EmailOutboxStatus.Failed &&
+                message.Attempts < message.MaxAttempts &&
+                message.NextAttemptAt != null,
+            cancellationToken);
+        var failedCount = await messages.CountAsync(
+            message => message.Status == EmailOutboxStatus.Failed,
+            cancellationToken);
+        var exhaustedFailedCount = await messages.CountAsync(
+            message => message.Status == EmailOutboxStatus.Failed &&
+                message.Attempts >= message.MaxAttempts &&
+                message.NextAttemptAt == null,
+            cancellationToken);
+        var stalePendingCount = await messages.CountAsync(
+            message => message.Status == EmailOutboxStatus.Pending &&
+                message.CreatedAt <= staleBefore,
+            cancellationToken);
+        var sentLast24HoursCount = await messages.CountAsync(
+            message => message.Status == EmailOutboxStatus.Succeeded &&
+                message.SentAt != null &&
+                message.SentAt >= last24Hours,
+            cancellationToken);
+        var failedLast24HoursCount = await messages.CountAsync(
+            message => message.Status == EmailOutboxStatus.Failed &&
+                message.UpdatedAt >= last24Hours,
+            cancellationToken);
+
+        var oldestPendingCreatedAt = await messages
+            .Where(message => message.Status == EmailOutboxStatus.Pending)
+            .OrderBy(message => message.CreatedAt)
+            .Select(message => (DateTimeOffset?)message.CreatedAt)
+            .FirstOrDefaultAsync(cancellationToken);
+        var oldestFailedUpdatedAt = await messages
+            .Where(message => message.Status == EmailOutboxStatus.Failed)
+            .OrderBy(message => message.UpdatedAt)
+            .Select(message => (DateTimeOffset?)message.UpdatedAt)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        var healthStatus = EmailOutboxMonitoringPolicy.ResolveHealthStatus(
+            exhaustedFailedCount,
+            stalePendingCount,
+            failedCount,
+            retryingCount);
+        var summaryMessage = EmailOutboxMonitoringPolicy.ResolveSummaryMessage(healthStatus);
+
+        return new EmailOutboxMonitoringSummaryResponse(
+            pendingCount,
+            processingCount,
+            retryingCount,
+            failedCount,
+            exhaustedFailedCount,
+            stalePendingCount,
+            sentLast24HoursCount,
+            failedLast24HoursCount,
+            oldestPendingCreatedAt,
+            oldestFailedUpdatedAt,
+            now,
+            StalePendingThresholdMinutes,
+            healthStatus,
+            summaryMessage);
     }
 
     private static string? Normalize(string? value) =>

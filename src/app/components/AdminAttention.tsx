@@ -9,6 +9,7 @@ export function getNavAttentionCounts(
   section: AdminSection,
   orderAttentionCounts: AttentionCounts,
   contactAttentionCounts: AttentionCounts | null,
+  emailOutboxAttentionCounts: AttentionCounts | null = null,
 ): AttentionCounts | null {
   if (section === "orders") {
     return orderAttentionCounts;
@@ -16,6 +17,10 @@ export function getNavAttentionCounts(
 
   if (section === "contactMessages") {
     return contactAttentionCounts;
+  }
+
+  if (section === "emailLog") {
+    return emailOutboxAttentionCounts;
   }
 
   return null;
