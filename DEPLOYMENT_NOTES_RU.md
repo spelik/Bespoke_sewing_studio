@@ -8,6 +8,20 @@
 
 Если сервер не настроен на SPA fallback, прямой переход или перезагрузка страницы по вложенному URL может вернуть серверный `404`, даже если frontend-маршрут существует.
 
+## Reverse proxy / HTTPS
+
+Полный production runbook по reverse proxy и HTTPS (Cloudflare, forwarded headers,
+HSTS, WebSockets, health checks, smoke test, troubleshooting) —
+[`REVERSE_PROXY_HTTPS_PRODUCTION_RU.md`](REVERSE_PROXY_HTTPS_PRODUCTION_RU.md).
+
+За reverse proxy важно:
+
+- SPA fallback нужен и за reverse proxy (см. секции ниже);
+- `/api`, `/health`, `/healthz`, `/readyz`, `/hubs` должны проксироваться в backend,
+  а не отдавать `index.html`;
+- `/admin` — frontend route (отдаётся SPA), но backend `/api/admin...` остаётся API;
+- WebSocket upgrade нужен для SignalR (`/hubs/admin-notifications`).
+
 ## Nginx
 
 Для SPA fallback нужен `try_files`:

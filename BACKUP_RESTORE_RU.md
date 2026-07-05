@@ -308,7 +308,8 @@ sudo systemctl start bespoke-studio-api
 - проверить, что dump открывается через `pg_restore --list`;
 - убедиться, что Data Protection keys не потеряются при redeploy;
 - убедиться, что SMTP/App Password secrets не лежат в Git;
-- иметь rollback plan: предыдущий build + database/storage backup.
+- иметь rollback plan: предыдущий build + database/storage backup;
+- reverse proxy / TLS config и сертификаты (Nginx/IIS/Caddy config, Let's Encrypt/Cloudflare Origin Certificate) — это operational secrets/config: их нужно бэкапить защищённо вне Git; TLS private keys и Cloudflare origin cert private keys не хранить без защиты (см. [`REVERSE_PROXY_HTTPS_PRODUCTION_RU.md`](REVERSE_PROXY_HTTPS_PRODUCTION_RU.md)).
 
 После deploy:
 
@@ -318,7 +319,8 @@ sudo systemctl start bespoke-studio-api
 - проверить Admin login;
 - проверить Orders, Contact Messages, Users, My account, Audit Log;
 - проверить загрузку/скачивание attachment;
-- проверить test email и одну реальную Contact/Order отправку, если SMTP включён.
+- проверить test email и одну реальную Contact/Order отправку, если SMTP включён;
+- после restore/redeploy проверить HTTPS, health endpoints, auth/session, SignalR realtime и uploads.
 
 ## Что пока не автоматизировано
 

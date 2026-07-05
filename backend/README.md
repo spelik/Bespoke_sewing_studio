@@ -121,7 +121,13 @@ $env:ForwardedHeaders__KnownNetworks__0 = "10.0.1.0/24"
 
 For Cloudflare or another multi-hop topology, configure only the proxy/network that
 connects directly to Kestrel and set `ForwardLimit` to the actual trusted hop count.
-Verify the resulting request scheme and client address after deployment.
+Verify the resulting request scheme and client address after deployment. The
+reverse proxy must forward `X-Forwarded-For`, `X-Forwarded-Proto` and
+`X-Forwarded-Host`, enable WebSocket upgrade for the SignalR admin realtime hub
+(`/hubs/admin-notifications`), and rely on HSTS and HTTPS redirection which run
+outside Development. `KnownProxies`/`KnownNetworks` must be exact — a too-wide range
+lets clients spoof their IP. The full production reverse proxy / HTTPS runbook is in
+[`../REVERSE_PROXY_HTTPS_PRODUCTION_RU.md`](../REVERSE_PROXY_HTTPS_PRODUCTION_RU.md).
 
 Data Protection uses the stable application discriminator
 `BespokeSewingStudio`. Development can use the framework's default local key store.

@@ -102,6 +102,23 @@ path, ClamAV install, EICAR smoke test, backup/restore, troubleshooting).
 
 ## 7. Hosting, HTTPS and secrets
 
+Полный production runbook по reverse proxy / HTTPS (Cloudflare, TLS, forwarded
+headers, WebSockets, HSTS, health checks, smoke test, troubleshooting) —
+[`REVERSE_PROXY_HTTPS_PRODUCTION_RU.md`](REVERSE_PROXY_HTTPS_PRODUCTION_RU.md).
+
+Reverse proxy / HTTPS / Cloudflare checklist:
+
+- настроить DNS в Cloudflare для `oksanalogosha.com`;
+- включить HTTPS и убедиться, что SSL/TLS mode **не Flexible** (Full / Full (strict)), чтобы избежать redirect loops и HTTP edge→origin;
+- настроить www → apex redirect на `https://oksanalogosha.com`;
+- reverse proxy должен проксировать в Kestrel internal address (`http://127.0.0.1:<kestrel-port>`); Kestrel не выставляется в интернет напрямую;
+- reverse proxy должен передавать `X-Forwarded-For`, `X-Forwarded-Proto`, `X-Forwarded-Host`, `Host`;
+- включить WebSocket upgrade для SignalR (`/hubs/admin-notifications`);
+- `/api`, `/health`, `/healthz`, `/readyz`, `/hubs` проксируются в backend; frontend routes отдают SPA fallback;
+- проверить CORS и frontend API base URL: `VITE_PUBLIC_SITE_URL=https://oksanalogosha.com`, `VITE_API_BASE_URL` не указывает на `localhost`; `Cors__AllowedOrigins__0=https://oksanalogosha.com`, если нужны cross-origin вызовы;
+- проверить health checks (`/health/live`, `/health/ready`, `/api/version`) через public HTTPS и напрямую с сервера;
+- проверить, что rate limit видит реальный client IP (через корректные forwarded headers), а не только IP reverse proxy;
+
 - проверить refresh cookie: `HttpOnly`, `Secure`, `SameSite=Lax`; production admin должен работать только через HTTPS;
 - проверить, что admin access token отсутствует в `sessionStorage` и `localStorage` и хранится только в памяти приложения;
 - перезагрузить admin page и убедиться, что сессия восстанавливается через HttpOnly refresh cookie и `/api/auth/refresh` без redirect loop;

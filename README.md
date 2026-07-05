@@ -336,7 +336,14 @@ production frontend build, verify `/robots.txt` and `/sitemap.xml` resolve on
 `https://oksanalogosha.com`, and complete the backup, email, upload-security,
 HTTPS, secrets and legal-text checks.
 The production reverse proxy must supply trusted forwarded headers and its exact
-proxy addresses or networks must be configured. `DataProtection__KeysPath` is
+proxy addresses or networks must be configured. Cloudflare plus a reverse proxy
+must be configured before the public launch, Kestrel must never be exposed
+directly to the internet, and the production build/env must not point the API to
+`localhost`. The full production reverse proxy / HTTPS runbook (Cloudflare, TLS,
+forwarded headers, WebSockets, HSTS, health checks, smoke test and
+troubleshooting) is in
+[`REVERSE_PROXY_HTTPS_PRODUCTION_RU.md`](REVERSE_PROXY_HTTPS_PRODUCTION_RU.md).
+`DataProtection__KeysPath` is
 required in production (startup fails without it) and must point to persistent
 storage outside the repository and deployment directory. These keys protect the
 owner-managed Gmail SMTP App Password and the 2FA challenge cookie, so they must
