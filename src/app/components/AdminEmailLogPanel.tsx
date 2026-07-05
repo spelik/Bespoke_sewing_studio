@@ -7,6 +7,7 @@ import {
   retryEmailDeliveryLogEntry,
   type EmailDeliveryLogEntry,
   type EmailOutboxMonitoringSummary,
+  type EmailOutboxRetentionSummary,
 } from "../../api/emailDeliveryLogApi";
 import { type AdminPageSize } from "../../api/pagination";
 import { createCsvFileName, downloadCsv } from "../utils/csvExport";
@@ -20,6 +21,11 @@ interface AdminEmailLogPanelProps {
   monitoringSummaryError?: string | null;
   isMonitoringSummaryLoading?: boolean;
   onRefreshMonitoringSummary?: () => void;
+  retentionSummary?: EmailOutboxRetentionSummary | null;
+  retentionSummaryError?: string | null;
+  isRetentionSummaryLoading?: boolean;
+  onRefreshRetentionSummary?: () => void;
+  onRunRetentionCleanup?: () => Promise<void>;
 }
 
 interface EmailLogFilters {
@@ -70,6 +76,11 @@ export function AdminEmailLogPanel({
   monitoringSummaryError = null,
   isMonitoringSummaryLoading = false,
   onRefreshMonitoringSummary,
+  retentionSummary = null,
+  retentionSummaryError = null,
+  isRetentionSummaryLoading = false,
+  onRefreshRetentionSummary,
+  onRunRetentionCleanup,
 }: AdminEmailLogPanelProps) {
   const [entries, setEntries] = useState<EmailDeliveryLogEntry[]>([]);
   const [filters, setFilters] = useState<EmailLogFilters>(DEFAULT_FILTERS);
@@ -80,6 +91,7 @@ export function AdminEmailLogPanel({
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
   const [retryingId, setRetryingId] = useState<string | null>(null);
+  const [isRetentionCleanupRunning, setIsRetentionCleanupRunning] = useState(false);
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
   const [debouncedSearch, setDebouncedSearch] = useState(filters.search);
   const [debouncedRecipientEmail, setDebouncedRecipientEmail] = useState(
@@ -195,6 +207,55 @@ export function AdminEmailLogPanel({
     [loadEntries, onRefreshMonitoringSummary, onUnauthorized],
   );
 
+  const retentionCandidateCount = useMemo(() => {
+    if (!retentionSummary) {
+      return 0;
+    }
+
+    return (
+      retentionSummary.succeededBodyPurgeCandidateCount +
+      retentionSummary.skippedBodyPurgeCandidateCount +
+      retentionSummary.succeededDeleteCandidateCount +
+      retentionSummary.skippedDeleteCandidateCount
+    );
+  }, [retentionSummary]);
+
+  const handleRetentionCleanup = useCallback(async () => {
+    if (!onRunRetentionCleanup) {
+      return;
+    }
+
+    setIsRetentionCleanupRunning(true);
+    setError(null);
+    setInfo(null);
+
+    try {
+      await onRunRetentionCleanup();
+      setInfo("Retention cleanup completed.");
+      await loadEntries();
+      onRefreshRetentionSummary?.();
+      onRefreshMonitoringSummary?.();
+    } catch (reason: unknown) {
+      if (
+        reason instanceof ApiError &&
+        (reason.status === 401 || reason.status === 403)
+      ) {
+        onUnauthorized();
+        return;
+      }
+
+      setError("Email outbox retention cleanup could not be completed.");
+    } finally {
+      setIsRetentionCleanupRunning(false);
+    }
+  }, [
+    loadEntries,
+    onRefreshMonitoringSummary,
+    onRefreshRetentionSummary,
+    onRunRetentionCleanup,
+    onUnauthorized,
+  ]);
+
   const messageTypeOptions = useMemo(
     () =>
       buildDropdownOptions(
@@ -261,6 +322,15 @@ export function AdminEmailLogPanel({
         summary={monitoringSummary}
         error={monitoringSummaryError}
         isLoading={isMonitoringSummaryLoading}
+      />
+
+      <OutboxRetentionSummary
+        summary={retentionSummary}
+        error={retentionSummaryError}
+        isLoading={isRetentionSummaryLoading}
+        candidateCount={retentionCandidateCount}
+        isCleanupRunning={isRetentionCleanupRunning}
+        onRunCleanup={() => void handleRetentionCleanup()}
       />
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -486,6 +556,109 @@ export function AdminEmailLogPanel({
         />
       </div>
     </section>
+  );
+}
+
+function OutboxRetentionSummary({
+  summary,
+  error,
+  isLoading,
+  candidateCount,
+  isCleanupRunning,
+  onRunCleanup,
+}: {
+  summary: EmailOutboxRetentionSummary | null;
+  error: string | null;
+  isLoading: boolean;
+  candidateCount: number;
+  isCleanupRunning: boolean;
+  onRunCleanup(): void;
+}) {
+  if (error) {
+    return (
+      <div className="border border-amber-200 bg-amber-50 px-4 py-3 text-[11px] text-amber-700 flex items-start gap-2">
+        <AlertTriangle size={14} className="mt-0.5" aria-hidden="true" />
+        <span>Email outbox retention status is unavailable right now.</span>
+      </div>
+    );
+  }
+
+  if (!summary) {
+    return (
+      <div className="border border-border bg-card px-4 py-3 text-[11px] text-muted-foreground">
+        {isLoading ? "Checking retention cleanup status…" : "Retention cleanup status is unavailable."}
+      </div>
+    );
+  }
+
+  const bodyPurgeCandidates =
+    summary.succeededBodyPurgeCandidateCount + summary.skippedBodyPurgeCandidateCount;
+  const deleteCandidates =
+    summary.succeededDeleteCandidateCount + summary.skippedDeleteCandidateCount;
+
+  return (
+    <div className="border border-border bg-card px-5 py-4 space-y-3">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h3 className="font-serif text-[1.05rem] font-light text-foreground">
+            Retention cleanup
+          </h3>
+          <p className="text-[10px] text-muted-foreground font-sans mt-0.5">
+            Old succeeded/skipped outbox bodies are replaced with a placeholder and very old outbox rows are removed. Failed messages are retained for review and manual retry. Email bodies are never shown here.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onRunCleanup}
+          disabled={isCleanupRunning || candidateCount === 0}
+          className="inline-flex items-center gap-2 px-4 py-2 text-[10px] tracking-wide border border-border bg-background hover:border-foreground disabled:opacity-50"
+        >
+          <RefreshCw
+            size={12}
+            className={isCleanupRunning ? "animate-spin" : undefined}
+            aria-hidden="true"
+          />
+          {isCleanupRunning ? "Cleaning…" : "Run cleanup"}
+        </button>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 text-[10px] font-sans">
+        <div>
+          <p className="text-muted-foreground uppercase tracking-[0.18em] text-[9px]">
+            Worker status
+          </p>
+          <p className="mt-1 text-foreground">
+            {summary.workerEnabled ? "Enabled" : "Disabled"}
+          </p>
+        </div>
+        <div>
+          <p className="text-muted-foreground uppercase tracking-[0.18em] text-[9px]">
+            Body purge candidates
+          </p>
+          <p className="mt-1 text-foreground">
+            {summary.succeededBodyPurgeCandidateCount} succeeded · {summary.skippedBodyPurgeCandidateCount} skipped
+            {bodyPurgeCandidates > 0 ? ` (${bodyPurgeCandidates} total)` : ""}
+          </p>
+        </div>
+        <div>
+          <p className="text-muted-foreground uppercase tracking-[0.18em] text-[9px]">
+            Delete candidates
+          </p>
+          <p className="mt-1 text-foreground">
+            {summary.succeededDeleteCandidateCount} succeeded · {summary.skippedDeleteCandidateCount} skipped
+            {deleteCandidates > 0 ? ` (${deleteCandidates} total)` : ""}
+          </p>
+        </div>
+        <div>
+          <p className="text-muted-foreground uppercase tracking-[0.18em] text-[9px]">
+            Failed retained
+          </p>
+          <p className="mt-1 text-foreground">{summary.failedRetainedCount}</p>
+        </div>
+      </div>
+
+      <p className="text-[10px] text-muted-foreground font-sans">{summary.summaryMessage}</p>
+    </div>
   );
 }
 

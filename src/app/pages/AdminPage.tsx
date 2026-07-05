@@ -16,7 +16,10 @@ import {
 } from "../../api/ordersApi";
 import {
   getEmailOutboxMonitoringSummary,
+  getEmailOutboxRetentionSummary,
+  runEmailOutboxRetentionCleanup,
   type EmailOutboxMonitoringSummary,
+  type EmailOutboxRetentionSummary,
 } from "../../api/emailDeliveryLogApi";
 import { type AdminPageSize } from "../../api/pagination";
 import {
@@ -108,6 +111,12 @@ export function AdminPage() {
     string | null
   >(null);
   const [isEmailOutboxSummaryLoading, setIsEmailOutboxSummaryLoading] =
+    useState(true);
+  const [emailOutboxRetentionSummary, setEmailOutboxRetentionSummary] =
+    useState<EmailOutboxRetentionSummary | null>(null);
+  const [emailOutboxRetentionSummaryError, setEmailOutboxRetentionSummaryError] =
+    useState<string | null>(null);
+  const [isEmailOutboxRetentionSummaryLoading, setIsEmailOutboxRetentionSummaryLoading] =
     useState(true);
   const [contactAttentionCounts, setContactAttentionCounts] =
     useState<AttentionCounts | null>(null);
@@ -226,6 +235,43 @@ export function AdminPage() {
   useEffect(() => {
     void loadEmailOutboxSummary();
   }, [loadEmailOutboxSummary]);
+
+  const loadEmailOutboxRetentionSummary = useCallback(async () => {
+    setIsEmailOutboxRetentionSummaryLoading(true);
+    setEmailOutboxRetentionSummaryError(null);
+
+    try {
+      const summary = await getEmailOutboxRetentionSummary();
+      setEmailOutboxRetentionSummary(summary);
+    } catch (reason: unknown) {
+      if (
+        reason instanceof ApiError &&
+        (reason.status === 401 || reason.status === 403)
+      ) {
+        logout();
+        return;
+      }
+
+      setEmailOutboxRetentionSummaryError(
+        "Email outbox retention status could not be loaded.",
+      );
+    } finally {
+      setIsEmailOutboxRetentionSummaryLoading(false);
+    }
+  }, [logout]);
+
+  useEffect(() => {
+    void loadEmailOutboxRetentionSummary();
+  }, [loadEmailOutboxRetentionSummary]);
+
+  const handleRunEmailOutboxRetentionCleanup = useCallback(async () => {
+    await runEmailOutboxRetentionCleanup();
+    await Promise.all([
+      loadEmailOutboxSummary(),
+      loadEmailOutboxRetentionSummary(),
+    ]);
+    setEmailLogRefreshKey((current) => current + 1);
+  }, [loadEmailOutboxRetentionSummary, loadEmailOutboxSummary]);
 
   useEffect(() => {
     const syncSectionFromUrl = () => {
@@ -605,6 +651,11 @@ export function AdminPage() {
               monitoringSummaryError={emailOutboxSummaryError}
               isMonitoringSummaryLoading={isEmailOutboxSummaryLoading}
               onRefreshMonitoringSummary={() => void loadEmailOutboxSummary()}
+              retentionSummary={emailOutboxRetentionSummary}
+              retentionSummaryError={emailOutboxRetentionSummaryError}
+              isRetentionSummaryLoading={isEmailOutboxRetentionSummaryLoading}
+              onRefreshRetentionSummary={() => void loadEmailOutboxRetentionSummary()}
+              onRunRetentionCleanup={handleRunEmailOutboxRetentionCleanup}
             />
           ) : null}
           {section === "storage" ? (

@@ -45,6 +45,33 @@ export interface EmailOutboxMonitoringSummary {
   summaryMessage: string;
 }
 
+export interface EmailOutboxRetentionSummary {
+  workerEnabled: boolean;
+  workerIntervalHours: number;
+  batchSize: number;
+  succeededBodyRetentionDays: number;
+  succeededMessageRetentionDays: number;
+  skippedBodyRetentionDays: number;
+  skippedMessageRetentionDays: number;
+  succeededBodyPurgeCandidateCount: number;
+  skippedBodyPurgeCandidateCount: number;
+  succeededDeleteCandidateCount: number;
+  skippedDeleteCandidateCount: number;
+  failedRetainedCount: number;
+  oldestSucceededSentAt: string | null;
+  generatedAt: string;
+  summaryMessage: string;
+}
+
+export interface EmailOutboxRetentionCleanupResult {
+  succeededBodyPurgedCount: number;
+  skippedBodyPurgedCount: number;
+  succeededDeletedCount: number;
+  skippedDeletedCount: number;
+  completedAt: string;
+  resultMessage: string;
+}
+
 export interface EmailDeliveryManualRetryResult {
   emailDeliveryLogEntryId: string;
   outboxMessageId: string;
@@ -81,6 +108,17 @@ export function getEmailDeliveryLog(
 
 export function getEmailOutboxMonitoringSummary(): Promise<EmailOutboxMonitoringSummary> {
   return apiClient.get<EmailOutboxMonitoringSummary>("/admin/email-log/summary");
+}
+
+export function getEmailOutboxRetentionSummary(): Promise<EmailOutboxRetentionSummary> {
+  return apiClient.get<EmailOutboxRetentionSummary>("/admin/email-log/retention");
+}
+
+export function runEmailOutboxRetentionCleanup(): Promise<EmailOutboxRetentionCleanupResult> {
+  return apiClient.post<Record<string, never>, EmailOutboxRetentionCleanupResult>(
+    "/admin/email-log/retention/cleanup",
+    {},
+  );
 }
 
 export function retryEmailDeliveryLogEntry(

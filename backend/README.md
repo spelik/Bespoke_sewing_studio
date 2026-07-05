@@ -943,6 +943,25 @@ endpoint is read-only: it does not enqueue, send or change automatic
 retry/backoff or manual retry behaviour, and it never selects or exposes email
 bodies (`HtmlBody`/`TextBody`), recipients, subjects or secrets.
 
+`GET /api/admin/email-log/retention` and `POST /api/admin/email-log/retention/cleanup`
+are protected by the same policy. Retention is configured through
+`EmailOutboxRetention` in `appsettings.json` (worker disabled by default). The
+summary endpoint returns safe counts only: body-purge and delete candidates for
+old `Succeeded`/`Skipped` outbox messages, failed messages retained for review,
+configured retention periods and worker status. The manual cleanup endpoint runs
+one bounded batch per category: first deletes outbox rows older than message
+retention, then replaces real bodies on remaining old `Succeeded`/`Skipped`
+messages with the configured placeholder (`HtmlBody = null`,
+`TextBody = "[Email body purged by retention policy.]"`) to satisfy the existing
+body check constraint. `EmailDeliveryLogEntry` rows are never deleted. Failed,
+retrying, pending and processing messages are never purged or deleted. An
+optional `EmailOutboxRetentionWorker` hosted service can run the same cleanup on
+a schedule when `WorkerEnabled=true`. Successful manual cleanup is recorded in
+the admin audit log (`email_outbox.retention_cleanup_ran`) with count metadata
+only. No schema migration is required; automatic retry/backoff and manual retry
+behaviour are unchanged; email bodies and secrets are never exposed in API,
+audit or logs.
+
 Email log entries are written for owner order notifications, customer order
 confirmations, owner contact notifications, customer contact confirmations and
 test emails. Only metadata is persisted in the log: recipient, subject, provider,

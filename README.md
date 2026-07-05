@@ -276,6 +276,14 @@ scheduled retries or stale pending messages. The summary comes from
 `GET /api/admin/email-log/summary`, is monitoring-only and never exposes email
 bodies or secrets.
 
+Admin **Email Log** also exposes retention cleanup status and a manual **Run
+cleanup** action. Old `Succeeded`/`Skipped` outbox bodies are replaced with a
+safe placeholder and very old outbox rows can be deleted; `EmailDeliveryLog`
+entries remain and failed messages are retained for review/manual retry. See
+`GET /api/admin/email-log/retention` and
+`POST /api/admin/email-log/retention/cleanup`. The optional background worker is
+disabled by default (`EmailOutboxRetention:WorkerEnabled=false`).
+
 The log stores delivery metadata only: recipient email, subject, provider,
 status, result/error summary, related Order/Contact reference and timestamps.
 It intentionally does not expose email bodies, SMTP credentials, Google App

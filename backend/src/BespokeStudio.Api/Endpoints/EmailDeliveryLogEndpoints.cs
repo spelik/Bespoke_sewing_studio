@@ -28,6 +28,18 @@ public static class EmailDeliveryLogEndpoints
             .Produces(StatusCodes.Status401Unauthorized)
             .Produces(StatusCodes.Status403Forbidden);
 
+        admin.MapGet("/retention", GetRetentionAsync)
+            .WithName("GetAdminEmailOutboxRetentionSummary")
+            .Produces<EmailOutboxRetentionSummaryResponse>()
+            .Produces(StatusCodes.Status401Unauthorized)
+            .Produces(StatusCodes.Status403Forbidden);
+
+        admin.MapPost("/retention/cleanup", RunRetentionCleanupAsync)
+            .WithName("RunAdminEmailOutboxRetentionCleanup")
+            .Produces<EmailOutboxRetentionCleanupResponse>()
+            .Produces(StatusCodes.Status401Unauthorized)
+            .Produces(StatusCodes.Status403Forbidden);
+
         admin.MapPost("/{id:guid}/retry", RetryAsync)
             .WithName("RetryAdminEmailDeliveryLogEntry")
             .Produces<EmailDeliveryManualRetryResponse>()
@@ -72,6 +84,44 @@ public static class EmailDeliveryLogEndpoints
     {
         var summary = await service.GetOutboxMonitoringSummaryAsync(cancellationToken);
         return TypedResults.Ok(summary);
+    }
+
+    private static async Task<IResult> GetRetentionAsync(
+        IEmailOutboxRetentionService retentionService,
+        CancellationToken cancellationToken)
+    {
+        var summary = await retentionService.GetSummaryAsync(cancellationToken);
+        return TypedResults.Ok(summary);
+    }
+
+    private static async Task<IResult> RunRetentionCleanupAsync(
+        ClaimsPrincipal principal,
+        IEmailOutboxRetentionService retentionService,
+        IAdminAuditLogService auditLogService,
+        CancellationToken cancellationToken)
+    {
+        var response = await retentionService.RunCleanupAsync(cancellationToken);
+
+        var metadataJson = JsonSerializer.Serialize(new
+        {
+            succeededBodyPurgedCount = response.SucceededBodyPurgedCount,
+            skippedBodyPurgedCount = response.SkippedBodyPurgedCount,
+            succeededDeletedCount = response.SucceededDeletedCount,
+            skippedDeletedCount = response.SkippedDeletedCount
+        });
+
+        await auditLogService.RecordAsync(
+            AdminAuditEndpointHelpers.CreateAuditRequest(
+                principal,
+                "email_outbox.retention_cleanup_ran",
+                "EmailOutboxRetention",
+                "email-outbox-retention",
+                "Email outbox retention",
+                "Email outbox retention cleanup was run.",
+                metadataJson),
+            cancellationToken);
+
+        return TypedResults.Ok(response);
     }
 
     private static async Task<IResult> RetryAsync(

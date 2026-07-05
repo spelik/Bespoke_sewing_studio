@@ -93,6 +93,7 @@ Cloudflare DNS SPF/DKIM/DMARC checklist, production smoke test).
 - проверить, что сбой SMTP или SignalR после сохранения Order/Contact записывается в backend logs, но публичный create endpoint всё равно возвращает success для сохранённой записи;
 - проверить backend logs на отсутствие SMTP credentials / App Password;
 - проверить Email Outbox summary на Admin Dashboard / Email Log: outbox health `Healthy`, нет exhausted failed, нет stale pending, значение retrying понятно (read-only monitoring, retry behavior не меняется, email body/secrets не раскрываются);
+- проверить retention policy (`EmailOutboxRetention` в config): periods согласованы с владельцем; worker включать только после согласования; manual cleanup протестировать на безопасных/test данных; failed messages retained для review/manual retry;
 - настроить production monitoring/alerting для exhausted outbox jobs и `Failed` Email Log;
 - если возможно без реальной рассылки клиентам, проверить manual retry: на тестовом exhausted `Failed` Email Log entry нажать **Retry**, убедиться, что запись возвращается в `Queued`/`Sent` и что automatic retry/backoff не изменился;
 - проверить, что email templates не содержат тестовых данных;

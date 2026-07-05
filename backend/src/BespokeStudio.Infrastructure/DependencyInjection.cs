@@ -51,6 +51,23 @@ public static class DependencyInjection
             .ValidateOnStart();
 
         services
+            .AddOptions<EmailOutboxRetentionOptions>()
+            .Bind(configuration.GetSection(EmailOutboxRetentionOptions.SectionName))
+            .Validate(options => options.WorkerIntervalHours is >= 1 and <= 168, "EmailOutboxRetention:WorkerIntervalHours must be between 1 and 168.")
+            .Validate(options => options.BatchSize is >= 1 and <= 1000, "EmailOutboxRetention:BatchSize must be between 1 and 1000.")
+            .Validate(options => options.SucceededBodyRetentionDays is >= 1 and <= 3650, "EmailOutboxRetention:SucceededBodyRetentionDays must be between 1 and 3650.")
+            .Validate(options => options.SucceededMessageRetentionDays is >= 1 and <= 3650, "EmailOutboxRetention:SucceededMessageRetentionDays must be between 1 and 3650.")
+            .Validate(options => options.SkippedBodyRetentionDays is >= 1 and <= 3650, "EmailOutboxRetention:SkippedBodyRetentionDays must be between 1 and 3650.")
+            .Validate(options => options.SkippedMessageRetentionDays is >= 1 and <= 3650, "EmailOutboxRetention:SkippedMessageRetentionDays must be between 1 and 3650.")
+            .Validate(options => options.SucceededMessageRetentionDays >= options.SucceededBodyRetentionDays, "EmailOutboxRetention:SucceededMessageRetentionDays must be greater than or equal to SucceededBodyRetentionDays.")
+            .Validate(options => options.SkippedMessageRetentionDays >= options.SkippedBodyRetentionDays, "EmailOutboxRetention:SkippedMessageRetentionDays must be greater than or equal to SkippedBodyRetentionDays.")
+            .Validate(
+                options => !string.IsNullOrWhiteSpace(options.PurgedBodyPlaceholder)
+                    && options.PurgedBodyPlaceholder.Length <= 500,
+                "EmailOutboxRetention:PurgedBodyPlaceholder is required and must be at most 500 characters.")
+            .ValidateOnStart();
+
+        services
             .AddOptions<UploadSecurityOptions>()
             .Bind(configuration.GetSection(UploadSecurityOptions.SectionName))
             .Validate(options => IsSupportedMalwareScannerProvider(options.MalwareScanner.Provider), "UploadSecurity:MalwareScanner:Provider must be Disabled, ClamAV or CommandLine.")
@@ -92,6 +109,7 @@ public static class DependencyInjection
         services.AddScoped<IEmailDeliverySettingsService, EmailDeliverySettingsService>();
         services.AddScoped<IEmailDeliveryLogService, EmailDeliveryLogService>();
         services.AddScoped<IEmailOutboxService, EmailOutboxService>();
+        services.AddScoped<IEmailOutboxRetentionService, EmailOutboxRetentionService>();
         services.AddScoped<INotificationService, NotificationService>();
         services.AddScoped<LoggingEmailNotificationSender>();
         services.AddScoped<SmtpEmailNotificationSender>();
@@ -106,6 +124,7 @@ public static class DependencyInjection
         services.AddHostedService<UploadFileDeletionWorker>();
         services.AddScoped<IEmailOutboxProcessor, EmailOutboxProcessor>();
         services.AddHostedService<EmailOutboxWorker>();
+        services.AddHostedService<EmailOutboxRetentionWorker>();
 
         return services;
     }
