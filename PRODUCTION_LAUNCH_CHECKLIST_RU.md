@@ -71,6 +71,12 @@ post-restore smoke test, rollback). Связанные runbooks:
 - иметь rollback plan перед migrations/deploy (backup + текущий commit + previous artifact + restore-команды);
 - выбрать policy: backups encrypted / restricted / offsite;
 - хранить backups вне Git repository; никаких backup-файлов (`.dump`/`.sql`/архивы) в Git;
+- draft backup script reviewed: [`scripts/production/README_RU.md`](scripts/production/README_RU.md);
+- dry-run executed (`-DryRun`, BackupRoot outside repo);
+- real backup executed outside repo;
+- `postgresql.dump.list.txt` checked;
+- `backup-metadata.json` includes release commit;
+- retention prune dry-run checked before enabling `-ApplyRetention`;
 - отдельно сохранить production secrets и Data Protection keys;
 - свериться с `BACKUP_RESTORE_RU.md`.
 

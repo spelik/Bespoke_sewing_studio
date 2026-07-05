@@ -55,12 +55,15 @@ runbooks, а ссылается на них. Секреты в Git не хран
 
 ## D. Pre-launch backup
 
+- можно использовать draft script [`scripts/production/Backup-Production.ps1`](scripts/production/Backup-Production.ps1) (см. [`scripts/production/README_RU.md`](scripts/production/README_RU.md));
+- сначала выполнить `-DryRun`;
+- `-BackupRoot` должен быть **вне Git repository**;
 - DB dump (`pg_dump --format=custom`);
 - uploads storage root;
 - Data Protection keys folder;
 - secret store / env snapshot вне Git;
 - reverse proxy / TLS config вне Git;
-- проверить dump через `pg_restore --list`;
+- проверить dump через `pg_restore --list` и `backup-metadata.json` (release commit);
 - записать backup timestamp/source;
 - НЕ хранить backup files в repository.
 
@@ -177,6 +180,8 @@ Notes:
 
 - automated scheduled backups;
 - backup encryption / offsite upload automation;
+- automated restore test;
+- backup monitoring/alerting;
 - PostgreSQL-backed integration tests;
 - external email alerting / notifications (базовый admin outbox monitoring уже есть на Dashboard / Email Log);
 - object storage adapter;

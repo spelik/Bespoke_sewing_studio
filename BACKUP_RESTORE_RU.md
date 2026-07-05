@@ -189,9 +189,34 @@ Consolidated checklist после restore:
 - не хранить EICAR test files в backup/repo;
 - защищать TLS private keys и Data Protection keys.
 
-Future automation (scheduled backup job, encryption/offsite upload, automated
-restore test, backup monitoring, object storage / CDN backup flow) — см. раздел
+Future automation (encryption/offsite upload, automated restore test, backup
+monitoring, object storage / CDN backup flow) — см. раздел
 [«Что пока не автоматизировано»](#что-пока-не-автоматизировано) в конце документа.
+
+## Draft backup automation script
+
+Reference/draft PowerShell script:
+
+- [`scripts/production/Backup-Production.ps1`](../scripts/production/Backup-Production.ps1)
+- docs: [`scripts/production/README_RU.md`](../scripts/production/README_RU.md)
+
+Script автоматизирует часть production backup steps:
+
+- PostgreSQL custom dump (`postgresql.dump`);
+- optional uploads archive (`uploads.zip`);
+- optional Data Protection keys archive (`data-protection-keys.zip`);
+- `backup-metadata.json` с timestamp / Git commit / script version;
+- verification через `pg_restore --list` → `postgresql.dump.list.txt`.
+
+Важно:
+
+- `-BackupRoot` должен быть **вне Git repository** (script проверяет это);
+- password/secrets **не передавать в Git** и не передавать password parameter в script;
+- PostgreSQL credentials — через `PGPASSWORD`, `.pgpass` или secret store;
+- сначала всегда запускать `-DryRun`;
+- перед production run определить maintenance window / write strategy;
+- после script выполнить verification checklist и restore rehearsal из этого runbook;
+- backup encryption / offsite upload остаются operator responsibility / future task.
 
 ## Когда делать backup
 
@@ -480,13 +505,22 @@ sudo systemctl start bespoke-studio-api
 
 ## Что пока не автоматизировано
 
-На текущем этапе это ручная процедура. В проекте пока нет:
+Draft/reference backup script добавлен (Task 79):
 
-- автоматического scheduled backup job;
+- [`scripts/production/Backup-Production.ps1`](../scripts/production/Backup-Production.ps1)
+- [`scripts/production/README_RU.md`](../scripts/production/README_RU.md)
+
+Script помогает с PostgreSQL dump, uploads/Data Protection keys archives, metadata,
+`pg_restore --list` verification, dry-run и retention prune — но **не заменяет**
+operator decisions и full runbook.
+
+На текущем этапе по-прежнему вручную / future tasks:
+
 - backup encryption script;
-- remote/offsite backup upload;
-- автоматической проверки restore;
-- retention policy enforcement;
-- production object storage/CDN backup flow.
+- remote/offsite backup upload automation;
+- automated restore test;
+- backup monitoring/alerting;
+- production object storage/CDN backup flow;
+- hardened Linux systemd timer / cron packaging (если потребуется).
 
 Эти пункты можно добавить отдельной задачей после выбора production-хостинга и storage-подхода.

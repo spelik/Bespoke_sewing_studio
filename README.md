@@ -348,6 +348,11 @@ physical upload files, and owner-managed Gmail SMTP plus 2FA depend on persisten
 Data Protection keys. Run a restore rehearsal on a test/staging environment at
 least once before the production launch.
 
+A draft/reference production backup script lives in
+[`scripts/production/README_RU.md`](scripts/production/README_RU.md)
+(`Backup-Production.ps1`). It helps automate dump/archives/metadata/verification,
+but real secrets and backup artifacts must stay outside Git.
+
 ## Production launch checklist
 
 On the day of the release, follow

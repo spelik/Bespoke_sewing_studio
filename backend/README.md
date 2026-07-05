@@ -434,6 +434,12 @@ challenge cookie stops working. The short version for this backend is:
   procedure, and back up the Data Protection keys together with the database and
   uploads.
 
+Draft/reference production backup automation (operational helper only; backend
+runtime behaviour unchanged):
+
+- [`../scripts/production/Backup-Production.ps1`](../scripts/production/Backup-Production.ps1)
+- [`../scripts/production/README_RU.md`](../scripts/production/README_RU.md)
+
 Local Docker Compose backup example from the repository root:
 
 ```powershell

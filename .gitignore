@@ -11,3 +11,15 @@ obj/
 .DS_Store
 backend/storage/
 /storage/
+
+# Backup artifacts must never be committed
+/backups/
+backup/
+/backups/**/*.zip
+backup/**/*.zip
+*.dump
+*.backup
+*.bak
+*.pgdump
+*.tar.gz
+*.7z
