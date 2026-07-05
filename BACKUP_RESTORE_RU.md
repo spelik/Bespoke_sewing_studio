@@ -272,8 +272,9 @@ tar -czf "$BACKUP_ROOT/backend-storage.tar.gz" -C /var/www/bespoke-studio/backen
 8. Start PostgreSQL and the API.
 9. Apply newer migrations only if restoring an older dump into newer application code.
 10. Check Admin login, Orders, Contact Messages, uploaded attachments, Settings, Users, My account, Audit Log and public forms.
-11. Send a test email from Admin Settings if SMTP is configured.
-12. Record the restore date, backup source and Git commit used.
+11. Uploads storage is mandatory for a complete restore: run Admin → Storage → Maintenance scan, confirm existing attachments download, do one clean test upload and verify the delete-attachment flow. If the ClamAV/scanner config is restored incorrectly, uploads may be rejected or recorded as `ScanFailed`. See [`UPLOADS_PRODUCTION_RU.md`](UPLOADS_PRODUCTION_RU.md); do not store EICAR test files in the backup or repository.
+12. Send a test email from Admin Settings if SMTP is configured.
+13. Record the restore date, backup source and Git commit used.
 
 Example Docker Compose restore on Linux:
 

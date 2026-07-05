@@ -78,14 +78,27 @@ Cloudflare DNS SPF/DKIM/DMARC checklist, production smoke test).
 
 ## 6. Upload security and storage
 
+Полный runbook: [`UPLOADS_PRODUCTION_RU.md`](UPLOADS_PRODUCTION_RU.md) (storage
+path, ClamAV install, EICAR smoke test, backup/restore, troubleshooting).
+
 Перед приёмом реальных файлов клиентов:
 
-- включить и протестировать ClamAV/production malware scanner;
+- выбрать production `UploadStorage__RootPath` и убедиться, что он writable для backend process user;
+- проверить permissions пользователя backend process на storage root;
+- убедиться, что storage root не отдаётся как public static directory (файлы только через backend API);
+- включить ClamAV или CommandLine scanner;
+- убедиться, что `Provider=Disabled` не остался на production (это только dev/local);
+- убедиться, что `TreatScannerErrorAsRejection=true` (fail-closed);
 - проверить лимиты размера и количества файлов;
 - проверить upload quarantine/final storage flow;
+- проверить clean upload (scan status `Clean`);
+- проверить EICAR rejection в controlled test environment (EICAR не хранить в Git);
+- проверить Admin scan status у attachment;
+- проверить Admin Storage Maintenance scan / delete orphans (на тестовых файлах);
 - убедиться, что `backend/storage` не коммитится в Git;
 - решить, остаётся ли local storage на сервере или нужен object storage later;
-- проверить backup/restore uploads.
+- включить backup uploads и проверить restore smoke test;
+- запланировать мониторинг свободного места на диске.
 
 ## 7. Hosting, HTTPS and secrets
 

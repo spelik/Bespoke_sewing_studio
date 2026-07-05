@@ -176,6 +176,12 @@ when accepted. The default development scanner provider is `Disabled`; productio
 must configure ClamAV before accepting uploads. Production object storage is not
 implemented.
 
+Before accepting real customer uploads, configure the ClamAV/command-line scanner
+and a production `UploadStorage__RootPath`. The full production uploads/ClamAV
+runbook (storage path, ClamAV install, EICAR smoke test, backup/restore and
+troubleshooting) is in [`UPLOADS_PRODUCTION_RU.md`](UPLOADS_PRODUCTION_RU.md).
+Object storage (S3/Azure/R2) remains future work.
+
 ## Services and prices
 
 Sign in at `http://127.0.0.1:5173/admin`, then select **Services**. The owner can

@@ -687,6 +687,16 @@ not linked to orders. Admin order attachment cards show the recorded scan status
 Do not describe scanned files as "100% safe"; use wording such as "Security scan
 completed".
 
+`Provider=Disabled` is only for local/dev (files are stored with
+`ScanStatus=Skipped`) and must not be used in production. Production scanner and
+storage configuration must come from environment variables, a secret store or an
+excluded server config file — never from committed appsettings. Keep
+`TreatScannerErrorAsRejection=true` in production so scanner errors/timeouts
+fail closed (`ScanFailed` → upload rejected). The full production uploads/ClamAV
+runbook (storage path, ClamAV install, EICAR smoke test, backup/restore and
+troubleshooting) is in
+[`../UPLOADS_PRODUCTION_RU.md`](../UPLOADS_PRODUCTION_RU.md).
+
 
 ### Public request rate limits
 
