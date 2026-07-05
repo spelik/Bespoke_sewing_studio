@@ -9,6 +9,7 @@ using BespokeStudio.Api.Configuration;
 using BespokeStudio.Api.Endpoints;
 using BespokeStudio.Api.HealthChecks;
 using BespokeStudio.Api.Hubs;
+using BespokeStudio.Api.Middleware;
 using BespokeStudio.Api.Services;
 using BespokeStudio.Api.Versioning;
 using BespokeStudio.Application.Abstractions;
@@ -37,6 +38,12 @@ if (OperatingSystem.IsWindows())
         "Microsoft.Extensions.Diagnostics.HealthChecks.DefaultHealthCheckService",
         LogLevel.None);
 }
+
+builder.Logging.Configure(options =>
+    options.ActivityTrackingOptions =
+        ActivityTrackingOptions.TraceId |
+        ActivityTrackingOptions.SpanId |
+        ActivityTrackingOptions.ParentId);
 
 var corsSettings = builder.Configuration
     .GetSection(CorsSettings.SectionName)
@@ -322,6 +329,8 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseForwardedHeaders();
+
+app.UseMiddleware<CorrelationIdMiddleware>();
 
 app.Use(async (context, next) =>
 {

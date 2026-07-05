@@ -53,6 +53,32 @@ informational/assembly version; missing commit and build time are returned as nu
 The endpoint never reads or returns connection strings, SMTP settings, credentials,
 internal paths or exception details.
 
+## Request correlation and structured logging
+
+Every request flows through a correlation-id middleware registered right after
+forwarded headers and before security headers, exception handling, CORS,
+authentication, output cache, authorization and rate limiting.
+
+- The header name is `X-Correlation-ID`.
+- If the client or a reverse proxy sends a valid `X-Correlation-ID`, the backend
+  reuses its trimmed value.
+- A value is considered valid only when, after trimming, it is non-empty, at most
+  120 characters long, contains no control characters and uses only
+  `A-Z`, `a-z`, `0-9`, `.`, `-`, `_` and `:`.
+- If the header is missing, empty, unsafe or too long, the backend generates a new
+  id with `Guid.NewGuid().ToString("N")`.
+- The resolved id is written back on every HTTP response `X-Correlation-ID` header
+  (including error/Problem Details and `429` responses) and stored in
+  `HttpContext.Items` for downstream use.
+
+The middleware also opens an `ILogger` scope for the request with the safe
+structured fields `CorrelationId`, `TraceIdentifier`, `RequestMethod` and
+`RequestPath`, so log records for one request can be grouped during
+troubleshooting. Built-in logging additionally tracks `TraceId`, `SpanId` and
+`ParentId` activity ids. The middleware never logs request bodies, cookies,
+tokens, Authorization headers, uploaded files, passwords or other secrets, and no
+API JSON response contract is changed.
+
 ## Public content output caching
 
 Selected anonymous read-only JSON endpoints use the built-in ASP.NET Core output
