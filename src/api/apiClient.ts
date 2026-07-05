@@ -3,8 +3,6 @@ import { clearAccessToken, getAccessToken, setAccessToken } from "./authTokenSto
 
 export interface ApiClient {
   readonly baseUrl: string;
-  readonly mode: "hybrid";
-  resolve<T>(mockData: T): T;
   get<TResponse>(path: string): Promise<TResponse>;
   getBlob(path: string): Promise<Blob>;
   post<TRequest, TResponse>(path: string, body: TRequest): Promise<TResponse>;
@@ -151,19 +149,8 @@ export function refreshAccessToken(): Promise<boolean> {
   return refreshPromise;
 }
 
-function assertPrototypeMode() {
-  if (!appConfig.isPrototypeMode) {
-    throw new Error("A real API client has not been configured yet.");
-  }
-}
-
 export const apiClient: ApiClient = {
   baseUrl: appConfig.apiBaseUrl,
-  mode: "hybrid",
-  resolve<T>(mockData: T) {
-    assertPrototypeMode();
-    return mockData;
-  },
   get<TResponse>(path: string) {
     return request<TResponse>("GET", path);
   },

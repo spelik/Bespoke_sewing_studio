@@ -1,7 +1,6 @@
 export interface AppConfig {
   apiBaseUrl: string;
   publicSiteUrl: string | null;
-  isPrototypeMode: boolean;
 }
 
 function optionalEnv(value: string | undefined): string | null {
@@ -12,5 +11,4 @@ function optionalEnv(value: string | undefined): string | null {
 export const appConfig: Readonly<AppConfig> = {
   apiBaseUrl: import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:5099/api",
   publicSiteUrl: optionalEnv(import.meta.env.VITE_PUBLIC_SITE_URL),
-  isPrototypeMode: true,
 };

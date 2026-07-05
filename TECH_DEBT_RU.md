@@ -2,6 +2,8 @@
 
 ## Закрыто
 
+- Task 67 — Prototype mode cleanup: удалены недостижимые от `src/main.tsx` ранние generated leftovers (`usePrototypeForm`, Figma image fallback и неиспользуемый `components/ui` набор), неиспользуемый Figma asset resolver и prototype-only `apiClient.resolve`/`isPrototypeMode` shim. Локальный typed fallback сохранён как часть backend-first resilience, но теперь возвращается без фиктивного prototype mode. Npm package name приведён к `bespoke-sewing-studio`; связанные только с удалёнными generated components зависимости удалены. Frontend/backend behavior, API contracts и БД не менялись; migration не потребовалась.
+
 - Task 54.1 — Remove unused frontend dependencies: после проверки imports, config/scripts и peer/runtime dependency graph удалены 11 неиспользуемых direct dependencies: `@emotion/react`, `@emotion/styled`, `@mui/icons-material`, `@mui/material`, `@popperjs/core`, `canvas-confetti`, `react-dnd`, `react-dnd-html5-backend`, `react-popper`, `react-responsive-masonry`, `react-slick`. `npm uninstall` синхронизировал `package.json`/`package-lock.json` и удалил 77 package nodes; frontend behavior и backend не менялись. `date-fns` сохранён как peer dependency используемого `react-day-picker`, а generated UI/tooling dependencies оставлены из-за фактических imports/config/scripts.
 
 - Task 54.0 — Microsoft.OpenApi NU1903: `Swashbuckle.AspNetCore` точечно обновлён с `10.0.0` до `10.2.3`; транзитивный `Microsoft.OpenApi` обновился с уязвимой версии `2.3.0` до `2.7.5`. `dotnet list package --vulnerable --include-transitive` больше не находит уязвимых пакетов. Поведение Swagger/OpenAPI и backend API не менялось; migration не потребовалась.
@@ -116,7 +118,7 @@
 
 - Две самые тяжёлые portfolio карточки (`portfolio-1a`, `portfolio-2`) всё ещё заметно крупнее остальных даже после downscale. Следующий шаг по изображениям - отдельные crop-aware thumbnails или AVIF pipeline.
 - SPA fallback всё ещё должен быть настроен на production-сервере. В репозитории добавлена только документация, не серверная конфигурация.
-- Contact Messages API реализован, поэтому Contact form больше не является prototype-only. Public Order form, Contact form и admin-разделы используют реальные backend endpoints.
+- Contact Messages API реализован; Public Order form, Contact form и admin-разделы используют реальные backend endpoints.
 - PostgreSQL и EF migrations проверены напрямую через connection string на `127.0.0.1:5433`; Docker CLI доступен, но sandbox не разрешил доступ к Docker daemon/pipe для отдельной проверки container health.
 - Portfolio/Gallery CMS реализован: категории, items, active/featured/order, Admin image upload и backend-first public gallery работают через PostgreSQL. Локальные frontend assets остаются typed fallback при недоступном API.
 - Website Content CMS реализован для основных текстов и page images Home/About/Services/Portfolio/Order/Contact/Privacy; public frontend использует backend-first данные с typed fallback.
@@ -174,8 +176,8 @@
 - Public data flow проверен: SiteSettings управляет контактами/footer, BrandSettings — logo/navigation/CTA/SEO, PageContent — основными page sections, Services/Portfolio APIs — карточками и ценами/галереей, Orders API — заявками.
 - Удалены устаревшие inline public values (`Logosha Studio`, старый телефон, часы работы, старые email) и hardcoded footer services. Typed fallback email теперь `null`, пока владелец не задаст его через Site Settings.
 - Inline PageContent copy больше не подменяет скрытую backend-секцию. Fallback сосредоточен в `src/data/pageContentData.ts` и используется только при недоступности Content API.
-- Admin sidebar очищен от mock Overview/Clients/Campaigns/Analytics; видимы только работающие Orders, Services, Portfolio, Content, Brand/SEO и Settings.
-- На момент Task 24 process steps, studio values, testimonials и подробные privacy subsections ещё оставались статическими typed data; это закрыто в Task 26 через Repeatable Content CMS. Contact form остаётся prototype-only.
+- Admin sidebar очищен от неработающих Overview/Clients/Campaigns/Analytics; видимы только работающие Orders, Services, Portfolio, Content, Brand/SEO и Settings.
+- На момент Task 24 process steps, studio values, testimonials и подробные privacy subsections ещё оставались статическими typed data; это закрыто в Task 26 через Repeatable Content CMS. Contact form теперь использует реальный backend endpoint.
 - Fallback не является основным источником при доступном backend. Multilingual CMS не планируется: сайт и админка English-only. Rich text editor/page builder остаётся future work.
 
 ## Task 25 — English-only cleanup

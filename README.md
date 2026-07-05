@@ -1,7 +1,7 @@
 
 # Bespoke Sewing Studio frontend
 
-React, Vite and TypeScript frontend for the Bespoke Sewing Studio website. The current UI was exported from Figma Make and is being stabilised incrementally with an ASP.NET Core backend. The product is English-only; EN/UA language switching and multilingual CMS are not part of the current scope.
+Production-oriented React, Vite and TypeScript frontend for the Bespoke Sewing Studio website, integrated with the ASP.NET Core backend and PostgreSQL-backed CMS. The product is English-only; EN/UA language switching and multilingual CMS are not part of the current scope.
 
 ## Frontend data mode
 
