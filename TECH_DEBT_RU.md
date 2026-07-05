@@ -2,6 +2,8 @@
 
 ## Закрыто
 
+- Task 54.1 — Remove unused frontend dependencies: после проверки imports, config/scripts и peer/runtime dependency graph удалены 11 неиспользуемых direct dependencies: `@emotion/react`, `@emotion/styled`, `@mui/icons-material`, `@mui/material`, `@popperjs/core`, `canvas-confetti`, `react-dnd`, `react-dnd-html5-backend`, `react-popper`, `react-responsive-masonry`, `react-slick`. `npm uninstall` синхронизировал `package.json`/`package-lock.json` и удалил 77 package nodes; frontend behavior и backend не менялись. `date-fns` сохранён как peer dependency используемого `react-day-picker`, а generated UI/tooling dependencies оставлены из-за фактических imports/config/scripts.
+
 - Task 54.0 — Microsoft.OpenApi NU1903: `Swashbuckle.AspNetCore` точечно обновлён с `10.0.0` до `10.2.3`; транзитивный `Microsoft.OpenApi` обновился с уязвимой версии `2.3.0` до `2.7.5`. `dotnet list package --vulnerable --include-transitive` больше не находит уязвимых пакетов. Поведение Swagger/OpenAPI и backend API не менялось; migration не потребовалась.
 
 - Task 50 — Split AdminPage into modules: без изменения поведения и дизайна из `AdminPage.tsx` вынесены admin section/hash navigation, Dashboard overview/cards/readiness helpers, live updates status, attention counters/badges и Orders CSV export. `AdminPage.tsx` уменьшен с 1297 до 590 строк и оставлен orchestrator'ом auth, state, data loading, realtime events и panel wiring. Backend/API contracts/migrations не менялись. Дальнейшее разделение orchestration/data-loading на специализированные hooks оставлено для отдельной задачи, чтобы refactor-only изменения не затрагивали admin behavior.
