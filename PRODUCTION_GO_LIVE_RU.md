@@ -30,6 +30,7 @@ runbooks, а ссылается на них. Секреты в Git не хран
 - `npm.cmd run typecheck` green;
 - `npm.cmd run build` green;
 - `dotnet test backend\BespokeStudio.sln` green;
+- optional but recommended: PostgreSQL integration tests executed against dedicated test PostgreSQL (not production) with temporary `bespoke_studio_integration_*` database — see `backend/README.md`;
 - `dotnet build backend\BespokeStudio.sln` green;
 - production backup сделан и проверен (`pg_restore --list`);
 - restore rehearsal выполнен хотя бы один раз;
@@ -182,7 +183,7 @@ Notes:
 - backup encryption / offsite upload automation;
 - automated restore test;
 - backup monitoring/alerting;
-- PostgreSQL-backed integration tests;
+- expand PostgreSQL integration test coverage (auth/2FA, order/contact/upload API flows; базовый opt-in persistence набор — Task 80);
 - external email alerting / notifications (базовый admin outbox monitoring уже есть на Dashboard / Email Log);
 - object storage adapter;
 - external Data Protection key store для multi-instance;

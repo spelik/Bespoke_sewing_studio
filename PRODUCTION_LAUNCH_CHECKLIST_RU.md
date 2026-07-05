@@ -237,8 +237,11 @@ dotnet build backend\BespokeStudio.sln
 
 Backend tests нужно запускать также перед commit, который затрагивает backend.
 Текущий набор является foundation unit-тестов и не заменяет ручные production
-проверки, PostgreSQL-backed integration tests и полную проверку auth/2FA,
-Order, Contact и upload flows.
+проверки и полную проверку auth/2FA, Order, Contact и upload flows.
+
+- optional PostgreSQL integration tests executed against dedicated temporary test
+  database (`bespoke_studio_integration_*`); never use production PostgreSQL — see
+  `backend/README.md#postgresql-integration-tests`;
 
 На production проверить вручную:
 

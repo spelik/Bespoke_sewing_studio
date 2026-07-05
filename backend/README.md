@@ -1206,6 +1206,40 @@ PostgreSQL, SMTP, ClamAV, uploaded files or local secrets. API tests backed by a
 dedicated PostgreSQL test database, full auth/2FA flows and order/contact/upload
 integration tests are deferred to Tasks 49.2 and 49.3.
 
+## PostgreSQL integration tests
+
+Optional PostgreSQL-backed integration tests live in
+`tests/BespokeStudio.Tests/Integration/PostgreSql/`. They are **opt-in**:
+default `dotnet test backend\BespokeStudio.sln` does **not** require PostgreSQL and
+skips these tests when env vars are not set (CI/dev safe).
+
+When enabled, each test:
+
+- creates a temporary database `bespoke_studio_integration_<guid>`;
+- applies EF Core migrations via `Database.MigrateAsync()`;
+- runs PostgreSQL-sensitive persistence checks;
+- drops only the generated database on cleanup (`DROP DATABASE ... WITH (FORCE)`).
+
+**Never** point env vars at a production database. Use a dedicated admin/test
+PostgreSQL connection with permission to create/drop temporary databases only.
+
+Recommended local flow:
+
+```powershell
+cd C:\Projects\Bespoke_sewing_studio
+docker compose -f docker-compose.postgres.yml up -d postgres
+$env:BESPOKESTUDIO_RUN_POSTGRES_INTEGRATION_TESTS = "true"
+$env:BESPOKESTUDIO_POSTGRES_ADMIN_CONNECTION_STRING = "<admin-test-postgres-connection-string>"
+dotnet test backend\BespokeStudio.sln --filter "FullyQualifiedName~PostgreSql"
+Remove-Item Env:\BESPOKESTUDIO_RUN_POSTGRES_INTEGRATION_TESTS -ErrorAction SilentlyContinue
+Remove-Item Env:\BESPOKESTUDIO_POSTGRES_ADMIN_CONNECTION_STRING -ErrorAction SilentlyContinue
+```
+
+For local Docker Compose dev PostgreSQL, connection details are defined in
+`docker-compose.postgres.yml` at the repository root. Build an admin connection
+string from those values yourself; do not commit or copy production secrets into
+Git.
+
 GitHub Actions runs the suite automatically from `.github/workflows/ci.yml` on
 every pull request and every push to `main`. CI restores and builds the solution
 with the .NET 10.0.x SDK in Release configuration, then runs tests with

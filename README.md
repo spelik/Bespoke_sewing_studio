@@ -651,8 +651,10 @@ dotnet build backend\BespokeStudio.sln
 ```
 
 Task 49.1 adds the test project and initial unit tests without changing production
-runtime behaviour. PostgreSQL-backed API tests and full auth, 2FA, order, contact
-and upload integration coverage remain future work.
+runtime behaviour. Optional PostgreSQL integration tests are documented in
+[`backend/README.md`](backend/README.md#postgresql-integration-tests) (opt-in via
+env vars; default `dotnet test` skips them). Full auth/2FA/order/contact/upload
+API integration coverage remains future work.
 
 ## Routing
 
