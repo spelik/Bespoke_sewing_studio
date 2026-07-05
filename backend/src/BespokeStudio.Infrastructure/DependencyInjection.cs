@@ -97,6 +97,7 @@ public static class DependencyInjection
         services.AddScoped<SmtpEmailNotificationSender>();
         services.AddScoped<IEmailNotificationSender, ConfiguredEmailNotificationSender>();
         services.AddScoped<IMalwareScanner, ConfiguredMalwareScanner>();
+        services.AddScoped<IUploadStorage, LocalUploadStorage>();
         services.AddScoped<IUploadService, LocalUploadService>();
         services.AddScoped<IUploadCleanupService, UploadCleanupService>();
         services.AddScoped<IStorageMaintenanceService, StorageMaintenanceService>();

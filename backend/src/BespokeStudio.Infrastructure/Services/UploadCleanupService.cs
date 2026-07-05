@@ -4,7 +4,6 @@ using BespokeStudio.Domain.Enums;
 using BespokeStudio.Infrastructure.Persistence;
 using BespokeStudio.Infrastructure.Storage;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -15,18 +14,18 @@ public sealed class UploadCleanupService : IUploadCleanupService
     private readonly BespokeStudioDbContext _dbContext;
     private readonly ILogger<UploadCleanupService> _logger;
     private readonly UploadStorageOptions _options;
-    private readonly string _storageRoot;
+    private readonly IUploadStorage _storage;
 
     public UploadCleanupService(
         BespokeStudioDbContext dbContext,
         IOptions<UploadStorageOptions> options,
-        IHostEnvironment environment,
+        IUploadStorage storage,
         ILogger<UploadCleanupService> logger)
     {
         _dbContext = dbContext;
         _logger = logger;
         _options = options.Value;
-        _storageRoot = UploadStoragePath.ResolveRoot(_options, environment);
+        _storage = storage;
     }
 
     public async Task<UploadCleanupResponse> CleanupOrphansAsync(
@@ -72,17 +71,14 @@ public sealed class UploadCleanupService : IUploadCleanupService
                     continue;
                 }
 
-                var physicalPath = UploadStoragePath.ResolveFile(
-                    _storageRoot,
-                    metadata.StorageKey);
-                var fileExists = File.Exists(physicalPath);
+                var fileExists = _storage.Exists(metadata.StorageKey);
 
                 _dbContext.UploadedFiles.Remove(metadata);
                 await _dbContext.SaveChangesAsync(cancellationToken);
 
                 if (fileExists)
                 {
-                    File.Delete(physicalPath);
+                    _storage.DeleteFile(metadata.StorageKey);
                     deletedPhysicalFiles++;
                 }
                 else

@@ -2,7 +2,6 @@ using BespokeStudio.Domain.Enums;
 using BespokeStudio.Infrastructure.Persistence;
 using BespokeStudio.Infrastructure.Storage;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -21,19 +20,18 @@ internal sealed class UploadFileDeletionProcessor : IUploadFileDeletionProcessor
     private readonly BespokeStudioDbContext _dbContext;
     private readonly UploadDeletionOptions _options;
     private readonly ILogger<UploadFileDeletionProcessor> _logger;
-    private readonly string _storageRoot;
+    private readonly IUploadStorage _storage;
 
     public UploadFileDeletionProcessor(
         BespokeStudioDbContext dbContext,
-        IOptions<UploadStorageOptions> storageOptions,
         IOptions<UploadDeletionOptions> deletionOptions,
-        IHostEnvironment environment,
+        IUploadStorage storage,
         ILogger<UploadFileDeletionProcessor> logger)
     {
         _dbContext = dbContext;
         _options = deletionOptions.Value;
         _logger = logger;
-        _storageRoot = UploadStoragePath.ResolveRoot(storageOptions.Value, environment);
+        _storage = storage;
     }
 
     public async Task<int> ProcessDueAsync(CancellationToken cancellationToken)
@@ -94,12 +92,9 @@ internal sealed class UploadFileDeletionProcessor : IUploadFileDeletionProcessor
 
         try
         {
-            var storageKey = UploadStoragePath.NormalizeAndValidateStorageKey(
-                _storageRoot,
-                job.StorageKey);
-            var physicalPath = UploadStoragePath.ResolveFile(_storageRoot, storageKey);
+            var storageKey = _storage.NormalizeAndValidateStorageKey(job.StorageKey);
 
-            if (!File.Exists(physicalPath))
+            if (!_storage.Exists(storageKey))
             {
                 await CompleteAsync(
                     jobId,
@@ -112,7 +107,7 @@ internal sealed class UploadFileDeletionProcessor : IUploadFileDeletionProcessor
                 return;
             }
 
-            File.Delete(physicalPath);
+            _storage.DeleteFile(storageKey);
             await CompleteAsync(
                 jobId,
                 UploadFileDeletionJobStatus.Succeeded,

@@ -5,7 +5,6 @@ using BespokeStudio.Domain.Enums;
 using BespokeStudio.Infrastructure.Persistence;
 using BespokeStudio.Infrastructure.Storage;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 
 namespace BespokeStudio.Infrastructure.Services;
@@ -14,26 +13,23 @@ public sealed class UploadFileDeletionScheduler : IUploadFileDeletionScheduler
 {
     private readonly BespokeStudioDbContext _dbContext;
     private readonly UploadDeletionOptions _options;
-    private readonly string _storageRoot;
+    private readonly IUploadStorage _storage;
 
     public UploadFileDeletionScheduler(
         BespokeStudioDbContext dbContext,
-        IOptions<UploadStorageOptions> storageOptions,
         IOptions<UploadDeletionOptions> deletionOptions,
-        IHostEnvironment environment)
+        IUploadStorage storage)
     {
         _dbContext = dbContext;
         _options = deletionOptions.Value;
-        _storageRoot = UploadStoragePath.ResolveRoot(storageOptions.Value, environment);
+        _storage = storage;
     }
 
     public async Task ScheduleAsync(
         ScheduleUploadFileDeletionRequest request,
         CancellationToken cancellationToken = default)
     {
-        var storageKey = UploadStoragePath.NormalizeAndValidateStorageKey(
-            _storageRoot,
-            request.StorageKey);
+        var storageKey = _storage.NormalizeAndValidateStorageKey(request.StorageKey);
         var existing = _dbContext.UploadFileDeletionJobs.Local
             .FirstOrDefault(job => string.Equals(
                 job.StorageKey,

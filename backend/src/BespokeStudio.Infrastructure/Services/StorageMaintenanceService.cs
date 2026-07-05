@@ -5,9 +5,7 @@ using BespokeStudio.Domain.Enums;
 using BespokeStudio.Infrastructure.Persistence;
 using BespokeStudio.Infrastructure.Storage;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 
 namespace BespokeStudio.Infrastructure.Services;
 
@@ -18,20 +16,19 @@ public sealed class StorageMaintenanceService : IStorageMaintenanceService
 
     private readonly BespokeStudioDbContext _dbContext;
     private readonly IAdminAuditLogService _auditLogService;
+    private readonly IUploadStorage _storage;
     private readonly ILogger<StorageMaintenanceService> _logger;
-    private readonly string _storageRoot;
 
     public StorageMaintenanceService(
         BespokeStudioDbContext dbContext,
         IAdminAuditLogService auditLogService,
-        IOptions<UploadStorageOptions> options,
-        IHostEnvironment environment,
+        IUploadStorage storage,
         ILogger<StorageMaintenanceService> logger)
     {
         _dbContext = dbContext;
         _auditLogService = auditLogService;
+        _storage = storage;
         _logger = logger;
-        _storageRoot = UploadStoragePath.ResolveRoot(options.Value, environment);
     }
 
     public async Task<StorageScanResponse> ScanAsync(
@@ -47,17 +44,17 @@ public sealed class StorageMaintenanceService : IStorageMaintenanceService
                 file.Purpose.ToString()))
             .ToArrayAsync(cancellationToken);
 
-        var physicalFiles = EnumeratePhysicalFiles();
+        var physicalFiles = _storage.EnumerateFiles();
         var databaseKeys = databaseFiles
             .Select(file => NormalizeStorageKey(file.StorageKey))
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
         var physicalKeys = physicalFiles
-            .Select(file => file.RelativePath)
+            .Select(file => file.StorageKey)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
         var orphanFiles = physicalFiles
-            .Where(file => !databaseKeys.Contains(file.RelativePath))
-            .OrderBy(file => file.RelativePath, StringComparer.OrdinalIgnoreCase)
+            .Where(file => !databaseKeys.Contains(file.StorageKey))
+            .OrderBy(file => file.StorageKey, StringComparer.OrdinalIgnoreCase)
             .ToArray();
         var missingFiles = databaseFiles
             .Where(file => !physicalKeys.Contains(NormalizeStorageKey(file.StorageKey)))
@@ -98,9 +95,9 @@ public sealed class StorageMaintenanceService : IStorageMaintenanceService
             OrphanPhysicalFiles: orphanFiles
                 .Take(MaxListedItems)
                 .Select(file => new OrphanPhysicalFileResponse(
-                    file.RelativePath,
+                    file.StorageKey,
                     file.SizeBytes,
-                    file.LastModifiedAt))
+                    file.LastModifiedAtUtc))
                 .ToArray(),
             MissingPhysicalFiles: missingFiles
                 .Take(MaxListedItems)
@@ -124,10 +121,10 @@ public sealed class StorageMaintenanceService : IStorageMaintenanceService
         AdminAuditActor actor,
         CancellationToken cancellationToken = default)
     {
-        var physicalFiles = EnumeratePhysicalFiles();
+        var physicalFiles = _storage.EnumerateFiles();
         var referencedKeys = await LoadReferencedKeysAsync(cancellationToken);
         var candidates = physicalFiles
-            .Where(file => !referencedKeys.Contains(file.RelativePath))
+            .Where(file => !referencedKeys.Contains(file.StorageKey))
             .ToArray();
 
         var deletedCount = 0;
@@ -142,23 +139,20 @@ public sealed class StorageMaintenanceService : IStorageMaintenanceService
             try
             {
                 referencedKeys = await LoadReferencedKeysAsync(cancellationToken);
-                if (referencedKeys.Contains(candidate.RelativePath))
+                if (referencedKeys.Contains(candidate.StorageKey))
                 {
                     skippedCount++;
                     continue;
                 }
 
-                var physicalPath = UploadStoragePath.ResolveFile(
-                    _storageRoot,
-                    candidate.RelativePath);
-                if (!File.Exists(physicalPath))
+                if (!_storage.Exists(candidate.StorageKey))
                 {
                     skippedCount++;
                     continue;
                 }
 
-                var sizeBytes = new FileInfo(physicalPath).Length;
-                File.Delete(physicalPath);
+                var sizeBytes = _storage.GetFileSize(candidate.StorageKey);
+                _storage.DeleteFile(candidate.StorageKey);
                 deletedCount++;
                 deletedBytes += sizeBytes;
             }
@@ -167,12 +161,12 @@ public sealed class StorageMaintenanceService : IStorageMaintenanceService
                 _logger.LogWarning(
                     exception,
                     "Failed to delete orphan physical upload {StorageKey}.",
-                    candidate.RelativePath);
+                    candidate.StorageKey);
 
                 if (failures.Count < MaxFailedItems)
                 {
                     failures.Add(new StorageCleanupFailureResponse(
-                        candidate.RelativePath,
+                        candidate.StorageKey,
                         "The file could not be deleted. Check server logs and file permissions."));
                 }
             }
@@ -197,49 +191,6 @@ public sealed class StorageMaintenanceService : IStorageMaintenanceService
             cancellationToken);
 
         return result;
-    }
-
-    private IReadOnlyList<PhysicalFileSnapshot> EnumeratePhysicalFiles()
-    {
-        if (!Directory.Exists(_storageRoot))
-        {
-            return [];
-        }
-
-        var files = new List<PhysicalFileSnapshot>();
-        var enumerationOptions = new EnumerationOptions
-        {
-            RecurseSubdirectories = true,
-            IgnoreInaccessible = true,
-            AttributesToSkip = FileAttributes.ReparsePoint
-        };
-
-        foreach (var physicalPath in Directory.EnumerateFiles(
-                     _storageRoot,
-                     "*",
-                     enumerationOptions))
-        {
-            try
-            {
-                var relativePath = NormalizeStorageKey(
-                    Path.GetRelativePath(_storageRoot, physicalPath));
-                var verifiedPath = UploadStoragePath.ResolveFile(_storageRoot, relativePath);
-                var fileInfo = new FileInfo(verifiedPath);
-
-                files.Add(new PhysicalFileSnapshot(
-                    relativePath,
-                    fileInfo.Length,
-                    new DateTimeOffset(fileInfo.LastWriteTimeUtc, TimeSpan.Zero)));
-            }
-            catch (Exception exception)
-            {
-                _logger.LogWarning(
-                    exception,
-                    "A physical upload entry could not be inspected during storage scan.");
-            }
-        }
-
-        return files;
     }
 
     private async Task<HashSet<string>> LoadReferencedKeysAsync(
@@ -333,7 +284,7 @@ public sealed class StorageMaintenanceService : IStorageMaintenanceService
         var normalized = NormalizeStorageKey(storageKey);
         try
         {
-            UploadStoragePath.ResolveFile(_storageRoot, normalized);
+            _storage.NormalizeAndValidateStorageKey(normalized);
             return normalized;
         }
         catch
@@ -355,9 +306,4 @@ public sealed class StorageMaintenanceService : IStorageMaintenanceService
         string OriginalFileName,
         string StorageKey,
         string Purpose);
-
-    private sealed record PhysicalFileSnapshot(
-        string RelativePath,
-        long SizeBytes,
-        DateTimeOffset? LastModifiedAt);
 }

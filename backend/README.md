@@ -634,6 +634,18 @@ Administrators download linked files through protected
 frontend obtains the file as a Bearer-authenticated blob and downloads it using
 the original filename. Files are not served from `wwwroot`.
 
+All physical storage access goes through the `IUploadStorage` abstraction
+(`backend/src/BespokeStudio.Infrastructure/Storage`). The only implementation
+today is `LocalUploadStorage`, a local-filesystem adapter that owns the storage
+root and all `File`/`Directory`/`FileStream` operations and delegates path
+resolution and traversal protection to the existing `UploadStoragePath` helper.
+The upload, cleanup, storage-maintenance and deletion services depend on the
+interface rather than the filesystem directly, so a production object-storage
+adapter (S3/Azure/R2) can be added later without touching those services. That
+provider is not implemented yet. Storage keys stay relative and safe, and API
+responses never expose absolute server paths. Physical development files still
+live under `backend/storage/uploads` and public API contracts are unchanged.
+
 To verify manually, submit an enquiry with an allowed file in `/order`, confirm
 that a generated file appears under `backend/storage/uploads`, then sign in at
 `/admin`, open the enquiry, confirm the attachment scan status is shown, and

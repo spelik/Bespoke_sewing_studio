@@ -8,8 +8,6 @@ using BespokeStudio.Domain.Enums;
 using BespokeStudio.Infrastructure.Persistence;
 using BespokeStudio.Infrastructure.Storage;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace BespokeStudio.Infrastructure.Services;
@@ -28,24 +26,21 @@ public sealed class LocalUploadService : IUploadService
     private readonly BespokeStudioDbContext _dbContext;
     private readonly UploadStorageOptions _options;
     private readonly IMalwareScanner _malwareScanner;
-    private readonly ILogger<LocalUploadService> _logger;
     private readonly IUploadFileDeletionScheduler _fileDeletionScheduler;
-    private readonly string _storageRoot;
+    private readonly IUploadStorage _storage;
 
     public LocalUploadService(
         BespokeStudioDbContext dbContext,
         IOptions<UploadStorageOptions> options,
-        IHostEnvironment environment,
         IMalwareScanner malwareScanner,
         IUploadFileDeletionScheduler fileDeletionScheduler,
-        ILogger<LocalUploadService> logger)
+        IUploadStorage storage)
     {
         _dbContext = dbContext;
         _options = options.Value;
         _malwareScanner = malwareScanner;
         _fileDeletionScheduler = fileDeletionScheduler;
-        _logger = logger;
-        _storageRoot = UploadStoragePath.ResolveRoot(_options, environment);
+        _storage = storage;
     }
 
     public async Task<IReadOnlyList<UploadedFileResponse>> UploadOrderAttachmentsAsync(
@@ -79,7 +74,7 @@ public sealed class LocalUploadService : IUploadService
         {
             foreach (var upload in storedUploads)
             {
-                TryDelete(upload.PhysicalPath);
+                _storage.DeleteIfExists(upload.FinalStorageKey);
             }
 
             throw;
@@ -112,7 +107,7 @@ public sealed class LocalUploadService : IUploadService
         }
         catch
         {
-            TryDelete(storedUpload.PhysicalPath);
+            _storage.DeleteIfExists(storedUpload.FinalStorageKey);
             throw;
         }
     }
@@ -141,7 +136,7 @@ public sealed class LocalUploadService : IUploadService
         }
         catch
         {
-            TryDelete(storedUpload.PhysicalPath);
+            _storage.DeleteIfExists(storedUpload.FinalStorageKey);
             throw;
         }
     }
@@ -170,7 +165,7 @@ public sealed class LocalUploadService : IUploadService
         }
         catch
         {
-            TryDelete(storedUpload.PhysicalPath);
+            _storage.DeleteIfExists(storedUpload.FinalStorageKey);
             throw;
         }
     }
@@ -403,49 +398,23 @@ public sealed class LocalUploadService : IUploadService
         CancellationToken cancellationToken)
     {
         var now = DateTimeOffset.UtcNow;
-        var relativeDirectory = Path.Combine(
-            storageFolder,
-            now.ToString("yyyy"),
-            now.ToString("MM"));
-        var quarantineDirectory = Path.Combine(
-            "quarantine",
-            storageFolder,
-            now.ToString("yyyy"),
-            now.ToString("MM"));
-        var storedFileName = $"{Guid.NewGuid():N}{file.Extension}";
-        var storageKey = Path.Combine(relativeDirectory, storedFileName)
-            .Replace(Path.DirectorySeparatorChar, '/');
-        var finalDirectoryPath = Path.Combine(_storageRoot, relativeDirectory);
-        var finalPhysicalPath = Path.Combine(finalDirectoryPath, storedFileName);
-        var quarantineDirectoryPath = Path.Combine(_storageRoot, quarantineDirectory);
-        var quarantinePhysicalPath = Path.Combine(quarantineDirectoryPath, storedFileName);
+        var keys = _storage.BuildStorageKeys(storageFolder, file.Extension, now);
 
         try
         {
-            Directory.CreateDirectory(quarantineDirectoryPath);
-
-            await using (var destination = new FileStream(
-                quarantinePhysicalPath,
-                FileMode.CreateNew,
-                FileAccess.Write,
-                FileShare.None,
-                bufferSize: 81920,
-                useAsync: true))
-            {
-                await CopyWithLimitAsync(
-                    file.Request.Content,
-                    destination,
-                    _options.MaxFileSizeBytes,
-                    cancellationToken);
-            }
+            await _storage.WriteNewFileAsync(
+                keys.QuarantineKey,
+                file.Request.Content,
+                _options.MaxFileSizeBytes,
+                cancellationToken);
 
             await ValidateFileSignatureAsync(
-                quarantinePhysicalPath,
+                keys.QuarantineKey,
                 file.ContentType,
                 cancellationToken);
 
             var scan = await _malwareScanner.ScanAsync(
-                quarantinePhysicalPath,
+                _storage.GetRequiredLocalPhysicalPath(keys.QuarantineKey),
                 cancellationToken);
 
             if (!scan.IsAccepted)
@@ -453,15 +422,14 @@ public sealed class LocalUploadService : IUploadService
                 throw new UploadValidationException(ToUploadRejectionMessage(scan.Status));
             }
 
-            Directory.CreateDirectory(finalDirectoryPath);
-            File.Move(quarantinePhysicalPath, finalPhysicalPath);
+            _storage.MoveToFinal(keys.QuarantineKey, keys.FinalKey);
 
             var metadata = new UploadedFileMetadata
             {
                 Purpose = purpose,
                 OriginalFileName = file.OriginalFileName,
-                StoredFileName = storedFileName,
-                StorageKey = storageKey,
+                StoredFileName = keys.StoredFileName,
+                StorageKey = keys.FinalKey,
                 ContentType = file.ContentType,
                 SizeBytes = file.Request.SizeBytes,
                 ScanStatus = scan.Status,
@@ -472,12 +440,12 @@ public sealed class LocalUploadService : IUploadService
                 UpdatedAt = now
             };
 
-            return new StoredUpload(metadata, finalPhysicalPath);
+            return new StoredUpload(metadata, keys.FinalKey);
         }
         catch
         {
-            TryDelete(quarantinePhysicalPath);
-            TryDelete(finalPhysicalPath);
+            _storage.DeleteIfExists(keys.QuarantineKey);
+            _storage.DeleteIfExists(keys.FinalKey);
             throw;
         }
     }
@@ -523,19 +491,13 @@ public sealed class LocalUploadService : IUploadService
         return new PreparedUpload(request, originalFileName, contentType, extension);
     }
 
-    private static async Task ValidateFileSignatureAsync(
-        string physicalPath,
+    private async Task ValidateFileSignatureAsync(
+        string storageKey,
         string contentType,
         CancellationToken cancellationToken)
     {
         var header = new byte[16];
-        await using var stream = new FileStream(
-            physicalPath,
-            FileMode.Open,
-            FileAccess.Read,
-            FileShare.Read,
-            bufferSize: 16,
-            useAsync: true);
+        await using var stream = _storage.OpenRead(storageKey);
 
         var read = await stream.ReadAsync(header, cancellationToken);
         var isValid = contentType switch
@@ -552,28 +514,6 @@ public sealed class LocalUploadService : IUploadService
         if (!isValid)
         {
             throw new UploadValidationException("The file contents do not match the selected file type.");
-        }
-    }
-
-    private static async Task CopyWithLimitAsync(
-        Stream source,
-        Stream destination,
-        long maxBytes,
-        CancellationToken cancellationToken)
-    {
-        var buffer = new byte[81920];
-        long totalBytes = 0;
-        int bytesRead;
-
-        while ((bytesRead = await source.ReadAsync(buffer, cancellationToken)) > 0)
-        {
-            totalBytes += bytesRead;
-            if (totalBytes > maxBytes)
-            {
-                throw new UploadValidationException("The uploaded file exceeds the configured size limit.");
-            }
-
-            await destination.WriteAsync(buffer.AsMemory(0, bytesRead), cancellationToken);
         }
     }
 
@@ -596,14 +536,13 @@ public sealed class LocalUploadService : IUploadService
             return null;
         }
 
-        var physicalPath = UploadStoragePath.ResolveFile(_storageRoot, metadata.StorageKey);
-        if (!File.Exists(physicalPath))
+        if (!_storage.Exists(metadata.StorageKey))
         {
             return null;
         }
 
         return new UploadDownloadResponse(
-            new FileStream(physicalPath, FileMode.Open, FileAccess.Read, FileShare.Read, 81920, true),
+            _storage.OpenRead(metadata.StorageKey),
             metadata.OriginalFileName,
             metadata.ContentType,
             metadata.SizeBytes);
@@ -616,25 +555,6 @@ public sealed class LocalUploadService : IUploadService
         _ => "This file could not be accepted. Please upload a different file."
     };
 
-    private bool TryDelete(string path)
-    {
-        try
-        {
-            if (!File.Exists(path))
-            {
-                return true;
-            }
-
-            File.Delete(path);
-            return true;
-        }
-        catch (Exception exception)
-        {
-            _logger.LogWarning(exception, "Failed to delete upload file {Path}.", path);
-            return false;
-        }
-    }
-
     private sealed record PreparedUpload(
         UploadFileRequest Request,
         string OriginalFileName,
@@ -643,5 +563,5 @@ public sealed class LocalUploadService : IUploadService
 
     private sealed record StoredUpload(
         UploadedFileMetadata Metadata,
-        string PhysicalPath);
+        string FinalStorageKey);
 }
