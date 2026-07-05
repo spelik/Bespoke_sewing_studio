@@ -421,6 +421,14 @@ Owner notifications for Orders and Contact Messages are already implemented, but
 local development uses `Provider=Logging` by default. Real email delivery is a
 mandatory production setup item and must be configured outside source control.
 
+The full step-by-step production runbook (both supported strategies, the
+Cloudflare DNS SPF/DKIM/DMARC checklist for `oksanalogosha.com`, and a production
+smoke test) lives in [`SMTP_PRODUCTION_RU.md`](SMTP_PRODUCTION_RU.md). The
+production domain is `oksanalogosha.com`; sending from an `@oksanalogosha.com`
+address requires a chosen SMTP/email provider. Cloudflare DNS is needed for
+SPF/DKIM/DMARC records but does not itself send email and cannot replace an SMTP
+sender. Never commit SMTP/Gmail secrets to Git.
+
 Before production release:
 
 - choose one delivery mode:
@@ -453,7 +461,7 @@ dotnet user-secrets set "Notifications:Email:Provider" "Smtp" --project backend/
 dotnet user-secrets set "Notifications:Email:Smtp:Host" "smtp.gmail.com" --project backend/src/BespokeStudio.Api
 dotnet user-secrets set "Notifications:Email:Smtp:Port" "587" --project backend/src/BespokeStudio.Api
 dotnet user-secrets set "Notifications:Email:Smtp:Username" "your-gmail-address@gmail.com" --project backend/src/BespokeStudio.Api
-dotnet user-secrets set "Notifications:Email:Smtp:Password" "replace-with-google-app-password" --project backend/src/BespokeStudio.Api
+dotnet user-secrets set "Notifications:Email:Smtp:Password" "<google-app-password-from-secret-store>" --project backend/src/BespokeStudio.Api
 dotnet user-secrets set "Notifications:Email:Smtp:FromEmail" "your-gmail-address@gmail.com" --project backend/src/BespokeStudio.Api
 dotnet user-secrets set "Notifications:Email:Smtp:FromName" "Bespoke Sewing Studio" --project backend/src/BespokeStudio.Api
 dotnet user-secrets set "Notifications:Email:Smtp:UseSsl" "true" --project backend/src/BespokeStudio.Api

@@ -55,19 +55,26 @@ Production-домен выбран: `https://oksanalogosha.com` (apex, без `w
 
 ## 5. Email delivery
 
+Полный runbook: [`SMTP_PRODUCTION_RU.md`](SMTP_PRODUCTION_RU.md) (обе стратегии,
+Cloudflare DNS SPF/DKIM/DMARC checklist, production smoke test).
+
 Перед запуском email-уведомлений:
 
-- настроить production SMTP или owner-managed Gmail SMTP;
-- не хранить Gmail App Password или SMTP password в Git;
-- проверить test email из Admin → Settings → Email delivery;
+- выбрать sender strategy: developer-managed `Notifications:Email:Provider=Smtp` или owner-managed Gmail SMTP через Admin → Settings → Email delivery;
+- настроить SMTP/Gmail без secrets в Git (env vars / secret store; Gmail App Password / SMTP password / SMTP username не коммитить);
+- настроить SPF, DKIM и DMARC в Cloudflare DNS строго по данным выбранного email provider (Cloudflare DNS не является SMTP sender);
+- если используется owner-managed Gmail SMTP через Admin — проверить persistent ASP.NET Core Data Protection keys, иначе protected App Password станет нечитаемым после redeploy;
+- применить migration `AddEmailOutboxMessages` через `dotnet ef database update`;
+- проверить test email из Admin → Settings → Email delivery (Email Log: `Sent`, `sentExternally=true`);
 - проверить owner notification на Order и Contact Message;
 - проверить customer confirmation emails;
-- применить migration `AddEmailOutboxMessages` через `dotnet ef database update`;
 - проверить, что Order/Contact создают outbox jobs и Email Log состояния `Queued` → `Sent` или `Retrying`/`Failed`;
 - проверить, что сбой SMTP или SignalR после сохранения Order/Contact записывается в backend logs, но публичный create endpoint всё равно возвращает success для сохранённой записи;
+- проверить backend logs на отсутствие SMTP credentials / App Password;
 - настроить production monitoring/alerting для exhausted outbox jobs и `Failed` Email Log;
-- настроить SPF, DKIM и DMARC для production-домена, если используется доменная почта;
-- проверить, что email templates не содержат тестовых данных.
+- проверить, что email templates не содержат тестовых данных;
+- НЕ отмечать реальные SMTP credentials как «настроенные в репозитории» — secrets в Git не добавляются, они задаются только в runtime/secret store;
+- убедиться, что `Provider=Logging` не остался на production (это только dev/local fallback).
 
 ## 6. Upload security and storage
 

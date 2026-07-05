@@ -22,9 +22,11 @@
 
 1. PostgreSQL dump в custom format (`pg_dump --format=custom`).
 2. Архив `backend/storage` или production uploads/object-storage snapshot.
-3. Production Data Protection keys, если используется owner-managed Gmail SMTP или другие protected values.
+3. Production Data Protection keys, если используется owner-managed Gmail SMTP или другие protected values. Без этих keys сохранённый protected Google App Password станет нечитаемым после restore/redeploy, и owner-managed Gmail SMTP перестанет отправлять письма (упадёт в logging fallback). Подробности и smoke test — в [`SMTP_PRODUCTION_RU.md`](SMTP_PRODUCTION_RU.md).
 4. Информацию о версии приложения: Git commit/tag, дата, применённые migrations.
 5. Production конфигурацию окружения без публикации секретов в Git.
+
+SMTP/Gmail secrets (Gmail App Password, SMTP password/username) не должны попадать в Git или в backups без защиты; храните их в secret store/зашифрованном хранилище. После restore обязательно отправьте test email из Admin → Settings → Email delivery и проверьте Email Log.
 
 Не хранить backups внутри репозитория и не коммитить:
 

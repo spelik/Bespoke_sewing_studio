@@ -903,7 +903,15 @@ the singleton `SiteSettings` row through ASP.NET Core Data Protection; the
 password is never returned by admin APIs. Production deployments that use
 owner-managed Gmail SMTP must persist Data Protection keys outside the app
 deployment directory so the protected value remains decryptable after restarts
-or redeployments. `Provider=Logging` is only the local development fallback.
+or redeployments. `Provider=Logging` is only the local development/dev fallback
+and must not be relied on for production delivery (it only writes to the log and
+does not send externally). Production `Notifications:Email:Smtp:*` values must
+come from environment variables or a managed secret store, never from committed
+config.
+
+The full production email runbook (both supported strategies, Cloudflare DNS
+SPF/DKIM/DMARC checklist and a production smoke test) is in
+[`../SMTP_PRODUCTION_RU.md`](../SMTP_PRODUCTION_RU.md).
 
 Mandatory production email checklist:
 
@@ -954,7 +962,7 @@ dotnet user-secrets set "Notifications:Email:Provider" "Smtp" --project backend/
 dotnet user-secrets set "Notifications:Email:Smtp:Host" "smtp.gmail.com" --project backend/src/BespokeStudio.Api
 dotnet user-secrets set "Notifications:Email:Smtp:Port" "587" --project backend/src/BespokeStudio.Api
 dotnet user-secrets set "Notifications:Email:Smtp:Username" "your-gmail-address@gmail.com" --project backend/src/BespokeStudio.Api
-dotnet user-secrets set "Notifications:Email:Smtp:Password" "replace-with-google-app-password" --project backend/src/BespokeStudio.Api
+dotnet user-secrets set "Notifications:Email:Smtp:Password" "<google-app-password-from-secret-store>" --project backend/src/BespokeStudio.Api
 dotnet user-secrets set "Notifications:Email:Smtp:FromEmail" "your-gmail-address@gmail.com" --project backend/src/BespokeStudio.Api
 dotnet user-secrets set "Notifications:Email:Smtp:FromName" "Bespoke Sewing Studio" --project backend/src/BespokeStudio.Api
 dotnet user-secrets set "Notifications:Email:Smtp:UseSsl" "true" --project backend/src/BespokeStudio.Api
