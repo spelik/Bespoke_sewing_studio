@@ -333,6 +333,14 @@ least once before the production launch.
 
 ## Production launch checklist
 
+On the day of the release, follow
+[`PRODUCTION_GO_LIVE_RU.md`](PRODUCTION_GO_LIVE_RU.md), a short day-of-launch
+runbook with the deployment order and Go/No-Go criteria; the detailed checklist
+stays in `PRODUCTION_LAUNCH_CHECKLIST_RU.md`. Before launch you need green checks
+(typecheck, build, tests, CI), a verified backup with a restore rehearsal,
+working HTTPS/reverse proxy, a chosen SMTP strategy, configured uploads/ClamAV,
+persistent Data Protection keys and a final public HTTPS smoke test.
+
 Before the first public launch or a production-domain migration, review
 `PRODUCTION_LAUNCH_CHECKLIST_RU.md`. The canonical production origin is
 `https://oksanalogosha.com` and is already used in `public/robots.txt` and

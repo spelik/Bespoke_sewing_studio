@@ -24,6 +24,11 @@ Current status:
 
 ## Production request pipeline and health checks
 
+The backend launch smoke tests (health endpoints, admin auth/2FA/session, orders,
+contact messages, uploads and email) are part of the final go-live runbook in
+[`../PRODUCTION_GO_LIVE_RU.md`](../PRODUCTION_GO_LIVE_RU.md); backend-specific
+details stay in this README and the linked production runbooks.
+
 Unhandled request exceptions are converted centrally to `application/problem+json`
 responses through ASP.NET Core Problem Details. Production responses do not expose
 stack traces or exception details; the response includes a `traceId` for correlation.
