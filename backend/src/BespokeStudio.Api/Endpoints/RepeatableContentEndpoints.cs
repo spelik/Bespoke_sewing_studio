@@ -1,6 +1,7 @@
 using System.Text.Json;
 using BespokeStudio.Api.Caching;
 using BespokeStudio.Application.Abstractions;
+using Microsoft.AspNetCore.OutputCaching;
 using BespokeStudio.Application.Contracts.RepeatableContent;
 using BespokeStudio.Application.Security;
 using BespokeStudio.Application.Validation;
@@ -16,14 +17,14 @@ public static class RepeatableContentEndpoints
         pub.MapGet(string.Empty, async (IRepeatableContentService service, CancellationToken cancellationToken) =>
                 TypedResults.Ok(await service.GetPublicGroupsAsync(cancellationToken)))
             .AllowAnonymous()
-            .CachePublicContent()
+            .CachePublicContent(PublicOutputCachePolicy.RepeatableContentTag)
             .WithName("GetPublicRepeatableContentGroups")
             .Produces<IReadOnlyList<PublicRepeatableContentGroupResponse>>();
 
         pub.MapGet("/groups/{groupKey}", async (string groupKey, IRepeatableContentService service, CancellationToken cancellationToken) =>
                 TypedResults.Ok(await service.GetPublicGroupAsync(groupKey, cancellationToken)))
             .AllowAnonymous()
-            .CachePublicContent()
+            .CachePublicContent(PublicOutputCachePolicy.RepeatableContentTag)
             .WithName("GetPublicRepeatableContentGroup")
             .Produces<PublicRepeatableContentGroupResponse>();
 
@@ -69,6 +70,7 @@ public static class RepeatableContentEndpoints
     private static async Task<IResult> CreateAsync(
         SaveRepeatableContentItemRequest request,
         IRepeatableContentService service,
+        IOutputCacheStore outputCacheStore,
         CancellationToken cancellationToken)
     {
         var errors = RepeatableContentValidator.Validate(request);
@@ -80,6 +82,10 @@ public static class RepeatableContentEndpoints
         try
         {
             var result = await service.CreateAsync(request, cancellationToken);
+            await PublicOutputCacheInvalidation.EvictAsync(
+                outputCacheStore,
+                cancellationToken,
+                PublicOutputCachePolicy.RepeatableContentTag);
             return TypedResults.Created($"/api/admin/repeatable-content/{result.Id}", result);
         }
         catch (RepeatableContentConflictException exception)
@@ -92,6 +98,7 @@ public static class RepeatableContentEndpoints
         Guid id,
         SaveRepeatableContentItemRequest request,
         IRepeatableContentService service,
+        IOutputCacheStore outputCacheStore,
         CancellationToken cancellationToken)
     {
         var errors = RepeatableContentValidator.Validate(request);
@@ -103,7 +110,16 @@ public static class RepeatableContentEndpoints
         try
         {
             var result = await service.UpdateAsync(id, request, cancellationToken);
-            return result is null ? TypedResults.NotFound() : TypedResults.Ok(result);
+            if (result is null)
+            {
+                return TypedResults.NotFound();
+            }
+
+            await PublicOutputCacheInvalidation.EvictAsync(
+                outputCacheStore,
+                cancellationToken,
+                PublicOutputCachePolicy.RepeatableContentTag);
+            return TypedResults.Ok(result);
         }
         catch (RepeatableContentConflictException exception)
         {
@@ -114,10 +130,20 @@ public static class RepeatableContentEndpoints
     private static async Task<IResult> DeleteOrArchiveAsync(
         Guid id,
         IRepeatableContentService service,
+        IOutputCacheStore outputCacheStore,
         CancellationToken cancellationToken)
     {
         var result = await service.DeleteOrArchiveAsync(id, cancellationToken);
-        return result is null ? TypedResults.NotFound() : TypedResults.Ok(result);
+        if (result is null)
+        {
+            return TypedResults.NotFound();
+        }
+
+        await PublicOutputCacheInvalidation.EvictAsync(
+            outputCacheStore,
+            cancellationToken,
+            PublicOutputCachePolicy.RepeatableContentTag);
+        return TypedResults.Ok(result);
     }
 
     private static IResult Conflict(RepeatableContentConflictException exception) =>

@@ -37,7 +37,7 @@ Current backend status:
 - Swagger/OpenAPI is enabled
 - `/health` and `/health/live` provide liveness checks, `/health/ready` verifies PostgreSQL readiness, and `/healthz` plus `/readyz` provide monitoring-compatible aliases
 - `/api/health` remains a database-independent compatibility liveness endpoint, while `/api/version` returns safe application, assembly/build, environment, framework and process-start metadata
-- public CMS JSON endpoints use a 60-second server-side ASP.NET Core output cache; authenticated/admin requests, forms and file responses are not cached
+- public CMS JSON endpoints use a 60-second server-side ASP.NET Core output cache; authenticated/admin requests, forms and file responses are not cached; successful admin CMS/settings updates evict matching cache tags immediately (see `backend/README.md`)
 - EF Core persistence is configured for local PostgreSQL development
 - migrations are applied explicitly with `dotnet ef database update`
 - Orders/enquiries API now persists data in PostgreSQL
@@ -108,8 +108,9 @@ Public read-only CMS responses for services, portfolio data, page content,
 repeatable content, public site settings and public brand/SEO settings are held
 in the API's in-memory output cache for 60 seconds. Admin/auth APIs, Order and
 Contact submissions, uploads/downloads, images, health and version endpoints do
-not use this policy. An admin CMS change can therefore take up to 60 seconds to
-become visible on the public site. Browser/CDN cache headers are intentionally not
+not use this policy. After a successful admin CMS or settings mutation, matching
+output-cache tags are evicted so public JSON reflects the change without waiting
+for the full TTL. Browser/CDN cache headers are intentionally not
 relied on; production reverse-proxy or CDN caching needs a separate reviewed policy.
 
 Persistence, admin user-secrets, migration, login, and Swagger Bearer commands

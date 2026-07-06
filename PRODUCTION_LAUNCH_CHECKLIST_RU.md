@@ -219,7 +219,8 @@ Public output cache:
 - два последовательных `GET /api/services` возвращают `200`, а повторный запрос в пределах TTL подтверждает server-side cache hit, например через `Age` header;
 - минимум один content/portfolio endpoint возвращает `200` через server-side output cache и не раскрывает private/admin data;
 - `/api/admin/*`, `/api/auth/*`, Order/Contact POST, uploads/downloads, images, health и version endpoints не используют public cache policy;
-- после admin CMS update публичный ответ обновляется не позднее истечения 60-секундного TTL;
+- после admin CMS update публичный ответ обновляется сразу через OutputCache tag invalidation (не позднее истечения 60-секундного TTL);
+- verify OutputCache invalidation after admin services/portfolio/content/settings update;
 - browser/CDN `Cache-Control` не считается частью Task 65; отдельные reverse proxy/CDN rules не должны кэшировать authenticated/admin responses;
 - production monitoring учитывает cache hit/miss behavior и нагрузку на PostgreSQL.
 

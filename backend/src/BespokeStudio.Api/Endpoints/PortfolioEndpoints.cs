@@ -1,6 +1,7 @@
 using System.Text.Json;
 using BespokeStudio.Api.Caching;
 using BespokeStudio.Application.Abstractions;
+using Microsoft.AspNetCore.OutputCaching;
 using BespokeStudio.Application.Contracts.Portfolio;
 using BespokeStudio.Application.Contracts.Uploads;
 using BespokeStudio.Application.Security;
@@ -15,10 +16,10 @@ public static class PortfolioEndpoints
         var publicGroup = endpoints.MapGroup("/api/portfolio").WithTags("Portfolio");
         publicGroup.MapGet(string.Empty, async (IPortfolioService service, CancellationToken ct) =>
             TypedResults.Ok(await service.GetPublicPortfolioAsync(ct)))
-            .AllowAnonymous().CachePublicContent().WithName("GetPublicPortfolio").Produces<IReadOnlyList<PublicPortfolioItemResponse>>();
+            .AllowAnonymous().CachePublicContent(PublicOutputCachePolicy.PortfolioTag).WithName("GetPublicPortfolio").Produces<IReadOnlyList<PublicPortfolioItemResponse>>();
         publicGroup.MapGet("/categories", async (IPortfolioService service, CancellationToken ct) =>
             TypedResults.Ok(await service.GetPublicCategoriesAsync(ct)))
-            .AllowAnonymous().CachePublicContent().WithName("GetPublicPortfolioCategories").Produces<IReadOnlyList<PublicPortfolioCategoryResponse>>();
+            .AllowAnonymous().CachePublicContent(PublicOutputCachePolicy.PortfolioTag).WithName("GetPublicPortfolioCategories").Produces<IReadOnlyList<PublicPortfolioCategoryResponse>>();
         publicGroup.MapGet("/images/{id:guid}", OpenPublicImageAsync)
             .AllowAnonymous().WithName("GetPublicPortfolioImage").Produces(StatusCodes.Status200OK).Produces(StatusCodes.Status404NotFound);
 
@@ -48,65 +49,109 @@ public static class PortfolioEndpoints
         return item is null ? TypedResults.NotFound() : TypedResults.Ok(item);
     }
 
-    private static async Task<IResult> CreateItemAsync(SavePortfolioItemRequest request, IPortfolioService service, CancellationToken ct)
+    private static async Task<IResult> CreateItemAsync(
+        SavePortfolioItemRequest request,
+        IPortfolioService service,
+        IOutputCacheStore outputCacheStore,
+        CancellationToken ct)
     {
         var errors = PortfolioValidator.Validate(request);
         if (errors.Count > 0) return Validation(errors);
         try
         {
             var item = await service.CreateItemAsync(request, ct);
+            await EvictPortfolioCacheAsync(outputCacheStore, ct);
             return TypedResults.Created($"/api/admin/portfolio/items/{item.Id}", item);
         }
         catch (PortfolioConflictException exception) { return Conflict(exception); }
     }
 
-    private static async Task<IResult> UpdateItemAsync(Guid id, SavePortfolioItemRequest request, IPortfolioService service, CancellationToken ct)
+    private static async Task<IResult> UpdateItemAsync(
+        Guid id,
+        SavePortfolioItemRequest request,
+        IPortfolioService service,
+        IOutputCacheStore outputCacheStore,
+        CancellationToken ct)
     {
         var errors = PortfolioValidator.Validate(request);
         if (errors.Count > 0) return Validation(errors);
         try
         {
             var item = await service.UpdateItemAsync(id, request, ct);
-            return item is null ? TypedResults.NotFound() : TypedResults.Ok(item);
+            if (item is null) return TypedResults.NotFound();
+            await EvictPortfolioCacheAsync(outputCacheStore, ct);
+            return TypedResults.Ok(item);
         }
         catch (PortfolioConflictException exception) { return Conflict(exception); }
     }
 
-    private static async Task<IResult> DeleteItemAsync(Guid id, IPortfolioService service, CancellationToken ct)
+    private static async Task<IResult> DeleteItemAsync(
+        Guid id,
+        IPortfolioService service,
+        IOutputCacheStore outputCacheStore,
+        CancellationToken ct)
     {
         var result = await service.DeleteOrArchiveItemAsync(id, ct);
-        return result is null ? TypedResults.NotFound() : TypedResults.Ok(result);
+        if (result is null) return TypedResults.NotFound();
+        await EvictPortfolioCacheAsync(outputCacheStore, ct);
+        return TypedResults.Ok(result);
     }
 
-    private static async Task<IResult> CreateCategoryAsync(SavePortfolioCategoryRequest request, IPortfolioService service, CancellationToken ct)
+    private static async Task<IResult> CreateCategoryAsync(
+        SavePortfolioCategoryRequest request,
+        IPortfolioService service,
+        IOutputCacheStore outputCacheStore,
+        CancellationToken ct)
     {
         var errors = PortfolioValidator.Validate(request);
         if (errors.Count > 0) return Validation(errors);
         try
         {
             var category = await service.CreateCategoryAsync(request, ct);
+            await EvictPortfolioCacheAsync(outputCacheStore, ct);
             return TypedResults.Created($"/api/admin/portfolio/categories/{category.Id}", category);
         }
         catch (PortfolioConflictException exception) { return Conflict(exception); }
     }
 
-    private static async Task<IResult> UpdateCategoryAsync(Guid id, SavePortfolioCategoryRequest request, IPortfolioService service, CancellationToken ct)
+    private static async Task<IResult> UpdateCategoryAsync(
+        Guid id,
+        SavePortfolioCategoryRequest request,
+        IPortfolioService service,
+        IOutputCacheStore outputCacheStore,
+        CancellationToken ct)
     {
         var errors = PortfolioValidator.Validate(request);
         if (errors.Count > 0) return Validation(errors);
         try
         {
             var category = await service.UpdateCategoryAsync(id, request, ct);
-            return category is null ? TypedResults.NotFound() : TypedResults.Ok(category);
+            if (category is null) return TypedResults.NotFound();
+            await EvictPortfolioCacheAsync(outputCacheStore, ct);
+            return TypedResults.Ok(category);
         }
         catch (PortfolioConflictException exception) { return Conflict(exception); }
     }
 
-    private static async Task<IResult> DeleteCategoryAsync(Guid id, IPortfolioService service, CancellationToken ct)
+    private static async Task<IResult> DeleteCategoryAsync(
+        Guid id,
+        IPortfolioService service,
+        IOutputCacheStore outputCacheStore,
+        CancellationToken ct)
     {
         var result = await service.DeleteOrArchiveCategoryAsync(id, ct);
-        return result is null ? TypedResults.NotFound() : TypedResults.Ok(result);
+        if (result is null) return TypedResults.NotFound();
+        await EvictPortfolioCacheAsync(outputCacheStore, ct);
+        return TypedResults.Ok(result);
     }
+
+    private static ValueTask EvictPortfolioCacheAsync(
+        IOutputCacheStore outputCacheStore,
+        CancellationToken cancellationToken) =>
+        PublicOutputCacheInvalidation.EvictAsync(
+            outputCacheStore,
+            cancellationToken,
+            PublicOutputCachePolicy.PortfolioTag);
 
     private static async Task<IResult> UploadImageAsync(HttpRequest request, IUploadService service, CancellationToken ct)
     {

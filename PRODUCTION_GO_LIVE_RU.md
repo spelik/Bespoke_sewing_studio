@@ -126,6 +126,7 @@ runbooks, а ссылается на них. Секреты в Git не хран
 - Email Log / outbox statuses;
 - Storage Maintenance scan;
 - Audit Log пишется;
+- после admin CMS/settings change public page/API показывает fresh data без ожидания полного 60-секундного TTL (OutputCache tag invalidation);
 - в logs нет secrets/tokens/cookies/request bodies.
 
 ## H. SEO / legal smoke test

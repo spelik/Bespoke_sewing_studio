@@ -2,6 +2,7 @@ using System.Security.Claims;
 using System.Text.Json;
 using BespokeStudio.Api.Caching;
 using BespokeStudio.Application.Abstractions;
+using Microsoft.AspNetCore.OutputCaching;
 using BespokeStudio.Application.Contracts.SiteSettings;
 using BespokeStudio.Application.Security;
 using BespokeStudio.Application.Validation;
@@ -14,7 +15,7 @@ public static class SiteSettingsEndpoints
     {
         endpoints.MapGet("/api/site-settings/public", GetPublicSettingsAsync)
             .AllowAnonymous()
-            .CachePublicContent()
+            .CachePublicContent(PublicOutputCachePolicy.SiteSettingsTag)
             .WithTags("Site Settings")
             .WithName("GetPublicSiteSettings")
             .Produces<PublicSiteSettingsResponse>();
@@ -60,6 +61,7 @@ public static class SiteSettingsEndpoints
         ClaimsPrincipal principal,
         ISiteSettingsService settingsService,
         IAdminAuditLogService auditLogService,
+        IOutputCacheStore outputCacheStore,
         CancellationToken cancellationToken)
     {
         var errors = SiteSettingsValidator.Validate(request);
@@ -78,6 +80,10 @@ public static class SiteSettingsEndpoints
                 settings.StudioName,
                 "Site settings were updated."),
             cancellationToken);
+        await PublicOutputCacheInvalidation.EvictAsync(
+            outputCacheStore,
+            cancellationToken,
+            PublicOutputCachePolicy.SiteSettingsTag);
         return TypedResults.Ok(settings);
     }
 

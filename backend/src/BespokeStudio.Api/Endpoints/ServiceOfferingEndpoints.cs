@@ -1,6 +1,7 @@
 using System.Text.Json;
 using BespokeStudio.Api.Caching;
 using BespokeStudio.Application.Abstractions;
+using Microsoft.AspNetCore.OutputCaching;
 using BespokeStudio.Application.Contracts.Services;
 using BespokeStudio.Application.Security;
 using BespokeStudio.Application.Validation;
@@ -13,7 +14,7 @@ public static class ServiceOfferingEndpoints
     {
         endpoints.MapGet("/api/services", GetPublicServicesAsync)
             .AllowAnonymous()
-            .CachePublicContent()
+            .CachePublicContent(PublicOutputCachePolicy.ServicesTag)
             .WithTags("Services")
             .WithName("GetPublicServices")
             .Produces<IReadOnlyList<PublicServiceOfferingResponse>>();
@@ -74,6 +75,7 @@ public static class ServiceOfferingEndpoints
     private static async Task<IResult> CreateAsync(
         CreateServiceOfferingRequest request,
         IServiceOfferingService service,
+        IOutputCacheStore outputCacheStore,
         CancellationToken cancellationToken)
     {
         var errors = ServiceOfferingValidator.Validate(request);
@@ -85,6 +87,10 @@ public static class ServiceOfferingEndpoints
         try
         {
             var result = await service.CreateAsync(request, cancellationToken);
+            await PublicOutputCacheInvalidation.EvictAsync(
+                outputCacheStore,
+                cancellationToken,
+                PublicOutputCachePolicy.ServicesTag);
             return TypedResults.Created($"/api/admin/services/{result.Id}", result);
         }
         catch (ServiceOfferingConflictException exception)
@@ -97,6 +103,7 @@ public static class ServiceOfferingEndpoints
         Guid id,
         UpdateServiceOfferingRequest request,
         IServiceOfferingService service,
+        IOutputCacheStore outputCacheStore,
         CancellationToken cancellationToken)
     {
         var errors = ServiceOfferingValidator.Validate(request);
@@ -108,7 +115,16 @@ public static class ServiceOfferingEndpoints
         try
         {
             var result = await service.UpdateAsync(id, request, cancellationToken);
-            return result is null ? TypedResults.NotFound() : TypedResults.Ok(result);
+            if (result is null)
+            {
+                return TypedResults.NotFound();
+            }
+
+            await PublicOutputCacheInvalidation.EvictAsync(
+                outputCacheStore,
+                cancellationToken,
+                PublicOutputCachePolicy.ServicesTag);
+            return TypedResults.Ok(result);
         }
         catch (ServiceOfferingConflictException exception)
         {
@@ -119,10 +135,20 @@ public static class ServiceOfferingEndpoints
     private static async Task<IResult> DeleteOrArchiveAsync(
         Guid id,
         IServiceOfferingService service,
+        IOutputCacheStore outputCacheStore,
         CancellationToken cancellationToken)
     {
         var result = await service.DeleteOrArchiveAsync(id, cancellationToken);
-        return result is null ? TypedResults.NotFound() : TypedResults.Ok(result);
+        if (result is null)
+        {
+            return TypedResults.NotFound();
+        }
+
+        await PublicOutputCacheInvalidation.EvictAsync(
+            outputCacheStore,
+            cancellationToken,
+            PublicOutputCachePolicy.ServicesTag);
+        return TypedResults.Ok(result);
     }
 
     private static IResult Conflict(ServiceOfferingConflictException exception) =>

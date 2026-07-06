@@ -1,6 +1,7 @@
 using System.Text.Json;
 using BespokeStudio.Api.Caching;
 using BespokeStudio.Application.Abstractions;
+using Microsoft.AspNetCore.OutputCaching;
 using BespokeStudio.Application.Contracts.Content;
 using BespokeStudio.Application.Contracts.Uploads;
 using BespokeStudio.Application.Security;
@@ -13,7 +14,7 @@ public static class ContentEndpoints
     public static IEndpointRouteBuilder MapContentEndpoints(this IEndpointRouteBuilder endpoints)
     {
         var pub=endpoints.MapGroup("/api/content").WithTags("Content");
-        pub.MapGet("/pages/{pageKey}",async(string pageKey,IPageContentService s,CancellationToken ct)=>TypedResults.Ok(await s.GetPublicPageAsync(pageKey,ct))).AllowAnonymous().CachePublicContent().WithName("GetPublicPageContent");
+        pub.MapGet("/pages/{pageKey}",async(string pageKey,IPageContentService s,CancellationToken ct)=>TypedResults.Ok(await s.GetPublicPageAsync(pageKey,ct))).AllowAnonymous().CachePublicContent(PublicOutputCachePolicy.PageContentTag).WithName("GetPublicPageContent");
         pub.MapGet("/images/{id:guid}",OpenPublicImageAsync).AllowAnonymous().WithName("GetPublicContentImage");
         var admin=endpoints.MapGroup("/api/admin/content").RequireAuthorization(AdminAccess.PolicyName).WithTags("Admin Content");
         admin.MapGet(string.Empty,async(IPageContentService s,CancellationToken ct)=>TypedResults.Ok(await s.GetAdminContentAsync(ct))).WithName("GetAdminContent");
@@ -26,9 +27,9 @@ public static class ContentEndpoints
         return endpoints;
     }
     private static async Task<IResult> GetAsync(Guid id,IPageContentService s,CancellationToken ct){var x=await s.GetAdminByIdAsync(id,ct);return x is null?TypedResults.NotFound():TypedResults.Ok(x);}
-    private static async Task<IResult> CreateAsync(SavePageContentRequest r,IPageContentService s,CancellationToken ct){var e=PageContentValidator.Validate(r);if(e.Count>0)return Validation(e);try{var x=await s.CreateAsync(r,ct);return TypedResults.Created($"/api/admin/content/{x.Id}",x);}catch(PageContentConflictException ex){return Conflict(ex);}}
-    private static async Task<IResult> UpdateAsync(Guid id,SavePageContentRequest r,IPageContentService s,CancellationToken ct){var e=PageContentValidator.Validate(r);if(e.Count>0)return Validation(e);try{var x=await s.UpdateAsync(id,r,ct);return x is null?TypedResults.NotFound():TypedResults.Ok(x);}catch(PageContentConflictException ex){return Conflict(ex);}}
-    private static async Task<IResult> DeleteAsync(Guid id,IPageContentService s,CancellationToken ct){var x=await s.DeleteOrArchiveAsync(id,ct);return x is null?TypedResults.NotFound():TypedResults.Ok(x);}
+    private static async Task<IResult> CreateAsync(SavePageContentRequest r,IPageContentService s,IOutputCacheStore outputCacheStore,CancellationToken ct){var e=PageContentValidator.Validate(r);if(e.Count>0)return Validation(e);try{var x=await s.CreateAsync(r,ct);await PublicOutputCacheInvalidation.EvictAsync(outputCacheStore,ct,PublicOutputCachePolicy.PageContentTag);return TypedResults.Created($"/api/admin/content/{x.Id}",x);}catch(PageContentConflictException ex){return Conflict(ex);}}
+    private static async Task<IResult> UpdateAsync(Guid id,SavePageContentRequest r,IPageContentService s,IOutputCacheStore outputCacheStore,CancellationToken ct){var e=PageContentValidator.Validate(r);if(e.Count>0)return Validation(e);try{var x=await s.UpdateAsync(id,r,ct);if(x is null)return TypedResults.NotFound();await PublicOutputCacheInvalidation.EvictAsync(outputCacheStore,ct,PublicOutputCachePolicy.PageContentTag);return TypedResults.Ok(x);}catch(PageContentConflictException ex){return Conflict(ex);}}
+    private static async Task<IResult> DeleteAsync(Guid id,IPageContentService s,IOutputCacheStore outputCacheStore,CancellationToken ct){var x=await s.DeleteOrArchiveAsync(id,ct);if(x is null)return TypedResults.NotFound();await PublicOutputCacheInvalidation.EvictAsync(outputCacheStore,ct,PublicOutputCachePolicy.PageContentTag);return TypedResults.Ok(x);}
     private static async Task<IResult> UploadAsync(HttpRequest request,IUploadService s,CancellationToken ct)
     {if(!request.HasFormContentType)return Problem("file","A multipart/form-data request is required.");try{var form=await request.ReadFormAsync(ct);if(form.Files.Count!=1)return Problem("file","Select exactly one content image.");var f=form.Files[0];await using var stream=f.OpenReadStream();return TypedResults.Ok(await s.UploadContentImageAsync(new UploadFileRequest(f.FileName,f.ContentType,f.Length,stream),ct));}catch(InvalidDataException){return Problem("file","The upload request exceeds the configured size limit.");}catch(UploadValidationException ex){return Problem("file",ex.Message);}}
     private static async Task<IResult> OpenPublicImageAsync(Guid id,IUploadService s,CancellationToken ct){var f=await s.OpenPublicContentImageAsync(id,ct);return f is null?TypedResults.NotFound():Results.File(f.Content,f.ContentType,enableRangeProcessing:true);}

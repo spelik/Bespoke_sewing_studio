@@ -105,11 +105,15 @@ repeat request can be used to verify a server-side cache hit.
 
 No cache policy is attached to `/api/admin/*`, `/api/auth/*`, Order or Contact
 submissions, uploads/downloads, public or admin image/file responses, Email/Audit
-logs, health checks or `/api/version`. Admin mutations are not evicted explicitly,
-so a CMS update can take up to 60 seconds to appear publicly. Production reverse
-proxy/CDN cache headers require a separate reviewed strategy and must never cache
-private/admin responses. Tag-based invalidation and cache metrics remain future
-improvements.
+logs, health checks or `/api/version`. Public JSON responses are tagged by content
+area (`public-services`, `public-portfolio`, `public-page-content`,
+`public-repeatable-content`, `public-site-settings`, `public-brand-settings`, plus
+the shared `public-content` tag). After a successful admin CMS or settings mutation,
+matching tags are evicted through `IOutputCacheStore.EvictByTagAsync`, so public
+pages and JSON endpoints reflect the change immediately without waiting for the
+60-second TTL. Browser/CDN `Cache-Control` headers are still not forced; production
+reverse proxy/CDN cache headers require a separate reviewed strategy and must never
+cache private/admin responses. Cache hit/miss metrics remain a future improvement.
 
 Forwarded headers are processed first, followed by security response headers, HSTS
 (non-Development), exception handling, HTTPS redirection, CORS, authentication and
