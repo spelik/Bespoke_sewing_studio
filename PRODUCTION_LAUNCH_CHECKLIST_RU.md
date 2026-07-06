@@ -1,11 +1,21 @@
 # Production launch checklist
 
+> **Release readiness review:** перед deploy пройти
+> [`RELEASE_READINESS_REVIEW_RU.md`](RELEASE_READINESS_REVIEW_RU.md) — blockers/warnings
+> зафиксированы, release commit SHA записан.
+>
 > Для пошагового запуска в день релиза используйте
 > [`PRODUCTION_GO_LIVE_RU.md`](PRODUCTION_GO_LIVE_RU.md) — короткий day-of-launch
 > runbook с порядком действий и Go/No-Go критериями. Этот файл остаётся подробным
 > checklist, на который go-live runbook ссылается.
 
 Этот чек-лист нужен перед первым публичным запуском Bespoke Sewing Studio и перед переносом проекта на реальный домен/сервер.
+
+Перед началом checklist:
+
+- [ ] Release readiness review completed — [`RELEASE_READINESS_REVIEW_RU.md`](RELEASE_READINESS_REVIEW_RU.md);
+- [ ] Blockers / warnings recorded in release decision log;
+- [ ] Release commit SHA recorded.
 
 Сейчас локальная dev-база может содержать только тестовые заявки, тестовые настройки и тестовых администраторов. Перед production важно не переносить случайные тестовые данные и не забыть заменить placeholder-значения.
 

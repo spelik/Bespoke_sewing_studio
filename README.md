@@ -361,6 +361,12 @@ but real secrets and backup artifacts must stay outside Git.
 
 ## Production launch checklist
 
+Before the first public launch or a production-domain migration, complete
+[`RELEASE_READINESS_REVIEW_RU.md`](RELEASE_READINESS_REVIEW_RU.md) — the final
+release readiness review and Go/No-Go summary. It does not replace the detailed
+runbooks; it collects repository readiness vs operator-only production steps,
+blockers, warnings and the release decision log template.
+
 On the day of the release, follow
 [`PRODUCTION_GO_LIVE_RU.md`](PRODUCTION_GO_LIVE_RU.md), a short day-of-launch
 runbook with the deployment order and Go/No-Go criteria; the detailed checklist

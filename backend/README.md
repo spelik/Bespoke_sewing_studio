@@ -29,6 +29,11 @@ contact messages, uploads and email) are part of the final go-live runbook in
 [`../PRODUCTION_GO_LIVE_RU.md`](../PRODUCTION_GO_LIVE_RU.md); backend-specific
 details stay in this README and the linked production runbooks.
 
+Release readiness review: [`../RELEASE_READINESS_REVIEW_RU.md`](../RELEASE_READINESS_REVIEW_RU.md)
+collects the final Go/No-Go summary. Backend GO still requires validation commands,
+production PostgreSQL, Data Protection keys, uploads/scanner, SMTP, reverse proxy
+and backup/restore rehearsal on the live server.
+
 Unhandled request exceptions are converted centrally to `application/problem+json`
 responses through ASP.NET Core Problem Details. Production responses do not expose
 stack traces or exception details; the response includes a `traceId` for correlation.

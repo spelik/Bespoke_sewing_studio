@@ -12,6 +12,7 @@ runbooks, а ссылается на них. Секреты в Git не хран
 - Документ используется перед первым публичным запуском и перед крупным production
   redeploy.
 - Подробные runbooks:
+  - [`RELEASE_READINESS_REVIEW_RU.md`](RELEASE_READINESS_REVIEW_RU.md) — финальный release readiness review / Go-No-Go summary (пройти **перед** day-of-launch);
   - [`PRODUCTION_LAUNCH_CHECKLIST_RU.md`](PRODUCTION_LAUNCH_CHECKLIST_RU.md) — полный checklist;
   - [`BACKUP_RESTORE_RU.md`](BACKUP_RESTORE_RU.md) — backup/restore, rehearsal, rollback;
   - [`SMTP_PRODUCTION_RU.md`](SMTP_PRODUCTION_RU.md) — email delivery;
@@ -21,6 +22,9 @@ runbooks, а ссылается на них. Секреты в Git не хран
   - [`DEPLOYMENT_NOTES_RU.md`](DEPLOYMENT_NOTES_RU.md) — SPA fallback / proxy routing.
 
 ## B. Go / No-Go критерии
+
+Перед day-of-launch пройти [`RELEASE_READINESS_REVIEW_RU.md`](RELEASE_READINESS_REVIEW_RU.md),
+зафиксировать blockers/warnings и заполнить release decision log (раздел H).
 
 Запуск разрешён только если выполнено всё:
 
