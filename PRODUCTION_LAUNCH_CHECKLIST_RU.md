@@ -257,6 +257,7 @@ Backend tests нужно запускать также перед commit, кот
 - Email delivery;
 - Audit Log: проверить server-side filters, total, page size 10/25/50/100 и Previous/Next;
 - Email Log: проверить server-side filters, total, page size, Previous/Next и realtime refresh без дубликатов;
+- Admin Email Log operational UX checked: global outbox health, retry, retention cleanup, current page filters;
 - Users;
 - My account password change;
 - `/robots.txt`;

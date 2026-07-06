@@ -19,6 +19,7 @@ import {
   getEmailOutboxRetentionSummary,
   runEmailOutboxRetentionCleanup,
   type EmailOutboxMonitoringSummary,
+  type EmailOutboxRetentionCleanupResult,
   type EmailOutboxRetentionSummary,
 } from "../../api/emailDeliveryLogApi";
 import { type AdminPageSize } from "../../api/pagination";
@@ -264,14 +265,16 @@ export function AdminPage() {
     void loadEmailOutboxRetentionSummary();
   }, [loadEmailOutboxRetentionSummary]);
 
-  const handleRunEmailOutboxRetentionCleanup = useCallback(async () => {
-    await runEmailOutboxRetentionCleanup();
-    await Promise.all([
-      loadEmailOutboxSummary(),
-      loadEmailOutboxRetentionSummary(),
-    ]);
-    setEmailLogRefreshKey((current) => current + 1);
-  }, [loadEmailOutboxRetentionSummary, loadEmailOutboxSummary]);
+  const handleRunEmailOutboxRetentionCleanup =
+    useCallback(async (): Promise<EmailOutboxRetentionCleanupResult> => {
+      const result = await runEmailOutboxRetentionCleanup();
+      await Promise.all([
+        loadEmailOutboxSummary(),
+        loadEmailOutboxRetentionSummary(),
+      ]);
+      setEmailLogRefreshKey((current) => current + 1);
+      return result;
+    }, [loadEmailOutboxRetentionSummary, loadEmailOutboxSummary]);
 
   useEffect(() => {
     const syncSectionFromUrl = () => {

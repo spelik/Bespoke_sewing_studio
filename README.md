@@ -285,6 +285,11 @@ entries remain and failed messages are retained for review/manual retry. See
 `POST /api/admin/email-log/retention/cleanup`. The optional background worker is
 disabled by default (`EmailOutboxRetention:WorkerEnabled=false`).
 
+The Email Log UI separates **Global outbox health** and **Retention cleanup**
+(global counts) from **Current page** log stats, refreshes entries and summaries
+together from the main **Refresh** button, and shows safe cleanup result counts
+after manual retention cleanup.
+
 The log stores delivery metadata only: recipient email, subject, provider,
 status, result/error summary, related Order/Contact reference and timestamps.
 It intentionally does not expose email bodies, SMTP credentials, Google App

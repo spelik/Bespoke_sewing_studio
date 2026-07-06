@@ -351,10 +351,10 @@ function DashboardStatusCard({
           <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-sans">
             {label}
           </p>
-          <p className="mt-2 text-[13px] text-foreground font-sans truncate">
+          <p className="mt-2 text-[13px] text-foreground font-sans break-words leading-4">
             {title}
           </p>
-          <p className="text-[10px] text-muted-foreground font-sans mt-1 leading-4">
+          <p className="text-[10px] text-muted-foreground font-sans mt-1 leading-4 break-words">
             {caption}
           </p>
         </div>
@@ -501,8 +501,10 @@ function buildProductionReadinessItems(
         ? "Email outbox monitoring is unavailable. Open Email Log to review."
         : isEmailOutboxSummaryLoading && !emailOutboxSummary
           ? "Checking email outbox health."
-          : (emailOutboxSummary?.summaryMessage ??
-            "Checking email outbox health."),
+          : emailOutboxSummary?.healthStatus === "Healthy"
+            ? "Email outbox is healthy."
+            : (emailOutboxSummary?.summaryMessage ??
+              "Checking email outbox health."),
     },
     {
       label: "Upload security",
@@ -574,11 +576,11 @@ function getEmailOutboxCaption(
   }
 
   if (summary.healthStatus === "Critical") {
-    return `${summary.exhaustedFailedCount} failed · ${summary.retryingCount} retrying`;
+    return summary.summaryMessage || "Review failed emails in Email Log.";
   }
 
   if (summary.healthStatus === "Warning") {
-    return `${summary.retryingCount} retrying · ${summary.stalePendingCount} stale pending`;
+    return summary.summaryMessage || "Review outbox status in Email Log.";
   }
 
   return `${summary.sentLast24HoursCount} sent in last 24h`;

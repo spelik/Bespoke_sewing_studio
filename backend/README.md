@@ -925,7 +925,8 @@ the newest email delivery attempts and supports `page`, `pageSize`, `search`,
 `messageType`, `status`, `recipientEmail` and `provider` query filters. It is
 used by Admin → Email Log. The frontend auto-applies filters, refreshes from
 admin realtime events when entries are written and can export the visible rows
-to CSV.
+to CSV. Admin Email Log separates global outbox monitoring from current-page log
+entries and supports manual retry and retention cleanup in the UI.
 
 `POST /api/admin/email-log/{id}/retry` is protected by the same policy and lets
 an admin queue a manual retry for an exhausted failed outbox message (status

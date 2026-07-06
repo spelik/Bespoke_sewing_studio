@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { AlertTriangle, CheckCircle2, Clock3, Download, RefreshCw, Search, X } from "lucide-react";
 import { ApiError } from "../../api/apiClient";
 import {
@@ -7,6 +7,7 @@ import {
   retryEmailDeliveryLogEntry,
   type EmailDeliveryLogEntry,
   type EmailOutboxMonitoringSummary,
+  type EmailOutboxRetentionCleanupResult,
   type EmailOutboxRetentionSummary,
 } from "../../api/emailDeliveryLogApi";
 import { type AdminPageSize } from "../../api/pagination";
@@ -25,7 +26,7 @@ interface AdminEmailLogPanelProps {
   retentionSummaryError?: string | null;
   isRetentionSummaryLoading?: boolean;
   onRefreshRetentionSummary?: () => void;
-  onRunRetentionCleanup?: () => Promise<void>;
+  onRunRetentionCleanup?: () => Promise<EmailOutboxRetentionCleanupResult>;
 }
 
 interface EmailLogFilters {
@@ -170,6 +171,12 @@ export function AdminEmailLogPanel({
     page,
   ]);
 
+  const refreshEmailLogOperations = useCallback(async () => {
+    await loadEntries();
+    onRefreshMonitoringSummary?.();
+    onRefreshRetentionSummary?.();
+  }, [loadEntries, onRefreshMonitoringSummary, onRefreshRetentionSummary]);
+
   useEffect(() => {
     void loadEntries();
   }, [loadEntries, realtimeRefreshKey]);
@@ -230,8 +237,8 @@ export function AdminEmailLogPanel({
     setInfo(null);
 
     try {
-      await onRunRetentionCleanup();
-      setInfo("Retention cleanup completed.");
+      const result = await onRunRetentionCleanup();
+      setInfo(formatRetentionCleanupMessage(result));
       await loadEntries();
       onRefreshRetentionSummary?.();
       onRefreshMonitoringSummary?.();
@@ -322,6 +329,7 @@ export function AdminEmailLogPanel({
         summary={monitoringSummary}
         error={monitoringSummaryError}
         isLoading={isMonitoringSummaryLoading}
+        onRefresh={onRefreshMonitoringSummary}
       />
 
       <OutboxRetentionSummary
@@ -331,12 +339,19 @@ export function AdminEmailLogPanel({
         candidateCount={retentionCandidateCount}
         isCleanupRunning={isRetentionCleanupRunning}
         onRunCleanup={() => void handleRetentionCleanup()}
+        onRefresh={onRefreshRetentionSummary}
       />
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <EmailLogStatCard label="Page entries" value={entries.length} tone="neutral" />
-        <EmailLogStatCard label="Sent on page" value={sentCount} tone="success" />
-        <EmailLogStatCard label="Failed on page" value={failedCount} tone="danger" />
+      <div className="space-y-2">
+        <EmailLogSectionHeader
+          title="Current page"
+          subtitle="These cards summarize only the loaded page below."
+        />
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <EmailLogStatCard label="Page entries" value={entries.length} tone="neutral" />
+          <EmailLogStatCard label="Sent on page" value={sentCount} tone="success" />
+          <EmailLogStatCard label="Failed on page" value={failedCount} tone="danger" />
+        </div>
       </div>
 
       <div className="bg-card border border-border">
@@ -360,7 +375,7 @@ export function AdminEmailLogPanel({
             </button>
             <button
               type="button"
-              onClick={() => void loadEntries()}
+              onClick={() => void refreshEmailLogOperations()}
               disabled={isLoading}
               className="inline-flex items-center gap-2 px-4 py-2 text-[10px] tracking-wide border border-border bg-background hover:border-foreground disabled:opacity-50"
             >
@@ -482,17 +497,11 @@ export function AdminEmailLogPanel({
         </div>
 
         {error ? (
-          <div className="m-5 border border-destructive/30 bg-destructive/5 px-4 py-3 text-[11px] text-destructive flex items-start gap-2">
-            <AlertTriangle size={14} className="mt-0.5" aria-hidden="true" />
-            <span>{error}</span>
-          </div>
+          <EmailLogInlineNotice tone="error">{error}</EmailLogInlineNotice>
         ) : null}
 
         {info ? (
-          <div className="m-5 border border-emerald-200 bg-emerald-50 px-4 py-3 text-[11px] text-emerald-700 flex items-start gap-2">
-            <CheckCircle2 size={14} className="mt-0.5" aria-hidden="true" />
-            <span>{info}</span>
-          </div>
+          <EmailLogInlineNotice tone="success">{info}</EmailLogInlineNotice>
         ) : null}
 
         <div className="min-w-0 max-w-full overflow-hidden">
@@ -529,7 +538,20 @@ export function AdminEmailLogPanel({
               ) : entries.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="px-4 py-10 text-center text-muted-foreground">
-                    No email attempts match the current filters.
+                    {activeFilterCount > 0 ? (
+                      <div className="space-y-2">
+                        <p>No email attempts match the current filters.</p>
+                        <button
+                          type="button"
+                          onClick={clearFilters}
+                          className="text-[10px] border border-border bg-background px-3 py-1 hover:border-foreground"
+                        >
+                          Clear filters
+                        </button>
+                      </div>
+                    ) : (
+                      "No email attempts recorded yet."
+                    )}
                   </td>
                 </tr>
               ) : (
@@ -566,6 +588,7 @@ function OutboxRetentionSummary({
   candidateCount,
   isCleanupRunning,
   onRunCleanup,
+  onRefresh,
 }: {
   summary: EmailOutboxRetentionSummary | null;
   error: string | null;
@@ -573,13 +596,13 @@ function OutboxRetentionSummary({
   candidateCount: number;
   isCleanupRunning: boolean;
   onRunCleanup(): void;
+  onRefresh?: () => void;
 }) {
   if (error) {
     return (
-      <div className="border border-amber-200 bg-amber-50 px-4 py-3 text-[11px] text-amber-700 flex items-start gap-2">
-        <AlertTriangle size={14} className="mt-0.5" aria-hidden="true" />
-        <span>Email outbox retention status is unavailable right now.</span>
-      </div>
+      <EmailLogInlineNotice tone="warning">
+        Email outbox retention status is unavailable right now.
+      </EmailLogInlineNotice>
     );
   }
 
@@ -598,29 +621,17 @@ function OutboxRetentionSummary({
 
   return (
     <div className="border border-border bg-card px-5 py-4 space-y-3">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h3 className="font-serif text-[1.05rem] font-light text-foreground">
-            Retention cleanup
-          </h3>
-          <p className="text-[10px] text-muted-foreground font-sans mt-0.5">
-            Old succeeded/skipped outbox bodies are replaced with a placeholder and very old outbox rows are removed. Failed messages are retained for review and manual retry. Email bodies are never shown here.
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={onRunCleanup}
-          disabled={isCleanupRunning || candidateCount === 0}
-          className="inline-flex items-center gap-2 px-4 py-2 text-[10px] tracking-wide border border-border bg-background hover:border-foreground disabled:opacity-50"
-        >
-          <RefreshCw
-            size={12}
-            className={isCleanupRunning ? "animate-spin" : undefined}
-            aria-hidden="true"
-          />
-          {isCleanupRunning ? "Cleaning…" : "Run cleanup"}
-        </button>
-      </div>
+      <EmailLogSectionHeader
+        title="Retention cleanup"
+        subtitle="Replace old succeeded/skipped bodies with a placeholder and remove very old outbox rows. Failed messages stay for review."
+        action={
+          onRefresh ? (
+            <EmailLogOperationButton onClick={onRefresh} disabled={isLoading}>
+              Refresh status
+            </EmailLogOperationButton>
+          ) : null
+        }
+      />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 text-[10px] font-sans">
         <div>
@@ -657,7 +668,41 @@ function OutboxRetentionSummary({
         </div>
       </div>
 
+      <div className="text-[10px] text-muted-foreground font-sans space-y-1">
+        <p>Checked {formatAdminDate(summary.generatedAt)}</p>
+        <p>
+          Body retention: {summary.succeededBodyRetentionDays}d succeeded · {summary.skippedBodyRetentionDays}d skipped
+        </p>
+        <p>
+          Message retention: {summary.succeededMessageRetentionDays}d succeeded · {summary.skippedMessageRetentionDays}d skipped
+        </p>
+        {summary.workerEnabled ? (
+          <p>Worker interval: every {summary.workerIntervalHours}h</p>
+        ) : null}
+      </div>
+
       <p className="text-[10px] text-muted-foreground font-sans">{summary.summaryMessage}</p>
+
+      <div className="flex flex-wrap items-center gap-3">
+        <button
+          type="button"
+          onClick={onRunCleanup}
+          disabled={isCleanupRunning || candidateCount === 0}
+          className="inline-flex items-center gap-2 px-4 py-2 text-[10px] tracking-wide border border-border bg-background hover:border-foreground disabled:opacity-50"
+        >
+          <RefreshCw
+            size={12}
+            className={isCleanupRunning ? "animate-spin" : undefined}
+            aria-hidden="true"
+          />
+          {isCleanupRunning ? "Cleaning…" : "Run cleanup"}
+        </button>
+        {candidateCount === 0 ? (
+          <p className="text-[10px] text-muted-foreground font-sans">
+            No cleanup candidates right now.
+          </p>
+        ) : null}
+      </div>
     </div>
   );
 }
@@ -666,20 +711,19 @@ function OutboxMonitoringSummary({
   summary,
   error,
   isLoading,
+  onRefresh,
 }: {
   summary: EmailOutboxMonitoringSummary | null;
   error: string | null;
   isLoading: boolean;
+  onRefresh?: () => void;
 }) {
   if (error) {
     return (
-      <div className="border border-amber-200 bg-amber-50 px-4 py-3 text-[11px] text-amber-700 flex items-start gap-2">
-        <AlertTriangle size={14} className="mt-0.5" aria-hidden="true" />
-        <span>
-          Email outbox monitoring is unavailable right now. The page entries below
-          still reflect recent attempts.
-        </span>
-      </div>
+      <EmailLogInlineNotice tone="warning">
+        Email outbox monitoring is unavailable right now. The page entries below
+        still reflect recent attempts.
+      </EmailLogInlineNotice>
     );
   }
 
@@ -703,9 +747,23 @@ function OutboxMonitoringSummary({
       : summary.healthStatus === "Critical"
         ? "Issues"
         : "Needs review";
+  const showOldestDetails =
+    summary.healthStatus === "Warning" || summary.healthStatus === "Critical";
 
   return (
-    <div className="space-y-3">
+    <div className="border border-border bg-card px-5 py-4 space-y-3">
+      <EmailLogSectionHeader
+        title="Global outbox health"
+        subtitle="Counts are calculated across the whole email outbox, not only the current page."
+        action={
+          onRefresh ? (
+            <EmailLogOperationButton onClick={onRefresh} disabled={isLoading}>
+              Refresh status
+            </EmailLogOperationButton>
+          ) : null
+        }
+      />
+
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
         <EmailLogStatCard
           label="Outbox health"
@@ -726,28 +784,33 @@ function OutboxMonitoringSummary({
         />
       </div>
 
+      <div className="text-[10px] text-muted-foreground font-sans space-y-0.5">
+        <p>Checked {formatAdminDate(summary.generatedAt)}</p>
+        {showOldestDetails && summary.oldestPendingCreatedAt ? (
+          <p>Oldest pending: {formatAdminDate(summary.oldestPendingCreatedAt)}</p>
+        ) : null}
+        {showOldestDetails && summary.oldestFailedUpdatedAt ? (
+          <p>Oldest failed update: {formatAdminDate(summary.oldestFailedUpdatedAt)}</p>
+        ) : null}
+      </div>
+
       {summary.exhaustedFailedCount > 0 ? (
-        <div className="border border-destructive/30 bg-destructive/5 px-4 py-3 text-[11px] text-destructive flex items-start gap-2">
-          <AlertTriangle size={14} className="mt-0.5" aria-hidden="true" />
-          <span>
-            There are failed email messages that need review. Fix SMTP/provider
-            settings, then use Retry on failed rows.
-          </span>
-        </div>
+        <EmailLogInlineNotice tone="error" embedded>
+          There are failed email messages that need review. Fix SMTP/provider
+          settings, then use Retry on failed rows.
+        </EmailLogInlineNotice>
       ) : null}
 
       {summary.stalePendingCount > 0 ? (
-        <div className="border border-amber-200 bg-amber-50 px-4 py-3 text-[11px] text-amber-700 flex items-start gap-2">
-          <AlertTriangle size={14} className="mt-0.5" aria-hidden="true" />
-          <span>Some pending messages appear stale. Check the background worker.</span>
-        </div>
+        <EmailLogInlineNotice tone="warning" embedded>
+          Some pending messages appear stale. Check the background worker.
+        </EmailLogInlineNotice>
       ) : null}
 
       {summary.retryingCount > 0 ? (
-        <div className="border border-border bg-muted/40 px-4 py-3 text-[11px] text-muted-foreground flex items-start gap-2">
-          <Clock3 size={14} className="mt-0.5" aria-hidden="true" />
-          <span>Some messages are scheduled for automatic retry.</span>
-        </div>
+        <EmailLogInlineNotice tone="neutral" embedded>
+          Some messages are scheduled for automatic retry.
+        </EmailLogInlineNotice>
       ) : null}
     </div>
   );
@@ -839,6 +902,8 @@ function EmailLogRow({
             type="button"
             onClick={() => onRetry(entry.id)}
             disabled={isRetrying}
+            title="Queue manual retry for this failed email"
+            aria-label="Queue manual retry for this failed email"
             className="mt-2 inline-flex items-center gap-1.5 border border-border bg-background px-3 py-1 text-[9px] uppercase tracking-wide hover:border-foreground disabled:opacity-50"
           >
             <RefreshCw size={11} className={isRetrying ? "animate-spin" : ""} aria-hidden="true" />
@@ -988,5 +1053,90 @@ function prettifyToken(value: string): string {
 function getUniqueValues(values: readonly string[]): string[] {
   return Array.from(new Set(values.filter(Boolean))).sort((left, right) =>
     left.localeCompare(right),
+  );
+}
+
+function formatRetentionCleanupMessage(
+  result: EmailOutboxRetentionCleanupResult,
+): string {
+  const bodiesPurged =
+    result.succeededBodyPurgedCount + result.skippedBodyPurgedCount;
+  const rowsDeleted =
+    result.succeededDeletedCount + result.skippedDeletedCount;
+  return `Retention cleanup completed: ${bodiesPurged} bodies purged, ${rowsDeleted} outbox rows deleted.`;
+}
+
+function EmailLogSectionHeader({
+  title,
+  subtitle,
+  action,
+}: {
+  title: string;
+  subtitle?: string;
+  action?: ReactNode;
+}) {
+  return (
+    <div className="flex flex-wrap items-start justify-between gap-3">
+      <div>
+        <h3 className="font-serif text-[1.05rem] font-light text-foreground">{title}</h3>
+        {subtitle ? (
+          <p className="text-[10px] text-muted-foreground font-sans mt-0.5">{subtitle}</p>
+        ) : null}
+      </div>
+      {action}
+    </div>
+  );
+}
+
+function EmailLogOperationButton({
+  onClick,
+  disabled,
+  children,
+}: {
+  onClick(): void;
+  disabled?: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className="text-[10px] text-muted-foreground hover:text-foreground disabled:opacity-50 font-sans"
+    >
+      {children}
+    </button>
+  );
+}
+
+function EmailLogInlineNotice({
+  tone,
+  children,
+  embedded = false,
+}: {
+  tone: "error" | "warning" | "success" | "neutral";
+  children: ReactNode;
+  embedded?: boolean;
+}) {
+  const toneClass = {
+    error: "border-destructive/30 bg-destructive/5 text-destructive",
+    warning: "border-amber-200 bg-amber-50 text-amber-700",
+    success: "border-emerald-200 bg-emerald-50 text-emerald-700",
+    neutral: "border-border bg-muted/40 text-muted-foreground",
+  }[tone];
+  const Icon =
+    tone === "success"
+      ? CheckCircle2
+      : tone === "neutral"
+        ? Clock3
+        : AlertTriangle;
+
+  return (
+    <div
+      className={`${embedded ? "" : "m-5 "}border px-4 py-3 text-[11px] flex items-start gap-2 ${toneClass}`}
+    >
+      <Icon size={14} className="mt-0.5 shrink-0" aria-hidden="true" />
+      <span>{children}</span>
+    </div>
   );
 }

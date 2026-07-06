@@ -168,6 +168,7 @@ Notes:
 
 - проверять logs;
 - Email outbox health: на Admin Dashboard / Email Log проверить outbox summary (Healthy/Warning/Critical) — не должно быть exhausted failed и stale pending; retrying допустим и понятен; summary read-only, не меняет retry behavior и не раскрывает email body/secrets;
+- Admin Email Log: проверить global outbox health, при необходимости manual retry failed entries и review retention candidates;
 - Email outbox retention: проверить retention candidates на Admin Email Log; при необходимости запустить manual cleanup на безопасных/test данных; worker включать только после согласования retention periods; failed messages должны оставаться для review/manual retry;
 - Email Log / outbox: failed / retrying; при failed Email Log entry можно использовать manual retry (кнопка **Retry** в строке Failed) после исправления SMTP/provider config — worker переотправит письмо, automatic retry/backoff не меняется, email body не раскрывается;
 - disk space;
