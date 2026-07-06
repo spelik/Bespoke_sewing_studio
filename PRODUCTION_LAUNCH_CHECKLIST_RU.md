@@ -4,6 +4,10 @@
 > [`RELEASE_READINESS_REVIEW_RU.md`](RELEASE_READINESS_REVIEW_RU.md) — blockers/warnings
 > зафиксированы, release commit SHA записан.
 >
+> **Deployment plan:** адаптировать и пройти
+> [`PRODUCTION_DEPLOYMENT_PLAN_RU.md`](PRODUCTION_DEPLOYMENT_PLAN_RU.md) — server paths/users/secrets
+> подготовлены вне Git, rollback target определён до deploy.
+>
 > Для пошагового запуска в день релиза используйте
 > [`PRODUCTION_GO_LIVE_RU.md`](PRODUCTION_GO_LIVE_RU.md) — короткий day-of-launch
 > runbook с порядком действий и Go/No-Go критериями. Этот файл остаётся подробным
@@ -15,7 +19,10 @@
 
 - [ ] Release readiness review completed — [`RELEASE_READINESS_REVIEW_RU.md`](RELEASE_READINESS_REVIEW_RU.md);
 - [ ] Blockers / warnings recorded in release decision log;
-- [ ] Release commit SHA recorded.
+- [ ] Release commit SHA recorded;
+- [ ] Production deployment plan reviewed/adapted — [`PRODUCTION_DEPLOYMENT_PLAN_RU.md`](PRODUCTION_DEPLOYMENT_PLAN_RU.md);
+- [ ] Server-specific paths/users/secrets prepared outside Git;
+- [ ] Rollback target (previous SHA / artifact path) identified before deploy.
 
 Сейчас локальная dev-база может содержать только тестовые заявки, тестовые настройки и тестовых администраторов. Перед production важно не переносить случайные тестовые данные и не забыть заменить placeholder-значения.
 

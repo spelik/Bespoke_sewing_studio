@@ -13,6 +13,7 @@ runbooks, а ссылается на них. Секреты в Git не хран
   redeploy.
 - Подробные runbooks:
   - [`RELEASE_READINESS_REVIEW_RU.md`](RELEASE_READINESS_REVIEW_RU.md) — финальный release readiness review / Go-No-Go summary (пройти **перед** day-of-launch);
+  - [`PRODUCTION_DEPLOYMENT_PLAN_RU.md`](PRODUCTION_DEPLOYMENT_PLAN_RU.md) — practical server deployment / execution checklist;
   - [`PRODUCTION_LAUNCH_CHECKLIST_RU.md`](PRODUCTION_LAUNCH_CHECKLIST_RU.md) — полный checklist;
   - [`BACKUP_RESTORE_RU.md`](BACKUP_RESTORE_RU.md) — backup/restore, rehearsal, rollback;
   - [`SMTP_PRODUCTION_RU.md`](SMTP_PRODUCTION_RU.md) — email delivery;
@@ -90,6 +91,8 @@ runbooks, а ссылается на них. Секреты в Git не хран
 - secrets не в Git.
 
 ## F. Deployment order
+
+Подробный server execution checklist: [`PRODUCTION_DEPLOYMENT_PLAN_RU.md`](PRODUCTION_DEPLOYMENT_PLAN_RU.md) (build artifacts, env, migrations, backup, proxy, smoke test, rollback).
 
 1. backup (см. D);
 2. deploy backend artifact/config;

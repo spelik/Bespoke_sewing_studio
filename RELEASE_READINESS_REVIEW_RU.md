@@ -10,9 +10,15 @@
 
 **Repo is prepared for deployment; final GO requires live environment verification.**
 
+После readiness review и записи Go/No-Go decision log оператор выполняет
+[`PRODUCTION_DEPLOYMENT_PLAN_RU.md`](PRODUCTION_DEPLOYMENT_PLAN_RU.md) — практический
+server execution checklist (build artifacts, env placeholders, migrations, backup,
+deployment sequence, smoke test, rollback).
+
 Связанные документы:
 
 - [`PRODUCTION_GO_LIVE_RU.md`](PRODUCTION_GO_LIVE_RU.md) — day-of-launch runbook;
+- [`PRODUCTION_DEPLOYMENT_PLAN_RU.md`](PRODUCTION_DEPLOYMENT_PLAN_RU.md) — server deployment / execution checklist;
 - [`PRODUCTION_LAUNCH_CHECKLIST_RU.md`](PRODUCTION_LAUNCH_CHECKLIST_RU.md) — подробный checklist;
 - [`BACKUP_RESTORE_RU.md`](BACKUP_RESTORE_RU.md), [`SMTP_PRODUCTION_RU.md`](SMTP_PRODUCTION_RU.md),
   [`UPLOADS_PRODUCTION_RU.md`](UPLOADS_PRODUCTION_RU.md),

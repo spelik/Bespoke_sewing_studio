@@ -367,6 +367,11 @@ release readiness review and Go/No-Go summary. It does not replace the detailed
 runbooks; it collects repository readiness vs operator-only production steps,
 blockers, warnings and the release decision log template.
 
+Then adapt and follow [`PRODUCTION_DEPLOYMENT_PLAN_RU.md`](PRODUCTION_DEPLOYMENT_PLAN_RU.md)
+— the practical server deployment checklist (build artifacts, env placeholders,
+DB migrations, backup, deployment sequence, smoke tests, rollback). It comes after
+the readiness review and before the final public HTTPS smoke test.
+
 On the day of the release, follow
 [`PRODUCTION_GO_LIVE_RU.md`](PRODUCTION_GO_LIVE_RU.md), a short day-of-launch
 runbook with the deployment order and Go/No-Go criteria; the detailed checklist

@@ -34,6 +34,11 @@ collects the final Go/No-Go summary. Backend GO still requires validation comman
 production PostgreSQL, Data Protection keys, uploads/scanner, SMTP, reverse proxy
 and backup/restore rehearsal on the live server.
 
+Server execution: [`../PRODUCTION_DEPLOYMENT_PLAN_RU.md`](../PRODUCTION_DEPLOYMENT_PLAN_RU.md)
+describes build artifacts, env/secrets placeholders, DB migrations, backup,
+deployment sequence, reverse proxy, smoke tests and rollback. Backend deployment
+requires all of the above plus post-deploy health and Email Log checks.
+
 Unhandled request exceptions are converted centrally to `application/problem+json`
 responses through ASP.NET Core Problem Details. Production responses do not expose
 stack traces or exception details; the response includes a `traceId` for correlation.
