@@ -18,9 +18,9 @@ $repoRoot = Resolve-Path (Join-Path $PSScriptRoot "../..")
 $releaseArchivePath = Resolve-Path $ReleaseArchive
 $composePath = Resolve-Path (Join-Path $repoRoot $ComposeFile)
 $serverScripts = @(
-    Resolve-Path (Join-Path $repoRoot "scripts/production/netcup-backup.sh"),
-    Resolve-Path (Join-Path $repoRoot "scripts/production/netcup-check.sh")
-)
+    Join-Path $repoRoot "scripts/production/netcup-backup.sh"
+    Join-Path $repoRoot "scripts/production/netcup-check.sh"
+) | ForEach-Object { Resolve-Path $_ }
 $remote = "${RemoteUser}@${RemoteHost}"
 $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
 $remoteRelease = "$RemoteRoot/releases/bespoke-studio-release-$timestamp.zip"
