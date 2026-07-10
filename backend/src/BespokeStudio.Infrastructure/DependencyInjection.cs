@@ -113,9 +113,21 @@ public static class DependencyInjection
         services.AddScoped<IEmailDeliveryLogService, EmailDeliveryLogService>();
         services.AddScoped<IEmailOutboxService, EmailOutboxService>();
         services.AddScoped<IEmailOutboxRetentionService, EmailOutboxRetentionService>();
+        services.AddScoped<IProductionReadinessService, ProductionReadinessService>();
         services.AddScoped<INotificationService, NotificationService>();
         services.AddScoped<LoggingEmailNotificationSender>();
         services.AddScoped<SmtpEmailNotificationSender>();
+        services.AddHttpClient<ResendEmailNotificationSender>(client =>
+        {
+            client.BaseAddress = new Uri("https://api.resend.com/");
+            client.Timeout = TimeSpan.FromSeconds(30);
+        });
+        services.AddHttpClient("DnsOverHttps", client =>
+        {
+            client.BaseAddress = new Uri("https://cloudflare-dns.com/");
+            client.DefaultRequestHeaders.Accept.ParseAdd("application/dns-json");
+            client.Timeout = TimeSpan.FromSeconds(10);
+        });
         services.AddScoped<IEmailNotificationSender, ConfiguredEmailNotificationSender>();
         services.AddScoped<IMalwareScanner, ConfiguredMalwareScanner>();
         services.AddScoped<IUploadStorage, LocalUploadStorage>();

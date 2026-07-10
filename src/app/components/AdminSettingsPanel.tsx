@@ -27,7 +27,7 @@ type TextFieldName = Exclude<
 
 type EmailDeliveryTextFieldName = Exclude<
   keyof UpdateEmailDeliverySettingsRequest,
-  "provider" | "clearAppPassword"
+  "provider" | "clearAppPassword" | "clearResendApiKey"
 >;
 
 type SiteSettingsModuleKey =
@@ -53,6 +53,7 @@ export function AdminSettingsPanel({ onUnauthorized }: AdminSettingsPanelProps) 
     useState<UpdateEmailDeliverySettingsRequest | null>(null);
   const [emailDeliveryPasswordConfigured, setEmailDeliveryPasswordConfigured] =
     useState(false);
+  const [resendApiKeyConfigured, setResendApiKeyConfigured] = useState(false);
   const [updatedAt, setUpdatedAt] = useState<string | null>(null);
   const [emailDeliveryUpdatedAt, setEmailDeliveryUpdatedAt] = useState<
     string | null
@@ -118,8 +119,13 @@ export function AdminSettingsPanel({ onUnauthorized }: AdminSettingsPanelProps) 
       senderName: settings.senderName,
       appPassword: null,
       clearAppPassword: false,
+      resendFromEmail: settings.resendFromEmail,
+      replyToEmail: settings.replyToEmail,
+      resendApiKey: null,
+      clearResendApiKey: false,
     });
     setEmailDeliveryPasswordConfigured(settings.appPasswordConfigured);
+    setResendApiKeyConfigured(settings.resendApiKeyConfigured);
     setEmailDeliveryUpdatedAt(settings.updatedAt);
   };
 
@@ -132,7 +138,14 @@ export function AdminSettingsPanel({ onUnauthorized }: AdminSettingsPanelProps) 
 
   const setEmailDeliveryProvider = (provider: EmailDeliveryProvider) => {
     setEmailDelivery((current) =>
-      current ? { ...current, provider, clearAppPassword: false } : current,
+      current
+        ? {
+            ...current,
+            provider,
+            clearAppPassword: false,
+            clearResendApiKey: false,
+          }
+        : current,
     );
     setEmailDeliverySuccess(null);
     setEmailDeliveryError(null);
@@ -158,6 +171,21 @@ export function AdminSettingsPanel({ onUnauthorized }: AdminSettingsPanelProps) 
             ...current,
             clearAppPassword: value,
             appPassword: value ? null : current.appPassword,
+          }
+        : current,
+    );
+    setEmailDeliverySuccess(null);
+    setEmailDeliveryError(null);
+    setTestEmailResult(null);
+  };
+
+  const setClearResendApiKey = (value: boolean) => {
+    setEmailDelivery((current) =>
+      current
+        ? {
+            ...current,
+            clearResendApiKey: value,
+            resendApiKey: value ? null : current.resendApiKey,
           }
         : current,
     );
@@ -289,6 +317,7 @@ export function AdminSettingsPanel({ onUnauthorized }: AdminSettingsPanelProps) 
   }
 
   const isGmailSmtp = emailDelivery.provider === "GmailSmtp";
+  const isResendApi = emailDelivery.provider === "ResendApi";
 
   return (
     <div className="space-y-6">
@@ -481,7 +510,7 @@ export function AdminSettingsPanel({ onUnauthorized }: AdminSettingsPanelProps) 
           </div>
         ) : null}
         <p className="md:col-span-2 text-[11px] text-muted-foreground font-sans leading-relaxed">
-          Choose Configuration for developer-managed SMTP from server settings, or Gmail SMTP when the site owner manages the sender Gmail account here.
+          Choose Resend API for production outbound email, Gmail SMTP as fallback, or Configuration for developer-managed server settings.
         </p>
         <SettingsSelect
           label="Delivery provider"
@@ -519,6 +548,45 @@ export function AdminSettingsPanel({ onUnauthorized }: AdminSettingsPanelProps) 
           checked={emailDelivery.clearAppPassword}
           onChange={setClearAppPassword}
         />
+        <SettingsField
+          label="Resend From email"
+          type="email"
+          disabled={!isResendApi}
+          value={emailDelivery.resendFromEmail}
+          onChange={(value) => setEmailDeliveryTextField("resendFromEmail", value)}
+        />
+        <SettingsField
+          label="Reply-To email"
+          type="email"
+          disabled={!isResendApi}
+          value={emailDelivery.replyToEmail}
+          onChange={(value) => setEmailDeliveryTextField("replyToEmail", value)}
+        />
+        <SettingsField
+          label={
+            resendApiKeyConfigured
+              ? "New Resend API key (leave blank to keep current)"
+              : "Resend API key"
+          }
+          type="password"
+          disabled={!isResendApi || emailDelivery.clearResendApiKey}
+          value={emailDelivery.resendApiKey}
+          onChange={(value) => setEmailDeliveryTextField("resendApiKey", value)}
+        />
+        <p className="text-[11px] text-muted-foreground font-sans leading-relaxed">
+          Resend key status: {resendApiKeyConfigured ? "configured" : "not configured"}. The saved key is protected on the backend and is never shown here.
+        </p>
+        <SettingsCheckbox
+          label="Clear saved Resend API key"
+          checked={emailDelivery.clearResendApiKey}
+          onChange={setClearResendApiKey}
+        />
+        <div className="md:col-span-2 border border-border bg-background p-4 text-[11px] text-muted-foreground font-sans leading-relaxed space-y-2">
+          <p className="text-foreground">Resend production defaults</p>
+          <p>From: Bespoke Sewing Studio &lt;noreply@oksanalogosha.com&gt;</p>
+          <p>Reply-To: contact@oksanalogosha.com</p>
+          <p>Use Cloudflare Email Routing for incoming contact/orders addresses and Resend API for outgoing notifications.</p>
+        </div>
         <div className="md:col-span-2 border border-border bg-background p-4 text-[11px] text-muted-foreground font-sans leading-relaxed space-y-2">
           <p className="text-foreground">Gmail App Password guide</p>
           <p>1. Open your Google Account, then Security.</p>
@@ -676,6 +744,7 @@ function SettingsSelect({
       >
         <option value="Configuration">Configuration / server secrets</option>
         <option value="GmailSmtp">Gmail SMTP</option>
+        <option value="ResendApi">Resend API</option>
       </select>
     </label>
   );

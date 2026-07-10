@@ -32,6 +32,9 @@ public sealed class SiteSettingsConfiguration : IEntityTypeConfiguration<SiteSet
         builder.Property(settings => settings.EmailDeliveryGmailAddress).HasMaxLength(320);
         builder.Property(settings => settings.EmailDeliveryAppPasswordProtected).HasMaxLength(4096);
         builder.Property(settings => settings.EmailDeliverySenderName).HasMaxLength(150).IsRequired();
+        builder.Property(settings => settings.EmailDeliveryResendApiKeyProtected).HasMaxLength(4096);
+        builder.Property(settings => settings.EmailDeliveryResendFromEmail).HasMaxLength(320);
+        builder.Property(settings => settings.EmailDeliveryReplyToEmail).HasMaxLength(320);
         builder.Property(settings => settings.FacebookUrl).HasMaxLength(2048);
         builder.Property(settings => settings.InstagramUrl).HasMaxLength(2048);
         builder.Property(settings => settings.TikTokUrl).HasMaxLength(2048);
@@ -74,6 +77,8 @@ public sealed class SiteSettingsConfiguration : IEntityTypeConfiguration<SiteSet
             CustomerContactConfirmationBody = SiteSettings.DefaultCustomerContactConfirmationBody,
             EmailDeliveryProvider = "Configuration",
             EmailDeliverySenderName = "Bespoke Sewing Studio",
+            EmailDeliveryResendFromEmail = "noreply@oksanalogosha.com",
+            EmailDeliveryReplyToEmail = "contact@oksanalogosha.com",
             FooterText = "Bespoke Sewing Studio. All rights reserved.",
             LogoAltText = "Bespoke Sewing Studio logo",
             BrandDisplayName = "Bespoke Sewing Studio",

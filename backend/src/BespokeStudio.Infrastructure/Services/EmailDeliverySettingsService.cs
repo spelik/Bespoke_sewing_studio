@@ -17,6 +17,8 @@ public sealed class EmailDeliverySettingsService(
 {
     private const string ProtectorPurpose = "BespokeStudio.EmailDeliverySettings.v1";
     private const string DefaultSenderName = "Bespoke Sewing Studio";
+    private const string DefaultResendFromEmail = "noreply@oksanalogosha.com";
+    private const string DefaultReplyToEmail = "contact@oksanalogosha.com";
 
     private readonly IDataProtector protector = dataProtectionProvider.CreateProtector(ProtectorPurpose);
 
@@ -45,9 +47,18 @@ public sealed class EmailDeliverySettingsService(
         var appPassword = string.IsNullOrWhiteSpace(request.AppPassword)
             ? null
             : EmailDeliverySettingsValidator.NormalizeAppPassword(request.AppPassword);
+        var resendFromEmail = EmailDeliverySettingsValidator.NormalizeEmail(request.ResendFromEmail)
+            ?? DefaultResendFromEmail;
+        var replyToEmail = EmailDeliverySettingsValidator.NormalizeEmail(request.ReplyToEmail)
+            ?? DefaultReplyToEmail;
+        var resendApiKey = string.IsNullOrWhiteSpace(request.ResendApiKey)
+            ? null
+            : EmailDeliverySettingsValidator.NormalizeSecret(request.ResendApiKey);
 
         settings.EmailDeliveryProvider = provider;
         settings.EmailDeliverySenderName = senderName;
+        settings.EmailDeliveryResendFromEmail = resendFromEmail;
+        settings.EmailDeliveryReplyToEmail = replyToEmail;
 
         if (provider == EmailDeliverySettingsValidator.GmailSmtpProvider)
         {
@@ -71,9 +82,35 @@ public sealed class EmailDeliverySettingsService(
                 });
             }
         }
+        else if (provider == EmailDeliverySettingsValidator.ResendApiProvider)
+        {
+            if (!string.IsNullOrWhiteSpace(resendApiKey))
+            {
+                settings.EmailDeliveryResendApiKeyProtected = protector.Protect(resendApiKey);
+            }
+            else if (request.ClearResendApiKey)
+            {
+                settings.EmailDeliveryResendApiKeyProtected = null;
+            }
+
+            if (string.IsNullOrWhiteSpace(settings.EmailDeliveryResendApiKeyProtected))
+            {
+                throw new EmailDeliverySettingsValidationException(new Dictionary<string, string[]>
+                {
+                    [nameof(request.ResendApiKey)] =
+                        ["A Resend API key is required before Resend API can be used."]
+                });
+            }
+        }
         else if (request.ClearAppPassword)
         {
             settings.EmailDeliveryAppPasswordProtected = null;
+        }
+
+        if (provider != EmailDeliverySettingsValidator.ResendApiProvider &&
+            request.ClearResendApiKey)
+        {
+            settings.EmailDeliveryResendApiKeyProtected = null;
         }
 
         settings.EmailDeliveryUpdatedAt = DateTimeOffset.UtcNow;
@@ -90,6 +127,11 @@ public sealed class EmailDeliverySettingsService(
         var provider = EmailDeliverySettingsValidator.NormalizeProvider(settings.EmailDeliveryProvider)
             ?? EmailDeliverySettingsValidator.ConfigurationProvider;
 
+        if (provider == EmailDeliverySettingsValidator.ResendApiProvider)
+        {
+            return ResolveResendSettings(settings);
+        }
+
         if (provider != EmailDeliverySettingsValidator.GmailSmtpProvider)
         {
             return new ResolvedEmailDeliverySettings(
@@ -98,6 +140,10 @@ public sealed class EmailDeliverySettingsService(
                 SenderName: settings.EmailDeliverySenderName,
                 AppPassword: null,
                 AppPasswordConfigured: false,
+                ResendApiKey: null,
+                ResendApiKeyConfigured: false,
+                ResendFromEmail: settings.EmailDeliveryResendFromEmail,
+                ReplyToEmail: settings.EmailDeliveryReplyToEmail,
                 ConfigurationError: null);
         }
 
@@ -120,6 +166,10 @@ public sealed class EmailDeliverySettingsService(
                 SenderName: settings.EmailDeliverySenderName,
                 AppPassword: protector.Unprotect(settings.EmailDeliveryAppPasswordProtected),
                 AppPasswordConfigured: true,
+                ResendApiKey: null,
+                ResendApiKeyConfigured: !string.IsNullOrWhiteSpace(settings.EmailDeliveryResendApiKeyProtected),
+                ResendFromEmail: settings.EmailDeliveryResendFromEmail,
+                ReplyToEmail: settings.EmailDeliveryReplyToEmail,
                 ConfigurationError: null);
         }
         catch (CryptographicException exception)
@@ -138,6 +188,65 @@ public sealed class EmailDeliverySettingsService(
             SenderName: settings.EmailDeliverySenderName,
             AppPassword: null,
             AppPasswordConfigured: !string.IsNullOrWhiteSpace(settings.EmailDeliveryAppPasswordProtected),
+            ResendApiKey: null,
+            ResendApiKeyConfigured: !string.IsNullOrWhiteSpace(settings.EmailDeliveryResendApiKeyProtected),
+            ResendFromEmail: settings.EmailDeliveryResendFromEmail,
+            ReplyToEmail: settings.EmailDeliveryReplyToEmail,
+            ConfigurationError: message);
+
+    private ResolvedEmailDeliverySettings ResolveResendSettings(SiteSettingsEntity settings)
+    {
+        var fromEmail = EmailDeliverySettingsValidator.NormalizeEmail(settings.EmailDeliveryResendFromEmail);
+        if (string.IsNullOrWhiteSpace(fromEmail))
+        {
+            return ResendConfigurationError(settings, "Resend From email is not configured.");
+        }
+
+        var replyToEmail = EmailDeliverySettingsValidator.NormalizeEmail(settings.EmailDeliveryReplyToEmail);
+        if (string.IsNullOrWhiteSpace(replyToEmail))
+        {
+            return ResendConfigurationError(settings, "Reply-To email is not configured.");
+        }
+
+        if (string.IsNullOrWhiteSpace(settings.EmailDeliveryResendApiKeyProtected))
+        {
+            return ResendConfigurationError(settings, "Resend API key is not configured.");
+        }
+
+        try
+        {
+            return new ResolvedEmailDeliverySettings(
+                EmailDeliverySettingsValidator.ResendApiProvider,
+                GmailAddress: settings.EmailDeliveryGmailAddress,
+                SenderName: settings.EmailDeliverySenderName,
+                AppPassword: null,
+                AppPasswordConfigured: !string.IsNullOrWhiteSpace(settings.EmailDeliveryAppPasswordProtected),
+                ResendApiKey: protector.Unprotect(settings.EmailDeliveryResendApiKeyProtected),
+                ResendApiKeyConfigured: true,
+                ResendFromEmail: fromEmail,
+                ReplyToEmail: replyToEmail,
+                ConfigurationError: null);
+        }
+        catch (CryptographicException exception)
+        {
+            logger.LogError(exception, "Stored Resend API key could not be decrypted.");
+            return ResendConfigurationError(settings, "Stored Resend API key could not be decrypted.");
+        }
+    }
+
+    private static ResolvedEmailDeliverySettings ResendConfigurationError(
+        SiteSettingsEntity settings,
+        string message) =>
+        new(
+            EmailDeliverySettingsValidator.ResendApiProvider,
+            GmailAddress: settings.EmailDeliveryGmailAddress,
+            SenderName: settings.EmailDeliverySenderName,
+            AppPassword: null,
+            AppPasswordConfigured: !string.IsNullOrWhiteSpace(settings.EmailDeliveryAppPasswordProtected),
+            ResendApiKey: null,
+            ResendApiKeyConfigured: !string.IsNullOrWhiteSpace(settings.EmailDeliveryResendApiKeyProtected),
+            ResendFromEmail: settings.EmailDeliveryResendFromEmail,
+            ReplyToEmail: settings.EmailDeliveryReplyToEmail,
             ConfigurationError: message);
 
     private async Task<SiteSettingsEntity> GetOrCreateAsync(CancellationToken cancellationToken)
@@ -169,6 +278,16 @@ public sealed class EmailDeliverySettingsService(
         {
             settings.EmailDeliverySenderName = DefaultSenderName;
         }
+
+        if (string.IsNullOrWhiteSpace(settings.EmailDeliveryResendFromEmail))
+        {
+            settings.EmailDeliveryResendFromEmail = DefaultResendFromEmail;
+        }
+
+        if (string.IsNullOrWhiteSpace(settings.EmailDeliveryReplyToEmail))
+        {
+            settings.EmailDeliveryReplyToEmail = DefaultReplyToEmail;
+        }
     }
 
     private static SiteSettingsEntity CreateDefault() => new()
@@ -184,6 +303,8 @@ public sealed class EmailDeliverySettingsService(
         EmailNotificationsEnabled = false,
         EmailDeliveryProvider = EmailDeliverySettingsValidator.ConfigurationProvider,
         EmailDeliverySenderName = DefaultSenderName,
+        EmailDeliveryResendFromEmail = DefaultResendFromEmail,
+        EmailDeliveryReplyToEmail = DefaultReplyToEmail,
         LogoAltText = "Bespoke Sewing Studio logo",
         BrandDisplayName = "Bespoke Sewing Studio",
         HeaderCtaLabel = "Book Now",
@@ -211,6 +332,9 @@ public sealed class EmailDeliverySettingsService(
             settings.EmailDeliveryGmailAddress,
             settings.EmailDeliverySenderName,
             !string.IsNullOrWhiteSpace(settings.EmailDeliveryAppPasswordProtected),
+            settings.EmailDeliveryResendFromEmail,
+            settings.EmailDeliveryReplyToEmail,
+            !string.IsNullOrWhiteSpace(settings.EmailDeliveryResendApiKeyProtected),
             settings.EmailDeliveryUpdatedAt);
     }
 }

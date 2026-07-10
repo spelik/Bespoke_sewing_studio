@@ -64,13 +64,16 @@ export interface AdminSiteSettings extends PublicSiteSettings {
 }
 
 
-export type EmailDeliveryProvider = "Configuration" | "GmailSmtp";
+export type EmailDeliveryProvider = "Configuration" | "GmailSmtp" | "ResendApi";
 
 export interface AdminEmailDeliverySettings {
   provider: EmailDeliveryProvider;
   gmailAddress: string | null;
   senderName: string;
   appPasswordConfigured: boolean;
+  resendFromEmail: string | null;
+  replyToEmail: string | null;
+  resendApiKeyConfigured: boolean;
   updatedAt: string | null;
 }
 
@@ -80,6 +83,24 @@ export interface UpdateEmailDeliverySettingsRequest {
   senderName: string | null;
   appPassword: string | null;
   clearAppPassword: boolean;
+  resendFromEmail: string | null;
+  replyToEmail: string | null;
+  resendApiKey: string | null;
+  clearResendApiKey: boolean;
+}
+
+export interface ProductionReadinessCheck {
+  key: string;
+  label: string;
+  status: "ready" | "warning" | "review" | string;
+  detail: string;
+  evidence: string[];
+  missing: string[];
+}
+
+export interface ProductionReadinessSummary {
+  checks: ProductionReadinessCheck[];
+  generatedAt: string;
 }
 
 export interface EmailNotificationResult {

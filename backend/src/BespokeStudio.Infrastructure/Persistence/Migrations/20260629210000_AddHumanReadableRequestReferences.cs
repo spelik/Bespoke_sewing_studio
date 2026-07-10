@@ -76,8 +76,8 @@ namespace BespokeStudio.Infrastructure.Persistence.Migrations
                 oldNullable: true);
 
             migrationBuilder.Sql("""
-                SELECT setval('"OrderReferenceSequence"', GREATEST((SELECT COUNT(*) FROM "Orders"), 1), (SELECT COUNT(*) FROM "Orders") > 0);
-                SELECT setval('"ContactMessageReferenceSequence"', GREATEST((SELECT COUNT(*) FROM "ContactMessages"), 1), (SELECT COUNT(*) FROM "ContactMessages") > 0);
+                PERFORM setval('"OrderReferenceSequence"', GREATEST((SELECT COUNT(*) FROM "Orders"), 1), (SELECT COUNT(*) FROM "Orders") > 0);
+                PERFORM setval('"ContactMessageReferenceSequence"', GREATEST((SELECT COUNT(*) FROM "ContactMessages"), 1), (SELECT COUNT(*) FROM "ContactMessages") > 0);
                 """);
 
             migrationBuilder.CreateIndex(

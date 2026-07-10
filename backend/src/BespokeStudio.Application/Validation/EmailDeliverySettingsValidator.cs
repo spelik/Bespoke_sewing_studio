@@ -7,6 +7,7 @@ public static class EmailDeliverySettingsValidator
 {
     public const string ConfigurationProvider = "Configuration";
     public const string GmailSmtpProvider = "GmailSmtp";
+    public const string ResendApiProvider = "ResendApi";
 
     public static Dictionary<string, string[]> Validate(UpdateEmailDeliverySettingsRequest request)
     {
@@ -16,7 +17,7 @@ public static class EmailDeliverySettingsValidator
         if (provider is null)
         {
             errors[nameof(request.Provider)] =
-                ["Choose either Configuration or Gmail SMTP as the email delivery provider."];
+                ["Choose Configuration, Gmail SMTP or Resend API as the email delivery provider."];
             return errors;
         }
 
@@ -26,9 +27,10 @@ public static class EmailDeliverySettingsValidator
             errors[nameof(request.SenderName)] = ["Sender name must be 150 characters or fewer."];
         }
 
-        if (provider == GmailSmtpProvider && string.IsNullOrWhiteSpace(senderName))
+        if ((provider == GmailSmtpProvider || provider == ResendApiProvider) &&
+            string.IsNullOrWhiteSpace(senderName))
         {
-            errors[nameof(request.SenderName)] = ["Sender name is required for Gmail SMTP."];
+            errors[nameof(request.SenderName)] = ["Sender name is required for the selected email provider."];
         }
 
         if (provider == GmailSmtpProvider)
@@ -55,6 +57,40 @@ public static class EmailDeliverySettingsValidator
             }
         }
 
+        if (provider == ResendApiProvider)
+        {
+            var fromEmail = NormalizeEmail(request.ResendFromEmail);
+            if (string.IsNullOrWhiteSpace(fromEmail) ||
+                !MailAddress.TryCreate(fromEmail, out _))
+            {
+                errors[nameof(request.ResendFromEmail)] = ["A valid Resend From email is required."];
+            }
+            else if (fromEmail.Length > 320)
+            {
+                errors[nameof(request.ResendFromEmail)] = ["Resend From email must be 320 characters or fewer."];
+            }
+
+            var replyToEmail = NormalizeEmail(request.ReplyToEmail);
+            if (string.IsNullOrWhiteSpace(replyToEmail) ||
+                !MailAddress.TryCreate(replyToEmail, out _))
+            {
+                errors[nameof(request.ReplyToEmail)] = ["A valid Reply-To email is required."];
+            }
+            else if (replyToEmail.Length > 320)
+            {
+                errors[nameof(request.ReplyToEmail)] = ["Reply-To email must be 320 characters or fewer."];
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.ResendApiKey))
+        {
+            var apiKey = NormalizeSecret(request.ResendApiKey);
+            if (apiKey.Length < 10 || apiKey.Length > 512)
+            {
+                errors[nameof(request.ResendApiKey)] = ["Enter a valid Resend API key."];
+            }
+        }
+
         return errors;
     }
 
@@ -76,6 +112,11 @@ public static class EmailDeliverySettingsValidator
             return GmailSmtpProvider;
         }
 
+        if (normalized.Equals(ResendApiProvider, StringComparison.OrdinalIgnoreCase))
+        {
+            return ResendApiProvider;
+        }
+
         return null;
     }
 
@@ -87,4 +128,6 @@ public static class EmailDeliverySettingsValidator
 
     public static string NormalizeAppPassword(string value) =>
         string.Concat(value.Where(character => !char.IsWhiteSpace(character)));
+
+    public static string NormalizeSecret(string value) => value.Trim();
 }

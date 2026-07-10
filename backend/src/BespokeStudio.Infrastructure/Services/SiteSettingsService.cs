@@ -130,6 +130,8 @@ public sealed class SiteSettingsService(BespokeStudioDbContext dbContext) : ISit
         CustomerContactConfirmationBody = SiteSettingsEntity.DefaultCustomerContactConfirmationBody,
         EmailDeliveryProvider = "Configuration",
         EmailDeliverySenderName = "Bespoke Sewing Studio",
+        EmailDeliveryResendFromEmail = "noreply@oksanalogosha.com",
+        EmailDeliveryReplyToEmail = "contact@oksanalogosha.com",
         LogoAltText = "Bespoke Sewing Studio logo", BrandDisplayName = "Bespoke Sewing Studio",
         HeaderCtaLabel = "Book Now", HeaderCtaUrl = "/order", DefaultMetaTitle = "Bespoke Sewing Studio",
         DefaultMetaDescription = "Bespoke sewing, tailoring, dressmaking, alterations and memory bears.",

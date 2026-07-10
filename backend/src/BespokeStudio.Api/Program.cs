@@ -411,6 +411,7 @@ app.MapSiteSettingsEndpoints();
 app.MapNotificationEndpoints();
 app.MapEmailDeliverySettingsEndpoints();
 app.MapEmailDeliveryLogEndpoints();
+app.MapProductionReadinessEndpoints();
 app.MapServiceOfferingEndpoints();
 app.MapPortfolioEndpoints();
 app.MapContentEndpoints();

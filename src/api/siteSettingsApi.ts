@@ -2,6 +2,7 @@ import type {
   AdminEmailDeliverySettings,
   AdminSiteSettings,
   EmailNotificationResult,
+  ProductionReadinessSummary,
   PublicSiteSettings,
   UpdateEmailDeliverySettingsRequest,
   UpdateSiteSettingsRequest,
@@ -42,5 +43,11 @@ export function sendTestEmailNotification(): Promise<EmailNotificationResult> {
   return apiClient.post<Record<string, never>, EmailNotificationResult>(
     "admin/notifications/test-email",
     {},
+  );
+}
+
+export function getProductionReadinessSummary(): Promise<ProductionReadinessSummary> {
+  return apiClient.get<ProductionReadinessSummary>(
+    "admin/production-readiness",
   );
 }

@@ -6,4 +6,8 @@ public sealed record ResolvedEmailDeliverySettings(
     string SenderName,
     string? AppPassword,
     bool AppPasswordConfigured,
+    string? ResendApiKey,
+    bool ResendApiKeyConfigured,
+    string? ResendFromEmail,
+    string? ReplyToEmail,
     string? ConfigurationError);

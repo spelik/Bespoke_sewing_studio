@@ -11,6 +11,7 @@ public sealed class ConfiguredEmailNotificationSender(
     IEmailDeliverySettingsService emailDeliverySettingsService,
     LoggingEmailNotificationSender loggingSender,
     SmtpEmailNotificationSender smtpSender,
+    ResendEmailNotificationSender resendSender,
     ILogger<ConfiguredEmailNotificationSender> logger) : IEmailNotificationSender
 {
     public async Task<EmailNotificationResult> SendAsync(
@@ -30,11 +31,66 @@ public sealed class ConfiguredEmailNotificationSender(
                 cancellationToken);
         }
 
+        if (deliverySettings.Provider == EmailDeliverySettingsValidator.ResendApiProvider)
+        {
+            return await SendUsingResendApiAsync(
+                deliverySettings,
+                recipientEmail,
+                subject,
+                body,
+                cancellationToken);
+        }
+
         return await SendUsingConfigurationAsync(
             recipientEmail,
             subject,
             body,
             cancellationToken);
+    }
+
+    private async Task<EmailNotificationResult> SendUsingResendApiAsync(
+        ResolvedEmailDeliverySettings deliverySettings,
+        string recipientEmail,
+        string subject,
+        string body,
+        CancellationToken cancellationToken)
+    {
+        if (deliverySettings.ConfigurationError is not null ||
+            string.IsNullOrWhiteSpace(deliverySettings.ResendApiKey) ||
+            string.IsNullOrWhiteSpace(deliverySettings.ResendFromEmail) ||
+            string.IsNullOrWhiteSpace(deliverySettings.ReplyToEmail))
+        {
+            var reason = deliverySettings.ConfigurationError ?? "Resend API settings are incomplete.";
+            logger.LogWarning("Admin-managed Resend API is not fully configured: {ConfigurationError}", reason);
+            return await LogFallbackAsync(recipientEmail, subject, body, reason, cancellationToken);
+        }
+
+        try
+        {
+            return await resendSender.SendAsync(
+                deliverySettings,
+                recipientEmail,
+                subject,
+                body,
+                cancellationToken);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(
+                exception,
+                "Resend API delivery failed for recipient {RecipientEmail}; using logging fallback.",
+                recipientEmail);
+            return await LogFallbackAsync(
+                recipientEmail,
+                subject,
+                body,
+                "Resend API delivery failed.",
+                cancellationToken);
+        }
     }
 
     private async Task<EmailNotificationResult> SendUsingAdminGmailSettingsAsync(

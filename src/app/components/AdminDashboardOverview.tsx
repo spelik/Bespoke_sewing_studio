@@ -12,8 +12,9 @@ import type { AdminOrderListItem } from "../../api/ordersApi";
 import type { AdminSection } from "../admin/adminSections";
 import type {
   AdminContactMessageListItem,
-  AdminEmailDeliverySettings,
   AdminSiteSettings,
+  ProductionReadinessCheck,
+  ProductionReadinessSummary,
 } from "../types";
 import type { AttentionCounts } from "./AdminAttention";
 import {
@@ -32,13 +33,14 @@ interface AdminDashboardOverviewProps {
   contactMessages: readonly AdminContactMessageListItem[];
   orderAttentionCounts: AttentionCounts;
   contactAttentionCounts: AttentionCounts | null;
-  emailDeliverySettings: AdminEmailDeliverySettings | null;
-  emailDeliveryError: string | null;
   emailOutboxSummary: EmailOutboxMonitoringSummary | null;
   emailOutboxSummaryError: string | null;
   isEmailOutboxSummaryLoading: boolean;
   siteSettings: AdminSiteSettings | null;
   siteSettingsError: string | null;
+  productionReadiness: ProductionReadinessSummary | null;
+  productionReadinessError: string | null;
+  isProductionReadinessLoading: boolean;
   isOrdersLoading: boolean;
   ordersError: string | null;
   onOpenSection(section: AdminSection): void;
@@ -50,13 +52,14 @@ export function AdminDashboardOverview({
   contactMessages,
   orderAttentionCounts,
   contactAttentionCounts,
-  emailDeliverySettings,
-  emailDeliveryError,
   emailOutboxSummary,
   emailOutboxSummaryError,
   isEmailOutboxSummaryLoading,
   siteSettings,
   siteSettingsError,
+  productionReadiness,
+  productionReadinessError,
+  isProductionReadinessLoading,
   isOrdersLoading,
   ordersError,
   onOpenSection,
@@ -77,24 +80,26 @@ export function AdminDashboardOverview({
       buildProductionReadinessItems(
         siteSettings,
         siteSettingsError,
-        emailDeliverySettings,
-        emailDeliveryError,
         isOrdersLoading,
         ordersError,
         emailOutboxSummary,
         emailOutboxSummaryError,
         isEmailOutboxSummaryLoading,
+        productionReadiness,
+        productionReadinessError,
+        isProductionReadinessLoading,
       ),
     [
       siteSettings,
       siteSettingsError,
-      emailDeliverySettings,
-      emailDeliveryError,
       isOrdersLoading,
       ordersError,
       emailOutboxSummary,
       emailOutboxSummaryError,
       isEmailOutboxSummaryLoading,
+      productionReadiness,
+      productionReadinessError,
+      isProductionReadinessLoading,
     ],
   );
 
@@ -422,16 +427,16 @@ function getRecentContactMessages(
 function buildProductionReadinessItems(
   siteSettings: AdminSiteSettings | null,
   siteSettingsError: string | null,
-  emailDeliverySettings: AdminEmailDeliverySettings | null,
-  emailDeliveryError: string | null,
   isOrdersLoading: boolean,
   ordersError: string | null,
   emailOutboxSummary: EmailOutboxMonitoringSummary | null,
   emailOutboxSummaryError: string | null,
   isEmailOutboxSummaryLoading: boolean,
+  productionReadiness: ProductionReadinessSummary | null,
+  productionReadinessError: string | null,
+  isProductionReadinessLoading: boolean,
 ): ProductionReadinessItem[] {
   const settingsUnavailable = Boolean(siteSettingsError);
-  const emailUnavailable = Boolean(emailDeliveryError);
   const emailConfigured = Boolean(siteSettings?.email?.trim());
   const phoneConfigured = Boolean(siteSettings?.phone?.trim());
   const ownerNotificationsReady = Boolean(
@@ -440,13 +445,13 @@ function buildProductionReadinessItems(
   const customerConfirmationsReady = Boolean(
     siteSettings?.customerConfirmationEmailsEnabled,
   );
-  const gmailReady = Boolean(
-    emailDeliverySettings?.provider === "GmailSmtp" &&
-    emailDeliverySettings.gmailAddress?.trim() &&
-    emailDeliverySettings.appPasswordConfigured,
+  const backendReadinessByKey = new Map(
+    productionReadiness?.checks.map((check) => [check.key, check]) ?? [],
   );
-  const configurationReady =
-    emailDeliverySettings?.provider === "Configuration";
+  const backendEmailDelivery = backendReadinessByKey.get("emailDelivery");
+  const backendEmailOutbox = backendReadinessByKey.get("emailOutbox");
+  const backendUploadSecurity = backendReadinessByKey.get("uploadSecurity");
+  const backendDnsEmailRecords = backendReadinessByKey.get("dnsEmailRecords");
 
   return [
     {
@@ -477,40 +482,30 @@ function buildProductionReadinessItems(
     },
     {
       label: "Email delivery",
-      status:
-        !emailUnavailable && (gmailReady || configurationReady)
-          ? "ready"
-          : "warning",
-      detail: emailUnavailable
-        ? (emailDeliveryError ?? "Email delivery status could not be loaded.")
-        : gmailReady
-          ? "Gmail SMTP is configured with an App Password."
-          : configurationReady
-            ? "Delivery is controlled by server configuration or secrets."
-            : "Complete Gmail SMTP settings and send a test email.",
+      ...resolveBackendReadinessItem(
+        backendEmailDelivery,
+        productionReadinessError,
+        isProductionReadinessLoading,
+        "Email delivery readiness has not been checked yet.",
+      ),
     },
     {
       label: "Email outbox",
-      status:
-        !emailOutboxSummaryError &&
-        !isEmailOutboxSummaryLoading &&
-        emailOutboxSummary?.healthStatus === "Healthy"
-          ? "ready"
-          : "warning",
-      detail: emailOutboxSummaryError
-        ? "Email outbox monitoring is unavailable. Open Email Log to review."
-        : isEmailOutboxSummaryLoading && !emailOutboxSummary
-          ? "Checking email outbox health."
-          : emailOutboxSummary?.healthStatus === "Healthy"
-            ? "Email outbox is healthy."
-            : (emailOutboxSummary?.summaryMessage ??
-              "Checking email outbox health."),
+      ...resolveBackendReadinessItem(
+        backendEmailOutbox,
+        productionReadinessError ?? emailOutboxSummaryError,
+        isProductionReadinessLoading || isEmailOutboxSummaryLoading,
+        emailOutboxSummary?.summaryMessage ?? "Checking email outbox health.",
+      ),
     },
     {
       label: "Upload security",
-      status: "review",
-      detail:
-        "Quarantine validation is implemented. Confirm ClamAV is configured on the production server.",
+      ...resolveBackendReadinessItem(
+        backendUploadSecurity,
+        productionReadinessError,
+        isProductionReadinessLoading,
+        "ClamAV readiness has not been checked yet.",
+      ),
     },
     {
       label: "Admin data API",
@@ -523,11 +518,40 @@ function buildProductionReadinessItems(
     },
     {
       label: "DNS email records",
-      status: "review",
-      detail:
-        "Before production, verify SPF, DKIM and DMARC for the sender domain or Gmail account.",
+      ...resolveBackendReadinessItem(
+        backendDnsEmailRecords,
+        productionReadinessError,
+        isProductionReadinessLoading,
+        "DNS email records have not been checked yet.",
+      ),
     },
   ];
+}
+
+function resolveBackendReadinessItem(
+  check: ProductionReadinessCheck | undefined,
+  error: string | null,
+  isLoading: boolean,
+  fallbackDetail: string,
+): Pick<ProductionReadinessItem, "status" | "detail"> {
+  if (check) {
+    return {
+      status: check.status === "ready" ? "ready" : "warning",
+      detail: check.missing.length > 0 ? (check.missing[0] ?? check.detail) : check.detail,
+    };
+  }
+
+  if (error) {
+    return {
+      status: "warning",
+      detail: error,
+    };
+  }
+
+  return {
+    status: "review",
+    detail: isLoading ? "Checking production readiness." : fallbackDetail,
+  };
 }
 
 function getEmailOutboxTitle(

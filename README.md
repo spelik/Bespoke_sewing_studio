@@ -418,8 +418,13 @@ be persistent and backed up. The full production Data Protection runbook is in
 Sign in at `http://127.0.0.1:5173/admin` to open the Admin **Dashboard**.
 The dashboard summarises new Orders, new Contact Messages, recent activity,
 email delivery status, upload-security status and production-readiness checks.
-The readiness section is informational only: it never displays secrets and still
-requires manual production verification for ClamAV and SPF/DKIM/DMARC.
+The readiness section never displays secrets. Email delivery, Email outbox,
+Upload security and DNS email records now come from the protected backend
+`GET /api/admin/production-readiness` endpoint: it verifies configured Resend or
+Gmail settings, checks outbox health, runs a lightweight ClamAV clean-file probe
+when ClamAV is configured, and performs DNS TXT/MX lookups for the production
+sender records. A green Upload security or DNS status means the backend observed
+the check directly, not just a manual reminder.
 
 Sign in at `http://127.0.0.1:5173/admin`, then select **Settings** in the
 sidebar. The administrator edits one email and one contact phone, plus
@@ -431,10 +436,13 @@ destination. The phone is public contact information only.
 
 Enable owner new-request notifications with **Notify me about new requests** in
 Admin Settings. The default development provider writes email content to the
-backend log. The **Email delivery** block in Admin Settings can either keep
-developer-managed configuration (`Configuration`) or use owner-managed `Gmail
-SMTP`. In Gmail SMTP mode the owner enters a Gmail address and Google App
-Password; the password is protected on the backend, never returned by the API,
+backend log. The **Email delivery** block in Admin Settings can keep
+developer-managed configuration (`Configuration`), use owner-managed `Gmail
+SMTP`, or use production `Resend API`. Resend stores only a protected API key on
+the backend and never returns it through admin APIs. Production defaults are
+`From: Bespoke Sewing Studio <noreply@oksanalogosha.com>` and
+`Reply-To: contact@oksanalogosha.com`. Gmail SMTP remains available as fallback;
+its Google App Password is protected on the backend, never returned by the API,
 and can be replaced or cleared from the admin UI.
 
 Customer confirmation emails are separate from owner notifications. The
@@ -495,28 +503,38 @@ environment variables.
 
 
 
-## Production email / SMTP checklist
+## Production email / Resend checklist
 
 Owner notifications for Orders and Contact Messages are already implemented, but
 local development uses `Provider=Logging` by default. Real email delivery is a
 mandatory production setup item and must be configured outside source control.
 
-The full step-by-step production runbook (both supported strategies, the
-Cloudflare DNS SPF/DKIM/DMARC checklist for `oksanalogosha.com`, and a production
-smoke test) lives in [`SMTP_PRODUCTION_RU.md`](SMTP_PRODUCTION_RU.md). The
-production domain is `oksanalogosha.com`; sending from an `@oksanalogosha.com`
-address requires a chosen SMTP/email provider. Cloudflare DNS is needed for
-SPF/DKIM/DMARC records but does not itself send email and cannot replace an SMTP
-sender. Never commit SMTP/Gmail secrets to Git.
+Cloudflare Email Routing is used for incoming mail:
+`contact@oksanalogosha.com -> bespoke.studio.ni@gmail.com` and
+`orders@oksanalogosha.com -> bespoke.studio.ni@gmail.com`. Resend API is used
+for outgoing production mail from `noreply@oksanalogosha.com` with
+`Reply-To: contact@oksanalogosha.com`. Gmail SMTP can remain as fallback, but it
+should not be the primary production provider when Resend is configured.
+
+The full step-by-step production runbook (email provider setup, Cloudflare DNS
+SPF/DKIM/DMARC checklist for `oksanalogosha.com`, and a production smoke test)
+lives in [`SMTP_PRODUCTION_RU.md`](SMTP_PRODUCTION_RU.md). Cloudflare DNS is
+needed for SPF/DKIM/DMARC records and incoming Email Routing, but it does not
+send outbound application email. Never commit Resend API keys, SMTP/Gmail
+secrets or screenshots containing them to Git.
 
 Before production release:
 
 - choose one delivery mode:
+  - owner-managed **Admin > Settings > Email delivery > Resend API** for the
+    production sender `noreply@oksanalogosha.com`
   - developer-managed `Notifications:Email:Provider=Smtp` through user-secrets,
     environment variables or a secret store
-  - owner-managed **Admin > Settings > Email delivery > Gmail SMTP**
+  - owner-managed **Admin > Settings > Email delivery > Gmail SMTP** as fallback
 - keep raw SMTP credentials out of Git, committed `appsettings*.json`, docs and
   screenshots
+- if Resend API is used, the API key is stored only as a protected value in the
+  database and is never returned to the frontend
 - if owner-managed Gmail SMTP is used, the Google App Password is stored only as
   a protected value in the database and is never returned to the frontend
 - persist ASP.NET Core Data Protection keys in production so protected admin
@@ -531,8 +549,11 @@ Before production release:
 - test real delivery from the public Contact form and Order form
 - keep owner notifications separate from customer confirmation emails and test both toggles independently
 - monitor Admin Email Log for `Retrying`/`Failed` rows and alert on exhausted outbox jobs
-- before production, configure deliverability records and operations:
-  SPF, DKIM, DMARC, bounce/rejection monitoring and credential rotation
+- before production, confirm Admin Dashboard **DNS email records** is green for
+  `resend._domainkey.oksanalogosha.com`, `send.oksanalogosha.com` SPF/MX and
+  `_dmarc.oksanalogosha.com`
+- before production, configure deliverability operations: bounce/rejection
+  monitoring and credential rotation
 
 Example local Gmail SMTP setup uses user-secrets only:
 

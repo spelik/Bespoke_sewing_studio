@@ -5,4 +5,8 @@ public sealed record UpdateEmailDeliverySettingsRequest(
     string? GmailAddress,
     string? SenderName,
     string? AppPassword,
-    bool ClearAppPassword);
+    bool ClearAppPassword,
+    string? ResendFromEmail,
+    string? ReplyToEmail,
+    string? ResendApiKey,
+    bool ClearResendApiKey);

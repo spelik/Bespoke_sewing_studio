@@ -937,6 +937,18 @@ namespace BespokeStudio.Infrastructure.Persistence.Migrations
                         .HasMaxLength(40)
                         .HasColumnType("character varying(40)");
 
+                    b.Property<string>("EmailDeliveryReplyToEmail")
+                        .HasMaxLength(320)
+                        .HasColumnType("character varying(320)");
+
+                    b.Property<string>("EmailDeliveryResendApiKeyProtected")
+                        .HasMaxLength(4096)
+                        .HasColumnType("character varying(4096)");
+
+                    b.Property<string>("EmailDeliveryResendFromEmail")
+                        .HasMaxLength(320)
+                        .HasColumnType("character varying(320)");
+
                     b.Property<string>("EmailDeliverySenderName")
                         .IsRequired()
                         .HasMaxLength(150)
@@ -1073,6 +1085,8 @@ namespace BespokeStudio.Infrastructure.Persistence.Migrations
                             DefaultMetaDescription = "Bespoke sewing, tailoring, dressmaking, alterations and memory bears.",
                             DefaultMetaTitle = "Bespoke Sewing Studio",
                             EmailDeliveryProvider = "Configuration",
+                            EmailDeliveryReplyToEmail = "contact@oksanalogosha.com",
+                            EmailDeliveryResendFromEmail = "noreply@oksanalogosha.com",
                             EmailDeliverySenderName = "Bespoke Sewing Studio",
                             EmailNotificationsEnabled = false,
                             FooterText = "Bespoke Sewing Studio. All rights reserved.",

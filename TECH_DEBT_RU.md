@@ -1,5 +1,29 @@
 # TECH DEBT - Bespoke Sewing Studio
 
+## Task 85 - Resend API email provider and real readiness checks
+
+- Added owner-managed `ResendApi` email delivery beside existing
+  `Configuration`/`GmailSmtp`.
+- Resend API key is stored only as a Data Protection-protected value in
+  `SiteSettings`, is never returned by admin APIs, and uses production defaults
+  `noreply@oksanalogosha.com` plus `Reply-To: contact@oksanalogosha.com`.
+- Outbox delivery continues through existing `EmailOutboxMessages`; Resend
+  accepted message ids are written to the safe result message, while provider
+  failures remain safe in Email Log/LastError and automatic retry/fallback
+  behavior is preserved.
+- Admin Settings exposes provider selection, Resend API key/From/Reply-To
+  fields, key configured status, clear-key action and Send test email result
+  feedback.
+- Added protected `GET /api/admin/production-readiness` with real backend checks
+  for email delivery, email outbox, ClamAV clean-file probe and DNS TXT/MX
+  records for `oksanalogosha.com`; Dashboard readiness uses this backend summary
+  for green Upload security/DNS statuses.
+- Added migration `AddResendEmailDeliverySettings` and fixed
+  `20260629210000_AddHumanReadableRequestReferences` idempotent SQL from
+  `SELECT setval(...)` to `PERFORM setval(...)` inside the `DO` block.
+- Updated `README.md` and `backend/README.md`. No production secrets, `.env`,
+  production appsettings or `AGENTS_RU.md` were added.
+
 ## Netcup production deployment preparation
 
 - Added netcup-specific runbooks [`PRODUCTION_DEPLOYMENT_RU.md`](PRODUCTION_DEPLOYMENT_RU.md)

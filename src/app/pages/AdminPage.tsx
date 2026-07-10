@@ -3,8 +3,8 @@ import { Download, LogOut, Menu } from "lucide-react";
 import { ApiError } from "../../api/apiClient";
 import { getAdminContactMessages } from "../../api/contactMessagesApi";
 import {
-  getAdminEmailDeliverySettings,
   getAdminSiteSettings,
+  getProductionReadinessSummary,
 } from "../../api/siteSettingsApi";
 import {
   getAdminApiErrorMessage,
@@ -67,8 +67,8 @@ import { usePageNavigation } from "../routing/usePageNavigation";
 import { exportOrdersCsv } from "../utils/adminOrderCsvExport";
 import type {
   AdminContactMessageListItem,
-  AdminEmailDeliverySettings,
   AdminSiteSettings,
+  ProductionReadinessSummary,
 } from "../types";
 
 const ORDER_STATUS_FILTER_OPTIONS: AdminFilterOption[] = [
@@ -121,17 +121,19 @@ export function AdminPage() {
     useState(true);
   const [contactAttentionCounts, setContactAttentionCounts] =
     useState<AttentionCounts | null>(null);
-  const [emailDeliverySettings, setEmailDeliverySettings] =
-    useState<AdminEmailDeliverySettings | null>(null);
-  const [emailDeliveryError, setEmailDeliveryError] = useState<string | null>(
-    null,
-  );
   const [siteSettings, setSiteSettings] = useState<AdminSiteSettings | null>(
     null,
   );
   const [siteSettingsError, setSiteSettingsError] = useState<string | null>(
     null,
   );
+  const [productionReadiness, setProductionReadiness] =
+    useState<ProductionReadinessSummary | null>(null);
+  const [productionReadinessError, setProductionReadinessError] = useState<
+    string | null
+  >(null);
+  const [isProductionReadinessLoading, setIsProductionReadinessLoading] =
+    useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const orderQuery = useMemo<AdminOrderListQuery>(
@@ -265,6 +267,32 @@ export function AdminPage() {
     void loadEmailOutboxRetentionSummary();
   }, [loadEmailOutboxRetentionSummary]);
 
+  const loadProductionReadiness = useCallback(async () => {
+    setIsProductionReadinessLoading(true);
+    setProductionReadinessError(null);
+
+    try {
+      const summary = await getProductionReadinessSummary();
+      setProductionReadiness(summary);
+    } catch (reason: unknown) {
+      if (
+        reason instanceof ApiError &&
+        (reason.status === 401 || reason.status === 403)
+      ) {
+        logout();
+        return;
+      }
+
+      setProductionReadinessError("Production readiness checks could not be loaded.");
+    } finally {
+      setIsProductionReadinessLoading(false);
+    }
+  }, [logout]);
+
+  useEffect(() => {
+    void loadProductionReadiness();
+  }, [loadProductionReadiness]);
+
   const handleRunEmailOutboxRetentionCleanup =
     useCallback(async (): Promise<EmailOutboxRetentionCleanupResult> => {
       const result = await runEmailOutboxRetentionCleanup();
@@ -315,12 +343,14 @@ export function AdminPage() {
 
       setEmailLogRefreshKey((current) => current + 1);
       void loadEmailOutboxSummary();
+      void loadProductionReadiness();
     },
     [
       adminOrders.reload,
       loadContactMessagesForDashboard,
       loadDashboardOrders,
       loadEmailOutboxSummary,
+      loadProductionReadiness,
     ],
   );
 
@@ -355,38 +385,6 @@ export function AdminPage() {
     }
 
     void loadSiteSettings();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [logout]);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadEmailDeliverySettings() {
-      setEmailDeliveryError(null);
-      try {
-        const settings = await getAdminEmailDeliverySettings();
-        if (!cancelled) {
-          setEmailDeliverySettings(settings);
-        }
-      } catch (reason: unknown) {
-        if (
-          reason instanceof ApiError &&
-          (reason.status === 401 || reason.status === 403)
-        ) {
-          logout();
-          return;
-        }
-
-        if (!cancelled) {
-          setEmailDeliveryError("Email delivery status could not be loaded.");
-        }
-      }
-    }
-
-    void loadEmailDeliverySettings();
 
     return () => {
       cancelled = true;
@@ -514,13 +512,14 @@ export function AdminPage() {
               contactMessages={contactMessages}
               orderAttentionCounts={orderAttentionCounts}
               contactAttentionCounts={contactAttentionCounts}
-              emailDeliverySettings={emailDeliverySettings}
-              emailDeliveryError={emailDeliveryError}
               emailOutboxSummary={emailOutboxSummary}
               emailOutboxSummaryError={emailOutboxSummaryError}
               isEmailOutboxSummaryLoading={isEmailOutboxSummaryLoading}
               siteSettings={siteSettings}
               siteSettingsError={siteSettingsError}
+              productionReadiness={productionReadiness}
+              productionReadinessError={productionReadinessError}
+              isProductionReadinessLoading={isProductionReadinessLoading}
               isOrdersLoading={isDashboardOrdersLoading}
               ordersError={dashboardOrdersError}
               onOpenSection={handleAdminSectionChange}

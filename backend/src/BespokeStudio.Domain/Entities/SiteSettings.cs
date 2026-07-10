@@ -26,6 +26,9 @@ public sealed class SiteSettings
     public string? EmailDeliveryGmailAddress { get; set; }
     public string? EmailDeliveryAppPasswordProtected { get; set; }
     public string EmailDeliverySenderName { get; set; } = "Bespoke Sewing Studio";
+    public string? EmailDeliveryResendApiKeyProtected { get; set; }
+    public string? EmailDeliveryResendFromEmail { get; set; }
+    public string? EmailDeliveryReplyToEmail { get; set; }
     public DateTimeOffset? EmailDeliveryUpdatedAt { get; set; }
     public string? FacebookUrl { get; set; }
     public string? InstagramUrl { get; set; }

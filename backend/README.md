@@ -939,13 +939,18 @@ Success becomes `Sent`; temporary failure becomes `Retrying` with delays of 1,
 claiming are supported; stronger distributed coordination remains future work.
 
 Admin-managed email delivery settings are checked first: `Configuration` keeps
-the existing configuration-based provider, while `GmailSmtp` sends through Gmail
-using the owner-managed Gmail address and protected Google App Password stored
-on the backend. If admin delivery mode is `Configuration`, `Provider=Logging`
-uses `LoggingEmailNotificationSender` and `Provider=Smtp` uses
-`SmtpEmailNotificationSender`. Missing/invalid SMTP configuration and SMTP
-delivery errors are logged and fall back to the logging provider without
-changing the successful order or contact message response.
+the existing configuration-based provider, `GmailSmtp` sends through Gmail using
+the owner-managed Gmail address and protected Google App Password stored on the
+backend, and `ResendApi` sends through `POST https://api.resend.com/emails`
+using a protected Resend API key. The Resend API key and Gmail App Password are
+never returned by admin APIs. Production Resend defaults are
+`From: Bespoke Sewing Studio <noreply@oksanalogosha.com>` and
+`Reply-To: contact@oksanalogosha.com`. If admin delivery mode is
+`Configuration`, `Provider=Logging` uses `LoggingEmailNotificationSender` and
+`Provider=Smtp` uses `SmtpEmailNotificationSender`. Missing/invalid provider
+configuration and provider delivery errors are logged and fall back to the
+logging provider without changing the successful order or contact message
+response.
 
 
 `GET /api/admin/email-log` is protected by the `AdminOnly` policy. It returns
@@ -1014,36 +1019,57 @@ policy. It requires enabled email notifications and a Site Settings email, then
 uses the currently configured provider and returns a summary containing only
 provider/result metadata—never SMTP credentials.
 
-Raw SMTP credentials must not be stored in source control, committed appsettings
-files, screenshots or project documentation. Developer-managed SMTP credentials
-come from environment variables, `dotnet user-secrets`, or an external secret
-store. Owner-managed Gmail SMTP stores only a protected Google App Password in
-the singleton `SiteSettings` row through ASP.NET Core Data Protection; the
-password is never returned by admin APIs. Production deployments that use
-owner-managed Gmail SMTP must persist Data Protection keys outside the app
-deployment directory so the protected value remains decryptable after restarts
-or redeployments. `Provider=Logging` is only the local development/dev fallback
-and must not be relied on for production delivery (it only writes to the log and
-does not send externally). Production `Notifications:Email:Smtp:*` values must
-come from environment variables or a managed secret store, never from committed
-config.
+For Resend API, successful test email results include the Resend message id in
+safe result metadata. Test email responses never return SMTP credentials, Gmail
+App Passwords or Resend API keys.
 
-The full production email runbook (both supported strategies, Cloudflare DNS
-SPF/DKIM/DMARC checklist and a production smoke test) is in
+`GET /api/admin/production-readiness` is protected by the same policy and
+returns safe readiness checks for Admin Dashboard. It validates the selected
+email provider configuration, reuses the outbox monitoring summary, runs a
+lightweight clean-file ClamAV probe when `UploadSecurity:MalwareScanner:Provider`
+is `ClamAV`, and performs DNS-over-HTTPS TXT/MX lookups for
+`resend._domainkey.oksanalogosha.com`, `send.oksanalogosha.com` and
+`_dmarc.oksanalogosha.com`. The response contains status, evidence and missing
+items only; it never returns secrets or raw provider credentials. Cloudflare
+Email Routing MX records on the apex domain are not treated as an error because
+incoming mail is intentionally routed to Gmail.
+
+Raw SMTP credentials and Resend API keys must not be stored in source control,
+committed appsettings files, screenshots or project documentation.
+Developer-managed SMTP credentials come from environment variables,
+`dotnet user-secrets`, or an external secret store. Owner-managed Gmail SMTP
+stores only a protected Google App Password in the singleton `SiteSettings` row
+through ASP.NET Core Data Protection; owner-managed Resend API stores only a
+protected API key in the same row. The protected values are never returned by
+admin APIs. Production deployments that use owner-managed Gmail SMTP or Resend
+API must persist Data Protection keys outside the app deployment directory so
+protected values remain decryptable after restarts or redeployments.
+`Provider=Logging` is only the local development/dev fallback and must not be
+relied on for production delivery (it only writes to the log and does not send
+externally). Production `Notifications:Email:Smtp:*` values must come from
+environment variables or a managed secret store, never from committed config.
+
+The full production email runbook (Resend API, Gmail SMTP fallback, Cloudflare
+DNS SPF/DKIM/DMARC checklist and a production smoke test) is in
 [`../SMTP_PRODUCTION_RU.md`](../SMTP_PRODUCTION_RU.md).
 
 Mandatory production email checklist:
 
-- choose either developer-managed `Notifications:Email:Provider=Smtp` or
-  owner-managed **Admin > Settings > Email delivery > Gmail SMTP**
+- use owner-managed **Admin > Settings > Email delivery > Resend API** for the
+  primary production sender `noreply@oksanalogosha.com`
+- keep incoming mail on Cloudflare Email Routing:
+  `contact@oksanalogosha.com -> bespoke.studio.ni@gmail.com` and
+  `orders@oksanalogosha.com -> bespoke.studio.ni@gmail.com`
+- keep Gmail SMTP or developer-managed `Notifications:Email:Provider=Smtp` only
+  as fallback unless a new production decision changes the provider
 - for developer-managed SMTP, configure `Host`, `Port`, `Username`, `Password`,
   `FromEmail`, `FromName` and `UseSsl`
 - use `dotnet user-secrets` only for local development
 - use environment variables or a managed secret store in production for
   developer-managed SMTP secrets
 - persist ASP.NET Core Data Protection keys in production when using
-  owner-managed Gmail SMTP
-- never commit SMTP usernames/passwords or Google App Passwords
+  owner-managed Gmail SMTP or Resend API
+- never commit SMTP usernames/passwords, Google App Passwords or Resend API keys
 - if Gmail is used, enable Google 2-Step Verification and create a Google App
   Password; do not use the normal Gmail account password for SMTP
 - verify **Admin > Settings > Email notifications enabled** and the owner/public
@@ -1051,8 +1077,10 @@ Mandatory production email checklist:
 - verify real delivery with `POST /api/admin/notifications/test-email`, then by
   submitting the public Contact form and Order form
 - monitor `Retrying` and `Failed` Email Log/outbox records in production
-- configure SPF, DKIM and DMARC before production use
-- add operational monitoring for SMTP failures, bounce/rejection handling,
+- confirm Admin Dashboard **DNS email records** is green for
+  `resend._domainkey.oksanalogosha.com`, `send.oksanalogosha.com` SPF/MX and
+  `_dmarc.oksanalogosha.com`
+- add operational monitoring for provider failures, bounce/rejection handling,
   exhausted retries and credential rotation
 
 Apply the outbox migration before starting the updated API:
@@ -1060,6 +1088,11 @@ Apply the outbox migration before starting the updated API:
 ```powershell
 dotnet ef database update --project backend/src/BespokeStudio.Infrastructure --startup-project backend/src/BespokeStudio.Api
 ```
+
+When generating an idempotent PostgreSQL migration script, verify that migration
+`20260629210000_AddHumanReadableRequestReferences` uses `PERFORM setval(...)`
+inside its PL/pgSQL `DO` block. `SELECT setval(...)` inside that block is invalid
+for PostgreSQL idempotent scripts.
 
 Generic local SMTP setup:
 

@@ -5,4 +5,7 @@ public sealed record AdminEmailDeliverySettingsResponse(
     string? GmailAddress,
     string SenderName,
     bool AppPasswordConfigured,
+    string? ResendFromEmail,
+    string? ReplyToEmail,
+    bool ResendApiKeyConfigured,
     DateTimeOffset? UpdatedAt);
