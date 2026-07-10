@@ -18,4 +18,12 @@ public sealed class MalwareScannerOptions
     public List<int> InfectedExitCodes { get; init; } = [1];
     public List<int> ErrorExitCodes { get; init; } = [2];
     public bool TreatScannerErrorAsRejection { get; init; } = true;
+    public ClamAvScannerOptions ClamAv { get; init; } = new();
+}
+
+public sealed class ClamAvScannerOptions
+{
+    public string Host { get; init; } = "localhost";
+    public int Port { get; init; } = 3310;
+    public int MaxChunkSizeBytes { get; init; } = 8192;
 }

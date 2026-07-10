@@ -1,0 +1,25 @@
+# Example only. Replace <secret-health-token> on the server.
+# Do not commit the real token or the real secret health URL.
+
+oksanalogosha.com, www.oksanalogosha.com {
+    handle /health-<secret-health-token> {
+        rewrite * /health/ready
+        reverse_proxy bespoke-studio-app:8080
+    }
+
+    handle /health {
+        respond 404
+    }
+
+    handle /health/ready {
+        respond 404
+    }
+
+    handle /readyz {
+        respond 404
+    }
+
+    handle {
+        reverse_proxy bespoke-studio-app:8080
+    }
+}

@@ -438,8 +438,12 @@ pg_dump \
 Storage path depends on production deployment:
 
 ```bash
-tar -czf "$BACKUP_ROOT/backend-storage.tar.gz" -C /var/www/bespoke-studio/backend storage
+tar -czf "$BACKUP_ROOT/uploads.tar.gz" -C /opt/apps/projects/bespoke-studio/data uploads
 ```
+
+The older `/var/www/bespoke-studio/backend storage` example belongs to the
+deprecated home-server layout. The active netcup layout stores uploads under
+`/opt/apps/projects/bespoke-studio/data/uploads`.
 
 ## Production restore checklist
 

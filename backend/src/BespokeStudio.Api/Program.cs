@@ -99,6 +99,8 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
         ForwardedHeaders.XForwardedProto |
         ForwardedHeaders.XForwardedHost;
     options.ForwardLimit = forwardedHeadersSettings.ForwardLimit;
+    options.KnownProxies.Clear();
+    options.KnownIPNetworks.Clear();
 
     foreach (var proxy in forwardedHeadersSettings.KnownProxies)
     {
@@ -361,6 +363,9 @@ if (!app.Environment.IsDevelopment())
     app.UseHttpsRedirection();
 }
 
+app.UseDefaultFiles();
+app.UseStaticFiles();
+
 app.UseCors(CorsSettings.PolicyName);
 app.UseAuthentication();
 app.UseOutputCache();
@@ -413,6 +418,8 @@ app.MapRepeatableContentEndpoints();
 app.MapBrandSettingsEndpoints();
 app.MapUploadEndpoints(uploadStorageSettings.PublicBasePath);
 
+app.MapFallback(context => ServeSpaFallbackAsync(context, app.Environment));
+
 app.Run();
 
 static RateLimitPartition<string> CreateFixedWindowPartition(
@@ -454,6 +461,37 @@ static async Task WriteHealthResponseAsync(HttpContext context, HealthReport rep
         status = report.Status.ToString()
     }));
 }
+
+static async Task ServeSpaFallbackAsync(HttpContext context, IWebHostEnvironment environment)
+{
+    if (IsBackendRoute(context.Request.Path))
+    {
+        context.Response.StatusCode = StatusCodes.Status404NotFound;
+        return;
+    }
+
+    var webRootPath = string.IsNullOrWhiteSpace(environment.WebRootPath)
+        ? Path.Combine(environment.ContentRootPath, "wwwroot")
+        : environment.WebRootPath;
+    var indexPath = Path.Combine(webRootPath, "index.html");
+
+    if (!File.Exists(indexPath))
+    {
+        context.Response.StatusCode = StatusCodes.Status404NotFound;
+        return;
+    }
+
+    context.Response.ContentType = "text/html; charset=utf-8";
+    await context.Response.SendFileAsync(indexPath);
+}
+
+static bool IsBackendRoute(PathString path) =>
+    path.StartsWithSegments("/api") ||
+    path.StartsWithSegments("/health") ||
+    path.StartsWithSegments("/healthz") ||
+    path.StartsWithSegments("/readyz") ||
+    path.StartsWithSegments("/hubs") ||
+    path.StartsWithSegments("/swagger");
 
 static void ValidateForwardedHeadersSettings(ForwardedHeadersSettings settings)
 {

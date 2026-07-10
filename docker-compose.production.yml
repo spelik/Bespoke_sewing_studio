@@ -1,0 +1,68 @@
+services:
+  bespoke-studio-postgres:
+    image: postgres:18-alpine
+    container_name: bespoke-studio-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: bespoke_studio_prod
+      POSTGRES_USER: bespoke_studio_app
+      POSTGRES_PASSWORD: ${BESPOKE_STUDIO_DB_PASSWORD:?Set BESPOKE_STUDIO_DB_PASSWORD in the server .env file}
+    volumes:
+      - ./postgres:/var/lib/postgresql
+    networks:
+      - bespoke_studio_internal
+
+  bespoke-studio-clamav:
+    image: clamav/clamav:stable
+    container_name: bespoke-studio-clamav
+    restart: unless-stopped
+    networks:
+      - bespoke_studio_internal
+
+  bespoke-studio-app:
+    image: mcr.microsoft.com/dotnet/aspnet:10.0
+    container_name: bespoke-studio-app
+    restart: unless-stopped
+    working_dir: /app
+    command: ["dotnet", "BespokeStudio.Api.dll"]
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_FORWARDEDHEADERS_ENABLED: "true"
+      ASPNETCORE_HTTP_PORTS: "8080"
+      AllowedHosts: oksanalogosha.com;www.oksanalogosha.com
+      ConnectionStrings__BespokeStudioDb: "Host=bespoke-studio-postgres;Port=5432;Database=bespoke_studio_prod;Username=bespoke_studio_app;Password=${BESPOKE_STUDIO_DB_PASSWORD};SSL Mode=Disable;GSS Encryption Mode=Disable"
+      Jwt__Issuer: BespokeStudio.Api
+      Jwt__Audience: BespokeStudio.Admin
+      Jwt__SigningKey: ${BESPOKE_STUDIO_JWT_SIGNING_KEY:?Set BESPOKE_STUDIO_JWT_SIGNING_KEY in the server .env file}
+      DataProtection__ApplicationName: BespokeSewingStudio
+      DataProtection__KeysPath: /appdata/keys
+      UploadStorage__RootPath: /appdata/uploads
+      UploadStorage__PublicBasePath: /api/uploads
+      UploadSecurity__MalwareScanner__Provider: ClamAV
+      UploadSecurity__MalwareScanner__DisplayName: ClamAV
+      UploadSecurity__MalwareScanner__ClamAv__Host: bespoke-studio-clamav
+      UploadSecurity__MalwareScanner__ClamAv__Port: "3310"
+      UploadSecurity__MalwareScanner__TreatScannerErrorAsRejection: "true"
+      ForwardedHeaders__ForwardLimit: "1"
+      ForwardedHeaders__KnownNetworks__0: 172.16.0.0/12
+      Cors__AllowedOrigins__0: https://oksanalogosha.com
+      Cors__AllowedOrigins__1: https://www.oksanalogosha.com
+    volumes:
+      - ./current:/app:ro
+      - ./data/uploads:/appdata/uploads
+      - ./data/logs:/appdata/logs
+      - ./data/keys:/appdata/keys
+    ports:
+      - "127.0.0.1:5030:8080"
+    depends_on:
+      - bespoke-studio-postgres
+      - bespoke-studio-clamav
+    networks:
+      - bespoke_studio_internal
+      - web
+
+networks:
+  bespoke_studio_internal:
+    name: bespoke_studio_internal
+  web:
+    external: true

@@ -372,6 +372,17 @@ Then adapt and follow [`PRODUCTION_DEPLOYMENT_PLAN_RU.md`](PRODUCTION_DEPLOYMENT
 DB migrations, backup, deployment sequence, smoke tests, rollback). It comes after
 the readiness review and before the final public HTTPS smoke test.
 
+The current supported production target is netcup `prod01` behind Cloudflare
+Full (strict), Caddy and Docker Compose. Use
+[`PRODUCTION_DEPLOYMENT_RU.md`](PRODUCTION_DEPLOYMENT_RU.md) and
+[`DEPLOY_NETCUP_RU.md`](DEPLOY_NETCUP_RU.md) for the concrete netcup runbook,
+[`docker-compose.production.yml`](docker-compose.production.yml) for the compose
+configuration, and `scripts/production/netcup-*` for release build, deploy,
+backup, checks and home-server data migration. The old home-server deployment
+(`192.168.2.202`, home Nginx, Cloudflare Tunnel/cloudflared, systemd service and
+old `/var/www`/`/var/lib` paths) is deprecated and must only be referenced as the
+source of a one-time migration.
+
 On the day of the release, follow
 [`PRODUCTION_GO_LIVE_RU.md`](PRODUCTION_GO_LIVE_RU.md), a short day-of-launch
 runbook with the deployment order and Go/No-Go criteria; the detailed checklist

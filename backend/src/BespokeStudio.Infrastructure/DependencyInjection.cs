@@ -72,6 +72,9 @@ public static class DependencyInjection
             .Bind(configuration.GetSection(UploadSecurityOptions.SectionName))
             .Validate(options => IsSupportedMalwareScannerProvider(options.MalwareScanner.Provider), "UploadSecurity:MalwareScanner:Provider must be Disabled, ClamAV or CommandLine.")
             .Validate(options => options.MalwareScanner.TimeoutSeconds is >= 1 and <= 300, "UploadSecurity:MalwareScanner:TimeoutSeconds must be between 1 and 300.")
+            .Validate(options => options.MalwareScanner.ClamAv.Port is >= 1 and <= 65535, "UploadSecurity:MalwareScanner:ClamAv:Port must be between 1 and 65535.")
+            .Validate(options => options.MalwareScanner.ClamAv.MaxChunkSizeBytes is >= 1024 and <= 1048576, "UploadSecurity:MalwareScanner:ClamAv:MaxChunkSizeBytes must be between 1024 and 1048576.")
+            .Validate(options => IsClamAvEndpointConfigured(options), "UploadSecurity:MalwareScanner:ClamAv:Host is required when Provider is ClamAV.")
             .Validate(options => IsScannerExecutableConfigured(options), "UploadSecurity:MalwareScanner:ExecutablePath is required when scanning is enabled.")
             .ValidateOnStart();
 
@@ -136,5 +139,10 @@ public static class DependencyInjection
 
     private static bool IsScannerExecutableConfigured(UploadSecurityOptions options) =>
         string.Equals(options.MalwareScanner.Provider, "Disabled", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(options.MalwareScanner.Provider, "ClamAV", StringComparison.OrdinalIgnoreCase) ||
         !string.IsNullOrWhiteSpace(options.MalwareScanner.ExecutablePath);
+
+    private static bool IsClamAvEndpointConfigured(UploadSecurityOptions options) =>
+        !string.Equals(options.MalwareScanner.Provider, "ClamAV", StringComparison.OrdinalIgnoreCase) ||
+        !string.IsNullOrWhiteSpace(options.MalwareScanner.ClamAv.Host);
 }

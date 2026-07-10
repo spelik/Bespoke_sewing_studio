@@ -14,6 +14,12 @@
 
 **Repo подготовлен к deploy; реальный GO требует настройки живого server environment и успешного public smoke test.**
 
+> Current production target is netcup `prod01` + Cloudflare Full (strict) +
+> Caddy + Docker Compose. Use [`PRODUCTION_DEPLOYMENT_RU.md`](PRODUCTION_DEPLOYMENT_RU.md)
+> and [`DEPLOY_NETCUP_RU.md`](DEPLOY_NETCUP_RU.md) for the concrete supported
+> runbook. Generic Linux/systemd/Nginx paths below are historical/reference
+> examples only and are not the active deployment target.
+
 ## B. Deployment assumptions
 
 | Компонент | Предположение |

@@ -38,6 +38,11 @@ Server execution: [`../PRODUCTION_DEPLOYMENT_PLAN_RU.md`](../PRODUCTION_DEPLOYME
 describes build artifacts, env/secrets placeholders, DB migrations, backup,
 deployment sequence, reverse proxy, smoke tests and rollback. Backend deployment
 requires all of the above plus post-deploy health and Email Log checks.
+The concrete supported production target is netcup with Cloudflare Full (strict),
+Caddy and Docker Compose; see [`../PRODUCTION_DEPLOYMENT_RU.md`](../PRODUCTION_DEPLOYMENT_RU.md)
+and [`../DEPLOY_NETCUP_RU.md`](../DEPLOY_NETCUP_RU.md). The production compose
+uses the real connection string key `ConnectionStrings__BespokeStudioDb` and
+runs the published `BespokeStudio.Api.dll`.
 
 Unhandled request exceptions are converted centrally to `application/problem+json`
 responses through ASP.NET Core Problem Details. Production responses do not expose
@@ -128,9 +133,15 @@ cache private/admin responses. Cache hit/miss metrics remain a future improvemen
 Forwarded headers are processed first, followed by security response headers, HSTS
 (non-Development), exception handling, HTTPS redirection, CORS, authentication and
 rate limiting. The API accepts `X-Forwarded-For`,
-`X-Forwarded-Proto` and `X-Forwarded-Host` only from the framework defaults
-(loopback) or explicitly configured trusted proxies/networks. Configure the exact
-deployment topology; do not trust arbitrary internet clients:
+`X-Forwarded-Proto` and `X-Forwarded-Host` with `ForwardLimit=1` by default.
+For the supported netcup topology, Kestrel is reachable only from Caddy/Docker
+and from `127.0.0.1:5030`; it is not exposed directly to the internet. If a
+future deployment exposes Kestrel outside that boundary, configure exact
+trusted proxies/networks and do not trust arbitrary internet clients:
+The production compose sets `ForwardedHeaders__KnownNetworks__0=172.16.0.0/12`
+for the Docker bridge/private network used by the Caddy upstream. During cutover,
+verify the actual external `web` Docker network subnet and tighten this value if
+the server uses a narrower fixed subnet.
 
 ```powershell
 $env:ForwardedHeaders__ForwardLimit = "1"
@@ -144,8 +155,7 @@ Verify the resulting request scheme and client address after deployment. The
 reverse proxy must forward `X-Forwarded-For`, `X-Forwarded-Proto` and
 `X-Forwarded-Host`, enable WebSocket upgrade for the SignalR admin realtime hub
 (`/hubs/admin-notifications`), and rely on HSTS and HTTPS redirection which run
-outside Development. `KnownProxies`/`KnownNetworks` must be exact — a too-wide range
-lets clients spoof their IP. The full production reverse proxy / HTTPS runbook is in
+outside Development. The full production reverse proxy / HTTPS runbook is in
 [`../REVERSE_PROXY_HTTPS_PRODUCTION_RU.md`](../REVERSE_PROXY_HTTPS_PRODUCTION_RU.md).
 
 Data Protection uses the stable application discriminator
@@ -159,7 +169,8 @@ $env:DataProtection__ApplicationName = "BespokeSewingStudio"
 $env:DataProtection__KeysPath = "D:\BespokeStudioSecrets\DataProtectionKeys"
 ```
 
-Linux example: `DataProtection__KeysPath=/var/lib/bespoke-studio/data-protection-keys`.
+Linux/netcup example: `DataProtection__KeysPath=/appdata/keys` inside the app
+container, mounted from `/opt/apps/projects/bespoke-studio/data/keys`.
 Back up this directory with the database and uploads. Never commit key files,
 production connection strings, JWT signing keys or SMTP credentials. Environment
 variables are supported by configuration; a managed secret store remains preferable
@@ -704,8 +715,11 @@ not require ClamAV. In this mode files are still written through quarantine and
 validated by extension/content type/file signature, then stored with
 `ScanStatus=Skipped`.
 
-For production, configure ClamAV or another command-line scanner through
-environment variables, secret store or an excluded production settings file:
+For production, configure the ClamAV daemon provider or another command-line
+scanner through environment variables, secret store or an excluded production
+settings file. The supported provider names are `Disabled`, `ClamAV` and
+`CommandLine`; `ClamAV` uses a TCP ClamAV daemon (`clamd`) with the INSTREAM
+protocol, while `CommandLine` uses a local executable such as `clamscan`.
 
 ```json
 {
@@ -713,17 +727,21 @@ environment variables, secret store or an excluded production settings file:
     "MalwareScanner": {
       "Provider": "ClamAV",
       "DisplayName": "ClamAV",
-      "ExecutablePath": "clamscan",
-      "Arguments": ["--no-summary", "{filePath}"],
+      "ClamAv": {
+        "Host": "bespoke-studio-clamav",
+        "Port": 3310,
+        "MaxChunkSizeBytes": 8192
+      },
       "TimeoutSeconds": 30,
-      "CleanExitCodes": [0],
-      "InfectedExitCodes": [1],
-      "ErrorExitCodes": [2],
       "TreatScannerErrorAsRejection": true
     }
   }
 }
 ```
+
+For a local executable scanner instead, use `Provider=CommandLine` with
+`ExecutablePath=clamscan`, `Arguments=["--no-summary", "{filePath}"]` and the
+configured clean/infected/error exit code lists.
 
 When the scanner returns a clean result, metadata is stored with
 `ScanStatus=Clean`, `ScanProvider` and `ScannedAt`, and the file is moved from

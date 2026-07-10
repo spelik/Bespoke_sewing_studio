@@ -54,12 +54,16 @@ $env:DataProtection__ApplicationName = "BespokeSewingStudio"
 $env:DataProtection__KeysPath = "D:\BespokeStudioSecrets\DataProtectionKeys"
 ```
 
-Linux / systemd environment:
+Linux / netcup Docker Compose environment:
 
 ```
 DataProtection__ApplicationName=BespokeSewingStudio
-DataProtection__KeysPath=/var/lib/bespoke-studio/data-protection-keys
+DataProtection__KeysPath=/appdata/keys
 ```
+
+On the netcup host this is mounted from `/opt/apps/projects/bespoke-studio/data/keys`.
+Older `/var/lib/bespoke-studio/data-protection-keys` examples belong to the
+deprecated home-server deployment and are used only as a migration source.
 
 Важно:
 

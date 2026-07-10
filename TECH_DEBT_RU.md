@@ -1,5 +1,26 @@
 # TECH DEBT - Bespoke Sewing Studio
 
+## Netcup production deployment preparation
+
+- Added netcup-specific runbooks [`PRODUCTION_DEPLOYMENT_RU.md`](PRODUCTION_DEPLOYMENT_RU.md)
+  and [`DEPLOY_NETCUP_RU.md`](DEPLOY_NETCUP_RU.md), production compose
+  [`docker-compose.production.yml`](docker-compose.production.yml), Caddy example
+  and `scripts/production/netcup-*` scripts for build, deploy, backup, checks and
+  home-server migration.
+- Old home-server / `192.168.2.202` / home Nginx / Cloudflare Tunnel /
+  `cloudflared` / systemd deployment is deprecated in the new runbooks and
+  README; it remains only as a migration source for DB, uploads and Data
+  Protection keys.
+- Backend publish can now serve the Vite `dist/` output from `wwwroot` through
+  ASP.NET Core static files plus SPA fallback. Production compose uses the real
+  `ConnectionStrings__BespokeStudioDb` key, PostgreSQL 18, a separate ClamAV
+  container and `127.0.0.1:5030 -> 8080`.
+- No secrets, real `.env`, production appsettings, migrations or AGENTS_RU.md
+  were added.
+- Remaining production work: actual SSH deploy to netcup, Cloudflare DNS/Caddy
+  update, DB/uploads/Data Protection keys migration, SMTP/email smoke test and
+  final public smoke test require production access and operator approval.
+
 ## Закрыто
 
 - Task 84 — Production deployment plan / server execution checklist (docs-only): добавлен [`PRODUCTION_DEPLOYMENT_PLAN_RU.md`](PRODUCTION_DEPLOYMENT_PLAN_RU.md) — практический deployment plan для `https://oksanalogosha.com` без изменения runtime C#/frontend, backend API endpoints/service logic, schema/migrations, public API JSON contracts, auth/session/2FA/email/order/contact/upload behavior, OutputCache и backup script logic. Разделы: assumptions; server prerequisites; directory layout examples (Linux/Windows placeholders); build-machine validation; frontend/backend artifacts (`dist/`, `dotnet publish`); production env placeholders; DB migrations (EF only, never dev compose); pre-deployment backup; deployment sequence; systemd/IIS concept snippets; reverse proxy/Cloudflare; post-deploy smoke test; rollback; monitoring; anti-patterns; deployment decision log. Обновлены `README.md`, `backend/README.md`, `RELEASE_READINESS_REVIEW_RU.md`, `PRODUCTION_GO_LIVE_RU.md`, `PRODUCTION_LAUNCH_CHECKLIST_RU.md`. Secrets не добавлялись; `.env`/production appsettings не создавались; `AGENTS_RU.md` в Git не добавлялся. Future tasks: real production deployment execution; infra-as-code only after server details known; external monitoring/alerting; backup encryption/offsite; automated restore test.
