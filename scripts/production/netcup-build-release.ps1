@@ -25,6 +25,38 @@ function Invoke-CheckedCommand {
     }
 }
 
+function Assert-FileContains {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Path,
+
+        [Parameter(Mandatory = $true)]
+        [string]$Pattern,
+
+        [string]$Description = $Pattern
+    )
+
+    if (-not (Select-String -LiteralPath $Path -Pattern $Pattern -SimpleMatch -Quiet)) {
+        throw "Migration SQL validation failed: missing $Description."
+    }
+}
+
+function Assert-FileDoesNotContain {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Path,
+
+        [Parameter(Mandatory = $true)]
+        [string]$Pattern,
+
+        [string]$Description = $Pattern
+    )
+
+    if (Select-String -LiteralPath $Path -Pattern $Pattern -SimpleMatch -Quiet) {
+        throw "Migration SQL validation failed: forbidden $Description found."
+    }
+}
+
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot "../..")
 Set-Location $repoRoot
 
@@ -35,6 +67,7 @@ $archivePath = Join-Path $publishRootPath "bespoke-studio-release.zip"
 $frontendDistPath = Join-Path $repoRoot "dist"
 $backendProject = Join-Path $repoRoot "backend/src/BespokeStudio.Api/BespokeStudio.Api.csproj"
 $infrastructureProject = Join-Path $repoRoot "backend/src/BespokeStudio.Infrastructure/BespokeStudio.Infrastructure.csproj"
+$migrationScriptPath = Join-Path $migrationsPath "bespoke-studio-idempotent.sql"
 
 if (Test-Path $publishRootPath) {
     Remove-Item -LiteralPath $publishRootPath -Recurse -Force
@@ -86,16 +119,26 @@ Invoke-CheckedCommand -FilePath "dotnet" -Arguments @(
     "migrations",
     "script",
     "--idempotent",
+    "--configuration",
+    $Configuration,
     "--no-build",
     "--project",
     $infrastructureProject,
     "--startup-project",
     $backendProject,
     "--output",
-    (Join-Path $migrationsPath "bespoke-studio-idempotent.sql"))
+    $migrationScriptPath)
+
+Assert-FileContains -Path $migrationScriptPath -Pattern "20260710120000_AddResendEmailDeliverySettings" -Description "Resend migration id"
+Assert-FileContains -Path $migrationScriptPath -Pattern "EmailDeliveryResendApiKeyProtected" -Description "Resend protected API key column"
+Assert-FileContains -Path $migrationScriptPath -Pattern "EmailDeliveryResendFromEmail" -Description "Resend From email column"
+Assert-FileContains -Path $migrationScriptPath -Pattern "EmailDeliveryReplyToEmail" -Description "Reply-To email column"
+Assert-FileDoesNotContain -Path $migrationScriptPath -Pattern "SELECT setval" -Description "unsafe SELECT setval"
+Assert-FileContains -Path $migrationScriptPath -Pattern 'PERFORM setval(''"OrderReferenceSequence"''' -Description "OrderReferenceSequence PERFORM setval"
+Assert-FileContains -Path $migrationScriptPath -Pattern 'PERFORM setval(''"ContactMessageReferenceSequence"''' -Description "ContactMessageReferenceSequence PERFORM setval"
 
 Compress-Archive -Path (Join-Path $appPublishPath "*") -DestinationPath $archivePath -Force
 
 Write-Host "Release archive: $archivePath"
 Write-Host "Published app: $appPublishPath"
-Write-Host "Migration script: $(Join-Path $migrationsPath 'bespoke-studio-idempotent.sql')"
+Write-Host "Migration script: $migrationScriptPath"

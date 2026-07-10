@@ -87,7 +87,12 @@ The script:
 - runs `dotnet build -c Release`;
 - runs `dotnet publish` for `backend/src/BespokeStudio.Api/BespokeStudio.Api.csproj`;
 - copies `dist/` into published `wwwroot/`;
-- generates an EF Core idempotent migration script;
+- generates an EF Core idempotent migration script with the selected build configuration;
+- validates that the migration script contains
+  `20260710120000_AddResendEmailDeliverySettings` and the Resend/Reply-To
+  `SiteSettings` columns, contains `PERFORM setval(...)` for both reference
+  sequences, and does not contain invalid `SELECT setval(...)` inside the
+  PostgreSQL `DO` block;
 - creates a release zip under `publish/netcup/`.
 
 ## E. Deploy release to netcup
@@ -103,6 +108,12 @@ Example from Windows:
 ```
 
 The deploy script does not create secrets. Before running it, ensure the server `.env` exists.
+It uploads the generated idempotent SQL from
+`publish/netcup/migrations/bespoke-studio-idempotent.sql`, creates predeploy
+backups, applies the SQL through the `bespoke-studio-postgres` container with
+`psql -v ON_ERROR_STOP=1`, and only then replaces `current` and restarts Docker
+Compose. If the SQL fails, deployment stops before the application directory is
+swapped.
 
 ## F. Caddy
 

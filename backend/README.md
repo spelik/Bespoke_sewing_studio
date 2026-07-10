@@ -1083,13 +1083,16 @@ Mandatory production email checklist:
 - add operational monitoring for provider failures, bounce/rejection handling,
   exhausted retries and credential rotation
 
-Apply the outbox migration before starting the updated API:
+Apply pending migrations before starting the updated API:
 
 ```powershell
 dotnet ef database update --project backend/src/BespokeStudio.Infrastructure --startup-project backend/src/BespokeStudio.Api
 ```
 
 When generating an idempotent PostgreSQL migration script, verify that migration
+`20260710120000_AddResendEmailDeliverySettings` is present with
+`EmailDeliveryResendApiKeyProtected`, `EmailDeliveryResendFromEmail` and
+`EmailDeliveryReplyToEmail`, and that migration
 `20260629210000_AddHumanReadableRequestReferences` uses `PERFORM setval(...)`
 inside its PL/pgSQL `DO` block. `SELECT setval(...)` inside that block is invalid
 for PostgreSQL idempotent scripts.

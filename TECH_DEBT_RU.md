@@ -21,6 +21,12 @@
 - Added migration `AddResendEmailDeliverySettings` and fixed
   `20260629210000_AddHumanReadableRequestReferences` idempotent SQL from
   `SELECT setval(...)` to `PERFORM setval(...)` inside the `DO` block.
+- Fixed EF discovery for `20260710120000_AddResendEmailDeliverySettings` by
+  adding the conventional migration designer metadata tied to
+  `BespokeStudioDbContext`; production release generation now fails if the
+  idempotent SQL misses Resend columns/migration id or regresses to
+  `SELECT setval(...)`, and netcup deploy applies the generated SQL before
+  swapping `current`.
 - Updated `README.md` and `backend/README.md`. No production secrets, `.env`,
   production appsettings or `AGENTS_RU.md` were added.
 

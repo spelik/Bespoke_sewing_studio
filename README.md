@@ -535,6 +535,11 @@ Before production release:
   screenshots
 - if Resend API is used, the API key is stored only as a protected value in the
   database and is never returned to the frontend
+- before deploying Resend API support, build the netcup release artifact and
+  verify the generated idempotent SQL contains
+  `20260710120000_AddResendEmailDeliverySettings` plus
+  `EmailDeliveryResendApiKeyProtected`, `EmailDeliveryResendFromEmail` and
+  `EmailDeliveryReplyToEmail`
 - if owner-managed Gmail SMTP is used, the Google App Password is stored only as
   a protected value in the database and is never returned to the frontend
 - persist ASP.NET Core Data Protection keys in production so protected admin

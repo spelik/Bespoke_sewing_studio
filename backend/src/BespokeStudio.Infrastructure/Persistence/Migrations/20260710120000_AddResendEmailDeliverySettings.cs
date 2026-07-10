@@ -4,7 +4,6 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 namespace BespokeStudio.Infrastructure.Persistence.Migrations
 {
-    [Migration("20260710120000_AddResendEmailDeliverySettings")]
     public partial class AddResendEmailDeliverySettings : Migration
     {
         protected override void Up(MigrationBuilder migrationBuilder)

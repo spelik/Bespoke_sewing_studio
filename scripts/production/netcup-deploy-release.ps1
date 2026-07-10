@@ -3,6 +3,7 @@ param(
     [Parameter(Mandatory = $true)]
     [string]$ReleaseArchive,
 
+    [string]$MigrationScript = "publish/netcup/migrations/bespoke-studio-idempotent.sql",
     [string]$ComposeFile = "docker-compose.production.yml",
     [string]$SshKeyPath = "$env:USERPROFILE\.ssh\netcup_rs2000",
     [string]$RemoteUser = "dmitriy",
@@ -16,6 +17,7 @@ Set-StrictMode -Version Latest
 
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot "../..")
 $releaseArchivePath = Resolve-Path $ReleaseArchive
+$migrationScriptPath = Resolve-Path (Join-Path $repoRoot $MigrationScript)
 $composePath = Resolve-Path (Join-Path $repoRoot $ComposeFile)
 $serverScripts = @(
     Join-Path $repoRoot "scripts/production/netcup-backup.sh"
@@ -24,6 +26,8 @@ $serverScripts = @(
 $remote = "${RemoteUser}@${RemoteHost}"
 $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
 $remoteRelease = "$RemoteRoot/releases/bespoke-studio-release-$timestamp.zip"
+$remoteMigrationRelease = "$RemoteRoot/releases/bespoke-studio-idempotent-$timestamp.sql"
+$remoteMigrationStable = "$RemoteRoot/releases/bespoke-studio-idempotent.sql"
 
 if (-not (Test-Path -LiteralPath $SshKeyPath)) {
     throw "SSH key not found: $SshKeyPath"
@@ -39,9 +43,10 @@ if ($PSCmdlet.ShouldProcess($remote, "prepare remote directories and verify .env
     ssh -i $SshKeyPath $remote $remotePrepare
 }
 
-if ($PSCmdlet.ShouldProcess($remote, "upload compose and release archive")) {
+if ($PSCmdlet.ShouldProcess($remote, "upload compose, release archive and migration SQL")) {
     scp -i $SshKeyPath $composePath "${remote}:$RemoteRoot/docker-compose.yml"
     scp -i $SshKeyPath $releaseArchivePath "${remote}:$remoteRelease"
+    scp -i $SshKeyPath $migrationScriptPath "${remote}:$remoteMigrationRelease"
     foreach ($scriptPath in $serverScripts) {
         scp -i $SshKeyPath $scriptPath "${remote}:$RemoteRoot/scripts/production/"
     }
@@ -62,6 +67,9 @@ if docker ps --format '{{.Names}}' | grep -qx 'bespoke-studio-postgres'; then
   docker cp bespoke-studio-postgres:/tmp/predeploy.dump "`$backup_dir/postgresql.dump" || true
   docker exec bespoke-studio-postgres rm -f /tmp/predeploy.dump || true
 fi
+test -f '$remoteMigrationRelease'
+cat '$remoteMigrationRelease' | docker exec -i bespoke-studio-postgres sh -lc 'psql -v ON_ERROR_STOP=1 -U "`$POSTGRES_USER" -d "`$POSTGRES_DB"'
+cp '$remoteMigrationRelease' '$remoteMigrationStable'
 rm -rf current.new
 mkdir -p current.new
 unzip -q '$remoteRelease' -d current.new
