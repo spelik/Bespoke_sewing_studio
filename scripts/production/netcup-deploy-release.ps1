@@ -8,6 +8,7 @@ param(
     [string]$SshKeyPath = "$env:USERPROFILE\.ssh\netcup_rs2000",
     [string]$RemoteUser = "dmitriy",
     [string]$RemoteHost = "159.195.196.104",
+    [string]$ProductionHost = "oksanalogosha.com",
     [string]$RemoteRoot = "/opt/apps/projects/bespoke-studio",
     [string]$RemoteBackupRoot = "/opt/backups/bespoke-studio/releases"
 )
@@ -71,8 +72,12 @@ $remoteRelease = "$RemoteRoot/releases/bespoke-studio-release-$timestamp.zip"
 $remoteMigrationRelease = "$RemoteRoot/releases/bespoke-studio-idempotent-$timestamp.sql"
 $remoteMigrationStable = "$RemoteRoot/releases/bespoke-studio-idempotent.sql"
 
-if (-not (Test-Path -LiteralPath $SshKeyPath)) {
+if (-not $WhatIfPreference -and -not (Test-Path -LiteralPath $SshKeyPath)) {
     throw "SSH key not found: $SshKeyPath"
+}
+
+if ([string]::IsNullOrWhiteSpace($ProductionHost) -or $ProductionHost.Contains("'")) {
+    throw "ProductionHost must be a non-empty host name without single quotes."
 }
 
 Assert-ExistingFile -Path $releaseArchivePath -Description "local release archive"
@@ -103,6 +108,7 @@ if ($PSCmdlet.ShouldProcess($remote, "upload compose, release archive and migrat
 $remoteDeploy = @"
 set -euo pipefail
 cd '$RemoteRoot'
+APP_HOST='$ProductionHost'
 switched=0
 print_rollback_hint() {
   if [ "`$switched" = "1" ]; then
@@ -113,6 +119,26 @@ print_rollback_hint() {
   fi
 }
 trap print_rollback_hint ERR
+check_local_endpoint() {
+  endpoint="`$1"
+  status_file="`$(mktemp)"
+  if http_status="`$(curl -sS -o "`$status_file" -w '%{http_code}' -H "Host: `$APP_HOST" -H "X-Forwarded-Proto: https" -H "X-Forwarded-Host: `$APP_HOST" "http://127.0.0.1:5030`$endpoint")"; then
+    :
+  else
+    curl_exit="`$?"
+    rm -f "`$status_file"
+    echo "Post-switch health check failed for `$endpoint: curl exit `$curl_exit, HTTP status `${http_status:-000}." >&2
+    echo "Hint: local production checks through 127.0.0.1:5030 must send Host: `$APP_HOST because ASP.NET Core AllowedHosts rejects raw localhost/127.0.0.1 hostnames." >&2
+    exit 25
+  fi
+  rm -f "`$status_file"
+  if [ "`$http_status" -lt 200 ] || [ "`$http_status" -ge 400 ]; then
+    echo "Post-switch health check failed for `$endpoint: HTTP status `$http_status." >&2
+    echo "Hint: verify the Host header uses `$APP_HOST and matches the backend AllowedHosts configuration." >&2
+    exit 25
+  fi
+  echo "Post-switch check passed: `$endpoint -> HTTP `$http_status"
+}
 backup_dir='$RemoteBackupRoot/predeploy-$timestamp'
 mkdir -p "`$backup_dir"
 if [ -d current ] && [ "`$(find current -mindepth 1 -maxdepth 1 2>/dev/null | wc -l)" -gt 0 ]; then
@@ -159,9 +185,11 @@ mv current.new current
 switched=1
 docker compose --env-file .env -f docker-compose.yml up -d --force-recreate bespoke-studio-app
 sleep 20
-curl -fsS http://127.0.0.1:5030/health/live >/dev/null
-curl -fsS http://127.0.0.1:5030/health/ready >/dev/null
-curl -fsS -H "Host: oksanalogosha.com" -H "X-Forwarded-Proto: https" -H "X-Forwarded-Host: oksanalogosha.com" http://127.0.0.1:5030/api/version >/dev/null
+check_local_endpoint /health/live
+check_local_endpoint /health/ready
+check_local_endpoint /api/version
+check_local_endpoint /
+check_local_endpoint /admin
 docker compose --env-file .env -f docker-compose.yml ps -a
 docker compose --env-file .env -f docker-compose.yml logs --since=5m bespoke-studio-app
 switched=0

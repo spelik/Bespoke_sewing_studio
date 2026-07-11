@@ -94,6 +94,13 @@ curl -i "$(cat /opt/apps/caddy/oksanalogosha-health-url.txt)"
 curl -i -H "Host: oksanalogosha.com" -H "X-Forwarded-Proto: https" -H "X-Forwarded-Host: oksanalogosha.com" http://127.0.0.1:5030/api/version
 ```
 
+Локальные проверки production-приложения через `http://127.0.0.1:5030`
+должны передавать `Host: oksanalogosha.com`. В production включён
+`AllowedHosts`, поэтому запрос без корректного `Host` получает `400 Bad
+Request - Invalid Hostname`. Deploy script использует этот Host header для
+post-switch проверок `/health/live`, `/health/ready`, `/api/version`, `/` и
+`/admin`.
+
 Ожидаемо:
 
 - `https://oksanalogosha.com/` -> `200`;

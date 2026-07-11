@@ -152,3 +152,10 @@ Deploy script:
 применяет migration SQL и только после этого переключает `current`. Ошибка до
 switch не трогает существующий `current`; ошибка после switch печатает rollback
 path через `current.previous`.
+
+Post-switch checks в deploy script выполняются локально на сервере через
+`http://127.0.0.1:5030`, но обязательно передают `Host: oksanalogosha.com`
+и forwarded headers. Это требуется из-за production `AllowedHosts`: запросы
+к raw `localhost`/`127.0.0.1` без корректного `Host` ожидаемо возвращают
+`400 Bad Request - Invalid Hostname`. Проверяются `/health/live`,
+`/health/ready`, `/api/version`, `/` и `/admin`.

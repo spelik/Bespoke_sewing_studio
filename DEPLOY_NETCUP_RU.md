@@ -202,6 +202,10 @@ curl -i "$(cat /opt/apps/caddy/oksanalogosha-health-url.txt)"
 curl -i -H "Host: oksanalogosha.com" -H "X-Forwarded-Proto: https" -H "X-Forwarded-Host: oksanalogosha.com" http://127.0.0.1:5030/api/version
 ```
 
+Direct local checks against `http://127.0.0.1:5030` must include
+`Host: oksanalogosha.com`. The production backend uses `AllowedHosts`, so raw
+`localhost`/`127.0.0.1` hostnames are rejected with `400 Bad Request`.
+
 Manual smoke tests after deploy:
 
 1. Home page opens.
@@ -225,7 +229,7 @@ Manual smoke tests after deploy:
 - `docker compose logs --since=10m bespoke-studio-app`;
 - Caddy logs;
 - check Docker network `web`;
-- check app directly: `curl -i http://127.0.0.1:5030/api/version`.
+- check app directly: `curl -i -H "Host: oksanalogosha.com" -H "X-Forwarded-Proto: https" -H "X-Forwarded-Host: oksanalogosha.com" http://127.0.0.1:5030/api/version`.
 
 ### PostgreSQL does not start
 
