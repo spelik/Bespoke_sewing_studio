@@ -1,7 +1,5 @@
 import { useMemo } from "react";
 import {
-  AlertTriangle,
-  CheckCircle2,
   Mail,
   Package,
   ShieldCheck,
@@ -12,8 +10,6 @@ import type { AdminOrderListItem } from "../../api/ordersApi";
 import type { AdminSection } from "../admin/adminSections";
 import type {
   AdminContactMessageListItem,
-  AdminSiteSettings,
-  ProductionReadinessCheck,
   ProductionReadinessSummary,
 } from "../types";
 import type { AttentionCounts } from "./AdminAttention";
@@ -21,12 +17,6 @@ import {
   ADMIN_STATUS_LABELS,
   formatAdminDate,
 } from "./adminOrderFormatting";
-
-interface ProductionReadinessItem {
-  label: string;
-  status: "ready" | "warning" | "review";
-  detail: string;
-}
 
 interface AdminDashboardOverviewProps {
   orders: readonly AdminOrderListItem[];
@@ -36,8 +26,6 @@ interface AdminDashboardOverviewProps {
   emailOutboxSummary: EmailOutboxMonitoringSummary | null;
   emailOutboxSummaryError: string | null;
   isEmailOutboxSummaryLoading: boolean;
-  siteSettings: AdminSiteSettings | null;
-  siteSettingsError: string | null;
   productionReadiness: ProductionReadinessSummary | null;
   productionReadinessError: string | null;
   isProductionReadinessLoading: boolean;
@@ -55,8 +43,6 @@ export function AdminDashboardOverview({
   emailOutboxSummary,
   emailOutboxSummaryError,
   isEmailOutboxSummaryLoading,
-  siteSettings,
-  siteSettingsError,
   productionReadiness,
   productionReadinessError,
   isProductionReadinessLoading,
@@ -75,33 +61,6 @@ export function AdminDashboardOverview({
     newCount: 0,
     totalCount: contactMessages.length,
   };
-  const productionReadinessItems = useMemo(
-    () =>
-      buildProductionReadinessItems(
-        siteSettings,
-        siteSettingsError,
-        isOrdersLoading,
-        ordersError,
-        emailOutboxSummary,
-        emailOutboxSummaryError,
-        isEmailOutboxSummaryLoading,
-        productionReadiness,
-        productionReadinessError,
-        isProductionReadinessLoading,
-      ),
-    [
-      siteSettings,
-      siteSettingsError,
-      isOrdersLoading,
-      ordersError,
-      emailOutboxSummary,
-      emailOutboxSummaryError,
-      isEmailOutboxSummaryLoading,
-      productionReadiness,
-      productionReadinessError,
-      isProductionReadinessLoading,
-    ],
-  );
 
   return (
     <div className="space-y-6">
@@ -139,37 +98,20 @@ export function AdminDashboardOverview({
         />
         <DashboardStatusCard
           icon={ShieldCheck}
-          label="Upload security"
-          title="Quarantine enabled"
-          caption="Order attachments are validated before acceptance and show scan status in Orders."
-          onClick={() => onOpenSection("orders")}
+          label="System status"
+          title={getProductionHealthTitle(
+            productionReadiness,
+            productionReadinessError,
+            isProductionReadinessLoading,
+          )}
+          caption={getProductionHealthCaption(
+            productionReadiness,
+            productionReadinessError,
+            isProductionReadinessLoading,
+          )}
+          onClick={() => onOpenSection("productionHealth")}
         />
       </div>
-
-      <section className="bg-card border border-border">
-        <div className="px-5 py-4 border-b border-border flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h2 className="font-serif text-[1.15rem] font-light text-foreground">
-              Production readiness
-            </h2>
-            <p className="text-[10px] text-muted-foreground font-sans mt-0.5">
-              Quick checks before the site is deployed or handed over.
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={() => onOpenSection("settings")}
-            className="text-[10px] border border-border bg-background px-3 py-2 hover:border-foreground font-sans"
-          >
-            Open settings
-          </button>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 p-5">
-          {productionReadinessItems.map((item) => (
-            <ProductionReadinessCard key={item.label} item={item} />
-          ))}
-        </div>
-      </section>
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
         <section className="bg-card border border-border">
@@ -369,29 +311,6 @@ function DashboardStatusCard({
   );
 }
 
-function ProductionReadinessCard({ item }: { item: ProductionReadinessItem }) {
-  const isReady = item.status === "ready";
-  const Icon = isReady ? CheckCircle2 : AlertTriangle;
-
-  return (
-    <div className="border border-border bg-background px-4 py-3">
-      <div className="flex items-start gap-3">
-        <span
-          className={`mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${isReady ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}
-        >
-          <Icon size={13} aria-hidden="true" />
-        </span>
-        <div className="min-w-0">
-          <p className="text-[11px] text-foreground font-sans">{item.label}</p>
-          <p className="text-[10px] text-muted-foreground font-sans leading-4 mt-1">
-            {item.detail}
-          </p>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function DashboardEmptyState({ message }: { message: string }) {
   return (
     <p className="px-5 py-8 text-center text-[11px] text-muted-foreground font-sans">
@@ -422,136 +341,6 @@ function getRecentContactMessages(
         new Date(first.createdAt).getTime(),
     )
     .slice(0, 5);
-}
-
-function buildProductionReadinessItems(
-  siteSettings: AdminSiteSettings | null,
-  siteSettingsError: string | null,
-  isOrdersLoading: boolean,
-  ordersError: string | null,
-  emailOutboxSummary: EmailOutboxMonitoringSummary | null,
-  emailOutboxSummaryError: string | null,
-  isEmailOutboxSummaryLoading: boolean,
-  productionReadiness: ProductionReadinessSummary | null,
-  productionReadinessError: string | null,
-  isProductionReadinessLoading: boolean,
-): ProductionReadinessItem[] {
-  const settingsUnavailable = Boolean(siteSettingsError);
-  const emailConfigured = Boolean(siteSettings?.email?.trim());
-  const phoneConfigured = Boolean(siteSettings?.phone?.trim());
-  const ownerNotificationsReady = Boolean(
-    siteSettings?.emailNotificationsEnabled && emailConfigured,
-  );
-  const customerConfirmationsReady = Boolean(
-    siteSettings?.customerConfirmationEmailsEnabled,
-  );
-  const backendReadinessByKey = new Map(
-    productionReadiness?.checks.map((check) => [check.key, check]) ?? [],
-  );
-  const backendEmailDelivery = backendReadinessByKey.get("emailDelivery");
-  const backendEmailOutbox = backendReadinessByKey.get("emailOutbox");
-  const backendUploadSecurity = backendReadinessByKey.get("uploadSecurity");
-  const backendDnsEmailRecords = backendReadinessByKey.get("dnsEmailRecords");
-
-  return [
-    {
-      label: "Public contact details",
-      status:
-        !settingsUnavailable && emailConfigured && phoneConfigured
-          ? "ready"
-          : "warning",
-      detail: settingsUnavailable
-        ? (siteSettingsError ?? "Site settings could not be loaded.")
-        : emailConfigured && phoneConfigured
-          ? "Public email and phone are configured."
-          : "Add the public email and phone in Settings → Contact.",
-    },
-    {
-      label: "Owner notifications",
-      status: ownerNotificationsReady ? "ready" : "warning",
-      detail: ownerNotificationsReady
-        ? "New orders and contact messages can notify the owner."
-        : "Enable new-request notifications and confirm the owner email.",
-    },
-    {
-      label: "Customer confirmations",
-      status: customerConfirmationsReady ? "ready" : "review",
-      detail: customerConfirmationsReady
-        ? "Automatic customer confirmation emails are enabled."
-        : "Review whether customers should receive automatic confirmations.",
-    },
-    {
-      label: "Email delivery",
-      ...resolveBackendReadinessItem(
-        backendEmailDelivery,
-        productionReadinessError,
-        isProductionReadinessLoading,
-        "Email delivery readiness has not been checked yet.",
-      ),
-    },
-    {
-      label: "Email outbox",
-      ...resolveBackendReadinessItem(
-        backendEmailOutbox,
-        productionReadinessError ?? emailOutboxSummaryError,
-        isProductionReadinessLoading || isEmailOutboxSummaryLoading,
-        emailOutboxSummary?.summaryMessage ?? "Checking email outbox health.",
-      ),
-    },
-    {
-      label: "Upload security",
-      ...resolveBackendReadinessItem(
-        backendUploadSecurity,
-        productionReadinessError,
-        isProductionReadinessLoading,
-        "ClamAV readiness has not been checked yet.",
-      ),
-    },
-    {
-      label: "Admin data API",
-      status: ordersError || isOrdersLoading ? "review" : "ready",
-      detail: ordersError
-        ? "Admin data could not be loaded. Check the backend and database connection."
-        : isOrdersLoading
-          ? "Checking admin data access."
-          : "Orders and admin data are loading from the backend API.",
-    },
-    {
-      label: "DNS email records",
-      ...resolveBackendReadinessItem(
-        backendDnsEmailRecords,
-        productionReadinessError,
-        isProductionReadinessLoading,
-        "DNS email records have not been checked yet.",
-      ),
-    },
-  ];
-}
-
-function resolveBackendReadinessItem(
-  check: ProductionReadinessCheck | undefined,
-  error: string | null,
-  isLoading: boolean,
-  fallbackDetail: string,
-): Pick<ProductionReadinessItem, "status" | "detail"> {
-  if (check) {
-    return {
-      status: check.status === "ready" ? "ready" : "warning",
-      detail: check.missing.length > 0 ? (check.missing[0] ?? check.detail) : check.detail,
-    };
-  }
-
-  if (error) {
-    return {
-      status: "warning",
-      detail: error,
-    };
-  }
-
-  return {
-    status: "review",
-    detail: isLoading ? "Checking production readiness." : fallbackDetail,
-  };
 }
 
 function getEmailOutboxTitle(
@@ -608,4 +397,52 @@ function getEmailOutboxCaption(
   }
 
   return `${summary.sentLast24HoursCount} sent in last 24h`;
+}
+
+function getProductionHealthTitle(
+  summary: ProductionReadinessSummary | null,
+  error: string | null,
+  isLoading: boolean,
+): string {
+  if (error) {
+    return "Needs attention";
+  }
+
+  if (isLoading && !summary) {
+    return "Checking system...";
+  }
+
+  if (!summary) {
+    return "Check system";
+  }
+
+  const hasIssues = summary.checks.some((check) => check.status !== "ready");
+  return hasIssues ? "Needs attention" : "System healthy";
+}
+
+function getProductionHealthCaption(
+  summary: ProductionReadinessSummary | null,
+  error: string | null,
+  isLoading: boolean,
+): string {
+  if (error) {
+    return "Open Production Health to review deployment checks.";
+  }
+
+  if (isLoading && !summary) {
+    return "Checking deployment and backend readiness.";
+  }
+
+  if (!summary) {
+    return "Open Production Health for deployment checks.";
+  }
+
+  const warningCount = summary.checks.filter(
+    (check) => check.status !== "ready",
+  ).length;
+  if (warningCount > 0) {
+    return `${warningCount} check${warningCount === 1 ? "" : "s"} need review.`;
+  }
+
+  return "Open Production Health for technical checks.";
 }

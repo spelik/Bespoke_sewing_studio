@@ -1,5 +1,25 @@
 # TECH DEBT - Bespoke Sewing Studio
 
+## Task 87 - Admin owner workflow navigation restructure
+
+- Admin navigation reorganized from one flat developer-style list into owner-facing
+  groups: **Work**, **Website**, **Administration** and **Account**.
+- Renamed owner-facing sections without changing backend APIs or data:
+  `Contact Messages` -> `Messages` in the menu, `Services` -> `Services & Prices`,
+  `Content` -> `Site Pages`, `Repeatable Content` -> `Website Blocks`,
+  `Settings` split into menu entries `Business Info` and `System Settings` that
+  reuse the same settings forms/save behavior.
+- Moved the large production-readiness block out of the Dashboard into a separate
+  **Administration -> Production Health** page. Dashboard now focuses on recent
+  customer activity, new orders/messages, email outbox summary and a compact
+  system-status link.
+- Added clearer page descriptions and empty states for owner workflows, including
+  Portfolio and Site Pages. Website Blocks now labels privacy sections as
+  legal/advanced content.
+- Backend/API contracts, authentication/session flow, email delivery, uploads,
+  database schema and migrations were not changed. Production deploy/cutover was
+  not performed.
+
 ## Task 86 - Production release archive deployment fix
 
 - Root cause of the interrupted netcup deploy was Windows `Compress-Archive`

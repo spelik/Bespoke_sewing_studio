@@ -18,6 +18,7 @@ import { useSiteSettings } from "../siteSettings/SiteSettingsContext";
 
 interface AdminSettingsPanelProps {
   onUnauthorized(): void;
+  focus?: "business" | "system";
 }
 
 type TextFieldName = Exclude<
@@ -46,7 +47,10 @@ type SettingsFeedback = {
 const inputClassName =
   "w-full border border-border bg-background px-3 py-2.5 text-[12px] text-foreground focus:outline-none focus:border-accent transition-colors font-sans";
 
-export function AdminSettingsPanel({ onUnauthorized }: AdminSettingsPanelProps) {
+export function AdminSettingsPanel({
+  onUnauthorized,
+  focus = "business",
+}: AdminSettingsPanelProps) {
   const { refresh } = useSiteSettings();
   const [form, setForm] = useState<UpdateSiteSettingsRequest | null>(null);
   const [emailDelivery, setEmailDelivery] =
@@ -109,6 +113,21 @@ export function AdminSettingsPanel({ onUnauthorized }: AdminSettingsPanelProps) 
       active = false;
     };
   }, [onUnauthorized]);
+
+  useEffect(() => {
+    if (isLoading) {
+      return;
+    }
+
+    const targetId =
+      focus === "system" ? "admin-system-settings" : "admin-business-info";
+    window.requestAnimationFrame(() => {
+      document.getElementById(targetId)?.scrollIntoView({
+        block: "start",
+        behavior: "smooth",
+      });
+    });
+  }, [focus, isLoading]);
 
   const applyEmailDeliverySettings = (
     settings: AdminEmailDeliverySettings,
@@ -326,6 +345,12 @@ export function AdminSettingsPanel({ onUnauthorized }: AdminSettingsPanelProps) 
           {error}
         </div>
       ) : null}
+      <SettingsSectionIntro
+        id="admin-business-info"
+        eyebrow="Business Info"
+        title="Public studio details"
+        description="Edit public studio details such as contact email, phone and business information."
+      />
       <SettingsGroup title="General">
         <SettingsField
           label="Studio name"
@@ -402,6 +427,12 @@ export function AdminSettingsPanel({ onUnauthorized }: AdminSettingsPanelProps) 
         />
       </SettingsGroup>
 
+      <SettingsSectionIntro
+        id="admin-system-settings"
+        eyebrow="System Settings"
+        title="Email delivery and notifications"
+        description="Configure email delivery, notifications and technical site settings."
+      />
       <SettingsGroup title="Notifications">
         <p className="md:col-span-2 text-[11px] text-muted-foreground font-sans leading-relaxed">
           Owner notifications are sent to the contact email above when a new contact message or order request arrives. Save contact settings before sending a test email.
@@ -638,6 +669,32 @@ function SettingsGroup({ title, children }: { title: string; children: React.Rea
     <section className="bg-card border border-border p-5 lg:p-6">
       <h2 className="text-[12px] font-medium text-foreground mb-5 font-sans tracking-wide">{title}</h2>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">{children}</div>
+    </section>
+  );
+}
+
+function SettingsSectionIntro({
+  id,
+  eyebrow,
+  title,
+  description,
+}: {
+  id: string;
+  eyebrow: string;
+  title: string;
+  description: string;
+}) {
+  return (
+    <section id={id} className="scroll-mt-24 bg-card border border-border p-5">
+      <p className="text-[9px] uppercase tracking-[0.24em] text-muted-foreground font-sans">
+        {eyebrow}
+      </p>
+      <h2 className="mt-2 font-serif text-[1.25rem] font-light text-foreground">
+        {title}
+      </h2>
+      <p className="mt-1 max-w-2xl text-[11px] leading-5 text-muted-foreground font-sans">
+        {description}
+      </p>
     </section>
   );
 }

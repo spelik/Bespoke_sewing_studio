@@ -175,7 +175,9 @@ export function AdminPortfolioPanel({ onUnauthorized }: Props) {
         </div>
         <button disabled={saving || uploading} className="bg-foreground text-primary-foreground px-6 py-2.5 text-[10px] disabled:opacity-50">{saving ? "Saving..." : "Save item"}</button>
       </form> : null}
-      <div className="space-y-3">{items.map((item) => <article key={item.id} className={`bg-card border p-4 flex flex-col sm:flex-row gap-4 ${item.archivedAt ? "border-amber-300 opacity-75" : "border-border"}`}>
+      <div className="space-y-3">
+        {items.length === 0 ? <div className="bg-card border border-border p-6 text-[11px] text-muted-foreground font-sans">No portfolio items yet. Add your first portfolio item.</div> : null}
+        {items.map((item) => <article key={item.id} className={`bg-card border p-4 flex flex-col sm:flex-row gap-4 ${item.archivedAt ? "border-amber-300 opacity-75" : "border-border"}`}>
         {item.imageFileId ? <AdminPortfolioImage imageFileId={item.imageFileId} alt={item.altText} className="w-20 aspect-[3/4] object-cover bg-muted"/> : <div className="w-20 aspect-[3/4] bg-muted"/>}
         <div className="flex-1"><div className="flex flex-wrap gap-2 items-center"><h3 className="font-serif text-lg font-light">{item.title}</h3><Badge text={item.categoryName}/>{item.archivedAt ? <Badge text="Archived"/> : null}{!item.isActive ? <Badge text="Hidden"/> : null}{item.isFeatured ? <Badge text="Featured"/> : null}</div><p className="text-[10px] text-muted-foreground mt-2">Order: {item.displayOrder} · /{item.slug}</p></div>
         <div className="flex flex-wrap gap-2 items-start"><Action text="Edit" onClick={() => editItem(item)}/>{!item.archivedAt ? <><Action text={item.isActive ? "Hide" : "Activate"} onClick={() => void toggleItem(item, "isActive")}/><Action text={item.isFeatured ? "Unfeature" : "Feature"} onClick={() => void toggleItem(item, "isFeatured")}/></> : null}<Action text="Archive" danger onClick={() => void removeItem(item)}/></div>

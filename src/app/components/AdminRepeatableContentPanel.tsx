@@ -49,7 +49,7 @@ const GROUPS = [
   {
     key: "privacy-sections",
     label: "Privacy Sections",
-    hint: "Detailed Privacy Policy subsections. Uses title and body.",
+    hint: "Legal / advanced content for detailed Privacy Policy subsections. Uses title and body.",
   },
 ] as const;
 
@@ -226,7 +226,7 @@ export function AdminRepeatableContentPanel({ onUnauthorized }: AdminRepeatableC
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="space-y-1">
           <p className="text-[11px] text-muted-foreground font-sans">
-            Manage repeatable public blocks used by Home, About and Privacy pages.
+            Manage reusable blocks such as process steps, studio values, testimonials and legal sections.
           </p>
           <p className="text-[10px] text-muted-foreground/80 font-sans">
             Keep keys lowercase with letters, numbers and hyphens.

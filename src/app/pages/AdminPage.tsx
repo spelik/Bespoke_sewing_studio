@@ -24,6 +24,7 @@ import {
 } from "../../api/emailDeliveryLogApi";
 import { type AdminPageSize } from "../../api/pagination";
 import {
+  ADMIN_NAV_GROUPS,
   ADMIN_NAV_ITEMS,
   getAdminSectionFromHash,
   updateAdminSectionHash,
@@ -55,6 +56,7 @@ import { AdminContentPanel } from "../components/AdminContentPanel";
 import { AdminOrderDetail } from "../components/AdminOrderDetail";
 import { AdminOrdersTable } from "../components/AdminOrdersTable";
 import { AdminPortfolioPanel } from "../components/AdminPortfolioPanel";
+import { AdminProductionHealthPanel } from "../components/AdminProductionHealthPanel";
 import { AdminRepeatableContentPanel } from "../components/AdminRepeatableContentPanel";
 import { AdminServicesPanel } from "../components/AdminServicesPanel";
 import { AdminSettingsPanel } from "../components/AdminSettingsPanel";
@@ -397,6 +399,11 @@ export function AdminPage() {
     }
   }, [adminOrders.totalPages, orderPage]);
 
+  const currentNavItem = useMemo(
+    () => ADMIN_NAV_ITEMS.find((item) => item.id === section),
+    [section],
+  );
+
   const emailOutboxAttentionCounts = useMemo<AttentionCounts | null>(() => {
     if (!emailOutboxSummary) {
       return null;
@@ -439,28 +446,35 @@ export function AdminPage() {
           </div>
         </div>
         <nav className="p-3 flex-1 overflow-y-auto">
-          {ADMIN_NAV_ITEMS.map((item) => {
-            const attentionCounts = getNavAttentionCounts(
-              item.id,
-              orderAttentionCounts,
-              contactAttentionCounts,
-              emailOutboxAttentionCounts,
-            );
-            return (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => handleAdminSectionChange(item.id)}
-                className={`w-full flex items-center justify-between gap-3 px-3 py-2.5 text-[12px] font-sans transition-colors mb-0.5 ${section === item.id ? "bg-primary-foreground/12 text-primary-foreground" : "text-primary-foreground/55 hover:text-primary-foreground hover:bg-primary-foreground/6"}`}
-              >
-                <span className="inline-flex items-center gap-3 min-w-0">
-                  <item.icon size={13} />
-                  <span className="truncate">{item.label}</span>
-                </span>
-                <AttentionBadge counts={attentionCounts} />
-              </button>
-            );
-          })}
+          {ADMIN_NAV_GROUPS.map((group) => (
+            <div key={group.label} className="mb-4 last:mb-0">
+              <div className="px-3 pb-1.5 text-[8px] uppercase tracking-[0.24em] text-primary-foreground/30 font-sans">
+                {group.label}
+              </div>
+              {group.items.map((item) => {
+                const attentionCounts = getNavAttentionCounts(
+                  item.id,
+                  orderAttentionCounts,
+                  contactAttentionCounts,
+                  emailOutboxAttentionCounts,
+                );
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => handleAdminSectionChange(item.id)}
+                    className={`w-full flex items-center justify-between gap-3 px-3 py-2.5 text-[12px] font-sans transition-colors mb-0.5 ${section === item.id ? "bg-primary-foreground/12 text-primary-foreground" : "text-primary-foreground/55 hover:text-primary-foreground hover:bg-primary-foreground/6"}`}
+                  >
+                    <span className="inline-flex items-center gap-3 min-w-0">
+                      <item.icon size={13} />
+                      <span className="truncate">{item.label}</span>
+                    </span>
+                    <AttentionBadge counts={attentionCounts} />
+                  </button>
+                );
+              })}
+            </div>
+          ))}
         </nav>
         <div className="p-4 border-t border-primary-foreground/10">
           <button
@@ -493,11 +507,11 @@ export function AdminPage() {
         <div className="w-full max-w-7xl mx-auto p-6 lg:p-10">
           <div className="mb-8">
             <h1 className="font-serif text-[1.6rem] font-light text-foreground">
-              {ADMIN_NAV_ITEMS.find((item) => item.id === section)?.label}
+              {currentNavItem?.title ?? "Admin"}
             </h1>
             <div className="flex flex-wrap items-center gap-3 mt-1">
               <p className="text-[11px] text-muted-foreground font-sans">
-                Backend-backed studio management
+                {currentNavItem?.description ?? "Backend-backed studio management"}
               </p>
               <AdminLiveUpdatesStatus
                 status={adminRealtime.status}
@@ -515,8 +529,6 @@ export function AdminPage() {
               emailOutboxSummary={emailOutboxSummary}
               emailOutboxSummaryError={emailOutboxSummaryError}
               isEmailOutboxSummaryLoading={isEmailOutboxSummaryLoading}
-              siteSettings={siteSettings}
-              siteSettingsError={siteSettingsError}
               productionReadiness={productionReadiness}
               productionReadinessError={productionReadinessError}
               isProductionReadinessLoading={isProductionReadinessLoading}
@@ -631,6 +643,9 @@ export function AdminPage() {
           {section === "brand" ? (
             <AdminBrandSettingsPanel onUnauthorized={logout} />
           ) : null}
+          {section === "businessInfo" ? (
+            <AdminSettingsPanel onUnauthorized={logout} focus="business" />
+          ) : null}
           {section === "users" ? (
             <AdminUsersPanel onUnauthorized={logout} />
           ) : null}
@@ -663,8 +678,26 @@ export function AdminPage() {
           {section === "storage" ? (
             <AdminStoragePanel onUnauthorized={logout} />
           ) : null}
-          {section === "settings" ? (
-            <AdminSettingsPanel onUnauthorized={logout} />
+          {section === "productionHealth" ? (
+            <AdminProductionHealthPanel
+              siteSettings={siteSettings}
+              siteSettingsError={siteSettingsError}
+              productionReadiness={productionReadiness}
+              productionReadinessError={productionReadinessError}
+              isProductionReadinessLoading={isProductionReadinessLoading}
+              emailOutboxSummary={emailOutboxSummary}
+              emailOutboxSummaryError={emailOutboxSummaryError}
+              isEmailOutboxSummaryLoading={isEmailOutboxSummaryLoading}
+              isAdminDataLoading={isDashboardOrdersLoading}
+              adminDataError={dashboardOrdersError}
+              onOpenBusinessInfo={() => handleAdminSectionChange("businessInfo")}
+              onOpenSystemSettings={() => handleAdminSectionChange("systemSettings")}
+              onOpenEmailLog={() => handleAdminSectionChange("emailLog")}
+              onOpenStorage={() => handleAdminSectionChange("storage")}
+            />
+          ) : null}
+          {section === "systemSettings" ? (
+            <AdminSettingsPanel onUnauthorized={logout} focus="system" />
           ) : null}
         </div>
       </main>

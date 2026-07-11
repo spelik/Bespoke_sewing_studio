@@ -67,8 +67,8 @@ Current backend status:
 - public routes update route-specific SEO metadata, canonical links, Open Graph/Twitter card tags and Home JSON-LD from frontend route state plus Brand/SEO settings
 - the public Order form submits a dynamic `serviceOfferingId` while preserving legacy enum compatibility
 - admin login, Orders list/detail/status/notes and Contact Messages list/detail/status use protected backend endpoints
-- the admin sidebar exposes only backend-backed Dashboard, Orders, Contact Messages, Services, Portfolio, Content, Repeatable Content, Brand/SEO, Users, My account, Audit Log, Email Log, Storage and Settings modules
-- the Admin Dashboard includes production-readiness checks for contact details, notifications, email delivery, upload security, admin API access and DNS email records
+- the admin sidebar groups backend-backed modules into **Work**, **Website**, **Administration** and **Account** so daily owner tasks are separated from technical operations
+- the Admin Dashboard focuses on recent customer activity and compact status signals, while detailed production-readiness checks live under **Administration → Production Health**
 - admin Orders, Contact Messages, Dashboard counters, sidebar badges and Email Log can refresh through the protected SignalR admin-notifications hub
 - admin Orders and Contact Messages lists use styled filters, fixed-width tables, server-side pagination and shared destructive confirmation dialogs with keyboard focus management and ARIA labelling
 - the Admin **Audit Log** section lists important administrator actions from the protected backend audit log
@@ -185,7 +185,7 @@ Object storage (S3/Azure/R2) remains future work.
 
 ## Services and prices
 
-Sign in at `http://127.0.0.1:5173/admin`, then select **Services**. The owner can
+Sign in at `http://127.0.0.1:5173/admin`, then select **Services & Prices**. The owner can
 create and edit services, add text-based price options, control display order,
 mark services Featured for the Home preview, and hide inactive services. Public
 Home/Services pages and the Order form read the active list from PostgreSQL via
@@ -200,11 +200,24 @@ editing are not implemented.
 
 ## Admin users
 
-Sign in at `http://127.0.0.1:5173/admin`, then select **Users**. The
+Sign in at `http://127.0.0.1:5173/admin`, then select **Administration → Users**. The
 owner can list administrator accounts, create another Admin user, reset a
 temporary password, disable/enable access, or delete an unused admin account.
 All managed users currently receive the single `Admin` role; editor/viewer roles
 are not implemented.
+
+## Admin navigation structure
+
+The Admin UI is organized for owner workflows:
+
+- **Work**: Dashboard, Orders, Messages, Services & Prices and Portfolio.
+- **Website**: Site Pages, Website Blocks, Business Info and Brand / SEO.
+- **Administration**: Users, Email Log, Storage, Audit Log, Production Health and System Settings.
+- **Account**: My Account remains available in the sidebar, with Sign out and Back to Website actions pinned at the bottom.
+
+Legacy admin hash links such as `#settings` are still accepted and open the
+current System Settings view. No backend routes or API contracts are changed by
+this navigation grouping.
 
 Safety rules are enforced on the backend: an administrator cannot disable or
 delete their own current account, and the last active admin account cannot be
