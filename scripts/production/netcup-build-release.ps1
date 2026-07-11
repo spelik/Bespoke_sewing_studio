@@ -57,6 +57,144 @@ function Assert-FileDoesNotContain {
     }
 }
 
+function Assert-ExistingFile {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Path,
+
+        [Parameter(Mandatory = $true)]
+        [string]$Description
+    )
+
+    if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) {
+        throw "Release validation failed: missing $Description at $Path."
+    }
+}
+
+function New-LinuxCompatibleZipArchive {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$SourceDirectory,
+
+        [Parameter(Mandatory = $true)]
+        [string]$DestinationPath
+    )
+
+    Add-Type -AssemblyName System.IO.Compression
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+
+    if (-not (Test-Path -LiteralPath $SourceDirectory -PathType Container)) {
+        throw "Release archive validation failed: source directory does not exist: $SourceDirectory"
+    }
+
+    $sourceRoot = [System.IO.Path]::GetFullPath($SourceDirectory)
+    if (-not $sourceRoot.EndsWith([System.IO.Path]::DirectorySeparatorChar)) {
+        $sourceRoot = $sourceRoot + [System.IO.Path]::DirectorySeparatorChar
+    }
+
+    $files = @(Get-ChildItem -LiteralPath $SourceDirectory -File -Recurse)
+    if ($files.Count -eq 0) {
+        throw "Release archive validation failed: source directory contains no files: $SourceDirectory"
+    }
+
+    if (Test-Path -LiteralPath $DestinationPath) {
+        Remove-Item -LiteralPath $DestinationPath -Force
+    }
+
+    $archive = [System.IO.Compression.ZipFile]::Open($DestinationPath, [System.IO.Compression.ZipArchiveMode]::Create)
+    try {
+        foreach ($file in $files) {
+            $filePath = [System.IO.Path]::GetFullPath($file.FullName)
+            $entryName = $filePath.Substring($sourceRoot.Length).
+                Replace([System.IO.Path]::DirectorySeparatorChar.ToString(), "/").
+                Replace([System.IO.Path]::AltDirectorySeparatorChar.ToString(), "/")
+            if ($entryName.Contains("\")) {
+                throw "Release archive validation failed: generated ZIP entry still contains a backslash: $entryName"
+            }
+
+            [System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile(
+                $archive,
+                $filePath,
+                $entryName,
+                [System.IO.Compression.CompressionLevel]::Optimal) | Out-Null
+        }
+    }
+    catch {
+        if (Test-Path -LiteralPath $DestinationPath) {
+            Remove-Item -LiteralPath $DestinationPath -Force
+        }
+
+        throw
+    }
+    finally {
+        $archive.Dispose()
+    }
+}
+
+function Assert-ZipArchiveHasNoBackslashEntries {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Path
+    )
+
+    Add-Type -AssemblyName System.IO.Compression
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+
+    Assert-ExistingFile -Path $Path -Description "release archive"
+
+    $archive = [System.IO.Compression.ZipFile]::OpenRead($Path)
+    try {
+        $entries = @($archive.Entries)
+        if ($entries.Count -eq 0) {
+            throw "Release archive validation failed: archive contains no entries."
+        }
+
+        $badEntries = @($entries | Where-Object { $_.FullName.IndexOf([char]92) -ge 0 } | Select-Object -First 5 -ExpandProperty FullName)
+        if ($badEntries.Count -gt 0) {
+            throw "Release archive validation failed: archive contains Windows backslash path separators: $($badEntries -join ', ')"
+        }
+    }
+    finally {
+        $archive.Dispose()
+    }
+}
+
+function Invoke-DotnetRestoreWithIsolatedNuGetConfig {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$SolutionPath,
+
+        [Parameter(Mandatory = $true)]
+        [string]$NuGetConfigPath
+    )
+
+    $temporaryAppData = Join-Path ([System.IO.Path]::GetTempPath()) "bespoke-studio-nuget-$([System.Guid]::NewGuid().ToString("N"))"
+    $temporaryNuGetDirectory = Join-Path $temporaryAppData "NuGet"
+    $previousAppData = $env:APPDATA
+
+    New-Item -ItemType Directory -Path $temporaryNuGetDirectory -Force | Out-Null
+    Copy-Item -LiteralPath $NuGetConfigPath -Destination (Join-Path $temporaryNuGetDirectory "NuGet.Config") -Force
+
+    try {
+        $env:APPDATA = $temporaryAppData
+        Invoke-CheckedCommand -FilePath "dotnet" -Arguments @(
+            "restore",
+            $SolutionPath,
+            "--configfile",
+            $NuGetConfigPath)
+    }
+    finally {
+        if ($null -eq $previousAppData) {
+            Remove-Item Env:APPDATA -ErrorAction SilentlyContinue
+        }
+        else {
+            $env:APPDATA = $previousAppData
+        }
+
+        Remove-Item -LiteralPath $temporaryAppData -Recurse -Force -ErrorAction SilentlyContinue
+    }
+}
+
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot "../..")
 Set-Location $repoRoot
 
@@ -104,7 +242,18 @@ finally {
 }
 
 if (-not $SkipDotnetRestore) {
-    Invoke-CheckedCommand -FilePath "dotnet" -Arguments @("restore", "backend/BespokeStudio.sln")
+    try {
+        Invoke-CheckedCommand -FilePath "dotnet" -Arguments @("restore", "backend/BespokeStudio.sln")
+    }
+    catch {
+        $repoNuGetConfig = Join-Path $repoRoot "backend/NuGet.Config"
+        if (-not (Test-Path -LiteralPath $repoNuGetConfig -PathType Leaf)) {
+            throw
+        }
+
+        Write-Warning "Default dotnet restore failed. Retrying with isolated APPDATA and repo-local NuGet config: $repoNuGetConfig"
+        Invoke-DotnetRestoreWithIsolatedNuGetConfig -SolutionPath "backend/BespokeStudio.sln" -NuGetConfigPath $repoNuGetConfig
+    }
 }
 
 Invoke-CheckedCommand -FilePath "dotnet" -Arguments @("build", "backend/BespokeStudio.sln", "-c", $Configuration, "--no-restore")
@@ -113,6 +262,9 @@ Invoke-CheckedCommand -FilePath "dotnet" -Arguments @("publish", $backendProject
 $wwwrootPath = Join-Path $appPublishPath "wwwroot"
 New-Item -ItemType Directory -Path $wwwrootPath -Force | Out-Null
 Copy-Item -Path (Join-Path $frontendDistPath "*") -Destination $wwwrootPath -Recurse -Force
+
+Assert-ExistingFile -Path (Join-Path $appPublishPath "BespokeStudio.Api.dll") -Description "published BespokeStudio.Api.dll"
+Assert-ExistingFile -Path (Join-Path $wwwrootPath "index.html") -Description "published SPA wwwroot/index.html"
 
 Invoke-CheckedCommand -FilePath "dotnet" -Arguments @(
     "ef",
@@ -129,6 +281,7 @@ Invoke-CheckedCommand -FilePath "dotnet" -Arguments @(
     "--output",
     $migrationScriptPath)
 
+Assert-ExistingFile -Path $migrationScriptPath -Description "idempotent migration SQL"
 Assert-FileContains -Path $migrationScriptPath -Pattern "20260710120000_AddResendEmailDeliverySettings" -Description "Resend migration id"
 Assert-FileContains -Path $migrationScriptPath -Pattern "EmailDeliveryResendApiKeyProtected" -Description "Resend protected API key column"
 Assert-FileContains -Path $migrationScriptPath -Pattern "EmailDeliveryResendFromEmail" -Description "Resend From email column"
@@ -137,7 +290,8 @@ Assert-FileDoesNotContain -Path $migrationScriptPath -Pattern "SELECT setval" -D
 Assert-FileContains -Path $migrationScriptPath -Pattern 'PERFORM setval(''"OrderReferenceSequence"''' -Description "OrderReferenceSequence PERFORM setval"
 Assert-FileContains -Path $migrationScriptPath -Pattern 'PERFORM setval(''"ContactMessageReferenceSequence"''' -Description "ContactMessageReferenceSequence PERFORM setval"
 
-Compress-Archive -Path (Join-Path $appPublishPath "*") -DestinationPath $archivePath -Force
+New-LinuxCompatibleZipArchive -SourceDirectory $appPublishPath -DestinationPath $archivePath
+Assert-ZipArchiveHasNoBackslashEntries -Path $archivePath
 
 Write-Host "Release archive: $archivePath"
 Write-Host "Published app: $appPublishPath"

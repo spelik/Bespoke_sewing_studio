@@ -125,3 +125,30 @@ Scheduled execution должна использовать secret store, а не 
 - Data Protection keys и TLS private keys — особо чувствительные; никогда не добавляйте их в repository.
 
 Полный runbook: [`BACKUP_RESTORE_RU.md`](../../BACKUP_RESTORE_RU.md).
+
+## K. Release/deploy scripts
+
+Production release для netcup собирается через:
+
+```powershell
+.\scripts\production\netcup-build-release.ps1
+```
+
+Build script создаёт `publish/netcup/bespoke-studio-release.zip` как
+Linux-compatible ZIP: entry names используют только `/`, без Windows `\`
+separators. Script валидирует опубликованный `BespokeStudio.Api.dll`,
+`wwwroot/index.html`, idempotent migration SQL и сам archive.
+
+Deploy script:
+
+```powershell
+.\scripts\production\netcup-deploy-release.ps1 `
+  -ReleaseArchive .\publish\netcup\bespoke-studio-release.zip
+```
+
+не выполняет production deploy без явного запуска operator-ом. При запуске он
+валидирует local archive/migration SQL, загружает archive и SQL, проверяет archive
+на сервере, распаковывает его в `current.new`, валидирует `current.new`, затем
+применяет migration SQL и только после этого переключает `current`. Ошибка до
+switch не трогает существующий `current`; ошибка после switch печатает rollback
+path через `current.previous`.

@@ -65,11 +65,22 @@ SMTP/Gmail App Password настраивается только через Admin
 
 1. Проверить `git status`.
 2. Собрать release через `scripts/production/netcup-build-release.ps1`.
-3. Проверить, что `publish/netcup/app/wwwroot` содержит frontend `dist`.
+3. Проверить, что `publish/netcup/app/wwwroot` содержит frontend `dist`, а
+   `publish/netcup/bespoke-studio-release.zip` проходит validation без Windows
+   `\` separators в ZIP entry names.
 4. Подготовить `/opt/apps/projects/bespoke-studio/.env` на сервере без вывода секретов в консоль.
 5. Убедиться, что Caddy container подключён к Docker network `web`.
 6. Сделать backup текущих netcup configs/db/uploads/keys/current release.
 7. Только после backup выполнять deploy.
+
+`netcup-build-release.ps1` создаёт release zip через .NET ZipArchive с `/`
+separators, а не через Windows `Compress-Archive`. Это предотвращает Linux
+`unzip` warning вида `appears to use backslashes as path separators`.
+
+`netcup-deploy-release.ps1` сначала проверяет archive на сервере, распаковывает
+его в `current.new` и валидирует `current.new`. Migration SQL применяется только
+после успешной проверки archive/current.new и до switch `current.new -> current`.
+Если deploy останавливается до switch, существующий `current` остаётся рабочим.
 
 ## После deploy
 

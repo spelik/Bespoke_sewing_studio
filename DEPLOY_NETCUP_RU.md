@@ -93,7 +93,11 @@ The script:
   `SiteSettings` columns, contains `PERFORM setval(...)` for both reference
   sequences, and does not contain invalid `SELECT setval(...)` inside the
   PostgreSQL `DO` block;
-- creates a release zip under `publish/netcup/`.
+- validates that the published app contains `BespokeStudio.Api.dll` and
+  `wwwroot/index.html`;
+- creates a Linux-compatible release zip under `publish/netcup/` with `/` path
+  separators only;
+- validates that the generated zip has no Windows `\` separators in entry names.
 
 ## E. Deploy release to netcup
 
@@ -110,10 +114,26 @@ Example from Windows:
 The deploy script does not create secrets. Before running it, ensure the server `.env` exists.
 It uploads the generated idempotent SQL from
 `publish/netcup/migrations/bespoke-studio-idempotent.sql`, creates predeploy
-backups, applies the SQL through the `bespoke-studio-postgres` container with
-`psql -v ON_ERROR_STOP=1`, and only then replaces `current` and restarts Docker
-Compose. If the SQL fails, deployment stops before the application directory is
-swapped.
+backups, validates the release archive on the server, extracts it into a clean
+`current.new`, validates `current.new` (`BespokeStudio.Api.dll`,
+`wwwroot/index.html`, non-zero file count and no backslash filenames), and only
+then applies the SQL through the `bespoke-studio-postgres` container with
+`psql -v ON_ERROR_STOP=1`.
+
+The order is intentional:
+
+1. upload archive and SQL;
+2. validate/test/extract the archive into `current.new`;
+3. validate `current.new`;
+4. apply migration SQL;
+5. switch `current.new` to `current`;
+6. recreate `bespoke-studio-app`;
+7. run local health checks.
+
+If archive validation or extraction fails, deployment stops before DB migration
+and the existing `current` stays untouched. If SQL fails, deployment stops before
+the application directory is swapped. If a failure happens after the switch, the
+script prints the rollback path using `current.previous`.
 
 ## F. Caddy
 

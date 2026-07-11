@@ -15,14 +15,56 @@ param(
 $ErrorActionPreference = "Stop"
 Set-StrictMode -Version Latest
 
+function Assert-ExistingFile {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Path,
+
+        [Parameter(Mandatory = $true)]
+        [string]$Description
+    )
+
+    if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) {
+        throw "Deploy validation failed: missing $Description at $Path."
+    }
+}
+
+function Assert-ZipArchiveHasNoBackslashEntries {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Path
+    )
+
+    Add-Type -AssemblyName System.IO.Compression
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+
+    Assert-ExistingFile -Path $Path -Description "release archive"
+
+    $archive = [System.IO.Compression.ZipFile]::OpenRead($Path)
+    try {
+        $entries = @($archive.Entries)
+        if ($entries.Count -eq 0) {
+            throw "Deploy validation failed: release archive contains no entries."
+        }
+
+        $badEntries = @($entries | Where-Object { $_.FullName.IndexOf([char]92) -ge 0 } | Select-Object -First 5 -ExpandProperty FullName)
+        if ($badEntries.Count -gt 0) {
+            throw "Deploy validation failed: release archive contains Windows backslash path separators: $($badEntries -join ', ')"
+        }
+    }
+    finally {
+        $archive.Dispose()
+    }
+}
+
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot "../..")
-$releaseArchivePath = Resolve-Path $ReleaseArchive
-$migrationScriptPath = Resolve-Path (Join-Path $repoRoot $MigrationScript)
-$composePath = Resolve-Path (Join-Path $repoRoot $ComposeFile)
+$releaseArchivePath = (Resolve-Path $ReleaseArchive).ProviderPath
+$migrationScriptPath = (Resolve-Path (Join-Path $repoRoot $MigrationScript)).ProviderPath
+$composePath = (Resolve-Path (Join-Path $repoRoot $ComposeFile)).ProviderPath
 $serverScripts = @(
     Join-Path $repoRoot "scripts/production/netcup-backup.sh"
     Join-Path $repoRoot "scripts/production/netcup-check.sh"
-) | ForEach-Object { Resolve-Path $_ }
+) | ForEach-Object { (Resolve-Path $_).ProviderPath }
 $remote = "${RemoteUser}@${RemoteHost}"
 $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
 $remoteRelease = "$RemoteRoot/releases/bespoke-studio-release-$timestamp.zip"
@@ -32,6 +74,11 @@ $remoteMigrationStable = "$RemoteRoot/releases/bespoke-studio-idempotent.sql"
 if (-not (Test-Path -LiteralPath $SshKeyPath)) {
     throw "SSH key not found: $SshKeyPath"
 }
+
+Assert-ExistingFile -Path $releaseArchivePath -Description "local release archive"
+Assert-ExistingFile -Path $migrationScriptPath -Description "local migration SQL"
+Assert-ExistingFile -Path $composePath -Description "local production compose file"
+Assert-ZipArchiveHasNoBackslashEntries -Path $releaseArchivePath
 
 $remotePrepare = @"
 set -euo pipefail
@@ -56,6 +103,16 @@ if ($PSCmdlet.ShouldProcess($remote, "upload compose, release archive and migrat
 $remoteDeploy = @"
 set -euo pipefail
 cd '$RemoteRoot'
+switched=0
+print_rollback_hint() {
+  if [ "`$switched" = "1" ]; then
+    echo "ERROR: deployment failed after current was switched." >&2
+    echo "Rollback path: inspect logs, then move current to current.failed-$timestamp, move current.previous back to current, and run docker compose --env-file .env -f docker-compose.yml up -d --force-recreate bespoke-studio-app." >&2
+  else
+    echo "ERROR: deployment failed before current switch. Existing current was left untouched." >&2
+  fi
+}
+trap print_rollback_hint ERR
 backup_dir='$RemoteBackupRoot/predeploy-$timestamp'
 mkdir -p "`$backup_dir"
 if [ -d current ] && [ "`$(find current -mindepth 1 -maxdepth 1 2>/dev/null | wc -l)" -gt 0 ]; then
@@ -67,19 +124,49 @@ if docker ps --format '{{.Names}}' | grep -qx 'bespoke-studio-postgres'; then
   docker cp bespoke-studio-postgres:/tmp/predeploy.dump "`$backup_dir/postgresql.dump" || true
   docker exec bespoke-studio-postgres rm -f /tmp/predeploy.dump || true
 fi
+test -f '$remoteRelease'
 test -f '$remoteMigrationRelease'
-cat '$remoteMigrationRelease' | docker exec -i bespoke-studio-postgres sh -lc 'psql -v ON_ERROR_STOP=1 -U "`$POSTGRES_USER" -d "`$POSTGRES_DB"'
-cp '$remoteMigrationRelease' '$remoteMigrationStable'
+
+archive_entries="`$(unzip -Z1 '$remoteRelease')"
+if printf '%s\n' "`$archive_entries" | grep -F '\' >/dev/null; then
+  echo "Release archive contains Windows backslash path separators; refusing to deploy before DB migration." >&2
+  printf '%s\n' "`$archive_entries" | grep -F '\' | head -20 >&2
+  exit 22
+fi
+
+unzip -tqq '$remoteRelease'
 rm -rf current.new
 mkdir -p current.new
 unzip -q '$remoteRelease' -d current.new
+if find current.new -print | grep -F '\' >/dev/null; then
+  echo "Extracted current.new contains filenames with backslashes; refusing to deploy before DB migration." >&2
+  find current.new -print | grep -F '\' | head -20 >&2
+  exit 23
+fi
+file_count="`$(find current.new -type f | wc -l | tr -d ' ')"
+if [ "`$file_count" -le 0 ]; then
+  echo "Extracted current.new contains no files; refusing to deploy before DB migration." >&2
+  exit 24
+fi
+test -f current.new/BespokeStudio.Api.dll
+test -f current.new/wwwroot/index.html
+
+cat '$remoteMigrationRelease' | docker exec -i bespoke-studio-postgres sh -lc 'psql -v ON_ERROR_STOP=1 -U "`$POSTGRES_USER" -d "`$POSTGRES_DB"'
+cp '$remoteMigrationRelease' '$remoteMigrationStable'
 rm -rf current.previous
 if [ -d current ]; then mv current current.previous; fi
 mv current.new current
-docker compose --env-file .env -f docker-compose.yml up -d
+switched=1
+docker compose --env-file .env -f docker-compose.yml up -d --force-recreate bespoke-studio-app
 sleep 20
+curl -fsS http://127.0.0.1:5030/health/live >/dev/null
+curl -fsS http://127.0.0.1:5030/health/ready >/dev/null
+curl -fsS -H "Host: oksanalogosha.com" -H "X-Forwarded-Proto: https" -H "X-Forwarded-Host: oksanalogosha.com" http://127.0.0.1:5030/api/version >/dev/null
 docker compose --env-file .env -f docker-compose.yml ps -a
 docker compose --env-file .env -f docker-compose.yml logs --since=5m bespoke-studio-app
+switched=0
+trap - ERR
+echo "Deployment completed successfully."
 "@
 
 if ($PSCmdlet.ShouldProcess($remote, "deploy release and restart compose services")) {

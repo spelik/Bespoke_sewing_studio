@@ -1,5 +1,27 @@
 # TECH DEBT - Bespoke Sewing Studio
 
+## Task 86 - Production release archive deployment fix
+
+- Root cause of the interrupted netcup deploy was Windows `Compress-Archive`
+  creating ZIP entry names with backslash separators (`wwwroot\index.html`).
+  Linux `unzip` can extract such archives but emits `appears to use backslashes
+  as path separators`; under `set -e` this can stop the deploy script.
+- `scripts/production/netcup-build-release.ps1` now creates the release ZIP with
+  .NET ZipArchive and explicit `/` separators, validates published app files,
+  validates generated migration SQL and fails if any ZIP entry contains `\`.
+- `scripts/production/netcup-deploy-release.ps1` now validates the local archive,
+  validates/tests the uploaded archive on the server, extracts into clean
+  `current.new`, checks `BespokeStudio.Api.dll`, `wwwroot/index.html`, non-zero
+  file count and no backslash filenames before applying migration SQL.
+- Migration SQL is now applied only after archive/current.new validation succeeds
+  and before switching `current.new` to `current`; if validation or SQL fails,
+  existing `current` remains untouched. After switch, the script recreates
+  `bespoke-studio-app`, runs local health checks and prints a rollback path on
+  post-switch failure.
+- Updated `DEPLOY_NETCUP_RU.md`, `PRODUCTION_DEPLOYMENT_RU.md` and
+  `scripts/production/README_RU.md`. No production server actions, secrets,
+  `.env`, production appsettings, dumps or backup archives were added.
+
 ## Task 85 - Resend API email provider and real readiness checks
 
 - Added owner-managed `ResendApi` email delivery beside existing
