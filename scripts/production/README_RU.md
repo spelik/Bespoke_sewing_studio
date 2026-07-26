@@ -153,9 +153,18 @@ Deploy script:
 switch не трогает существующий `current`; ошибка после switch печатает rollback
 path через `current.previous`.
 
+Многострочные remote bash-блоки (`prepare` / `deploy`) передаются в
+`ssh ... bash -s` через stdin, а не как один аргумент командной строки `ssh`
+(иначе кавычки в curl headers искажаются). После `ssh` PowerShell проверяет
+`$LASTEXITCODE` и завершает deploy ошибкой при ненулевом коде, поэтому
+`Deployment completed successfully.` печатается только после успешных checks.
+
 Post-switch checks в deploy script выполняются локально на сервере через
-`http://127.0.0.1:5030`, но обязательно передают `Host: oksanalogosha.com`
-и forwarded headers. Это требуется из-за production `AllowedHosts`: запросы
-к raw `localhost`/`127.0.0.1` без корректного `Host` ожидаемо возвращают
-`400 Bad Request - Invalid Hostname`. Проверяются `/health/live`,
-`/health/ready`, `/api/version`, `/` и `/admin`.
+`http://127.0.0.1:5030` с `--noproxy 127.0.0.1` и headers без пробела после
+двоеточия (`Host:oksanalogosha.com`, `X-Forwarded-Proto:https`,
+`X-Forwarded-Host:oksanalogosha.com`). Это требуется из-за production
+`AllowedHosts`: запросы к raw `localhost`/`127.0.0.1` без корректного `Host`
+ожидаемо возвращают `400 Bad Request - Invalid Hostname`. Проверяются
+`/health/live`, `/health/ready`, `/api/version`, `/` и `/admin`. HTTP 200–399
+считается успехом; ошибка curl или статус вне диапазона завершает remote script
+ненулевым кодом.

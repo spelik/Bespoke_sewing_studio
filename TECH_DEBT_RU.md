@@ -1,5 +1,23 @@
 # TECH DEBT - Bespoke Sewing Studio
 
+## Task 90 - Fix netcup deploy remote health-check quoting (deployment tooling)
+
+- After a successful netcup release switch, embedded post-switch health checks failed with
+  `curl: (6) Could not resolve host: https` and `[: too many arguments`, yet the PowerShell
+  deploy script still printed `Deployment completed successfully.`
+- Cause: multiline remote bash (`$remotePrepare` / `$remoteDeploy`) was passed as an `ssh`
+  command-line argument (`ssh ... $remoteDeploy`), so remote shell re-parsing mangled curl
+  header quotes (`X-Forwarded-Proto: https` split so `https` was treated as a host). Manual
+  curls with the same headers (no space after `:`) returned HTTP 200.
+- Fix in `scripts/production/netcup-deploy-release.ps1`:
+  - `Invoke-RemoteBashScript` pipes the script body to `ssh ... "bash -s"` on stdin;
+  - non-zero `$LASTEXITCODE` throws and stops the PowerShell deploy (no success message);
+  - `check_local_endpoint` uses `--noproxy 127.0.0.1` and headers without a space after `:`;
+  - HTTP 200–399 succeeds; curl errors or other statuses exit remote script with code 25;
+  - existing rollback hint via `trap` / `current.previous` is preserved.
+- Updated `scripts/production/README_RU.md`. No frontend/backend/API/DB/compose changes.
+  Real deploy, commit and push were not performed.
+
 ## Task 88 - Fix production CMS asset URL resolution (frontend)
 
 - Production bug: with `VITE_API_BASE_URL=/api`, CMS APIs returned HTTP 200, but the
