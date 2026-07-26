@@ -38,7 +38,9 @@ export const PUBLIC_BRAND_SETTINGS_FALLBACK: PublicBrandSettings = {
   defaultMetaDescription: "Bespoke sewing, tailoring, dressmaking, alterations and memory bears.",
   defaultOgTitle: null, defaultOgDescription: null, defaultOgImageUrl: null,
   navigation: {
-    showServicesLink: true, servicesLabel: "Services", showPortfolioLink: true, portfolioLabel: "Portfolio",
+    showServicesLink: true, servicesLabel: "Services",
+    showInStockLink: true, inStockLabel: "IN STOCK",
+    showPortfolioLink: true, portfolioLabel: "Portfolio",
     showOrderLink: true, orderLabel: "Order", showAboutLink: true, aboutLabel: "About",
     showContactLink: true, contactLabel: "Contact",
   },
@@ -53,6 +55,7 @@ export const SITE_ASSETS: SiteAssets = {
 export const NAV_LINKS: ReadonlyArray<NavigationItem> = [
   { label: "Home", page: "home" },
   { label: "Services", page: "services" },
+  { label: "IN STOCK", page: "inStock" },
   { label: "Portfolio", page: "portfolio" },
   { label: "Order", page: "order" },
   { label: "About", page: "about" },

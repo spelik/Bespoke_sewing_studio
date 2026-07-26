@@ -1,5 +1,64 @@
 # TECH DEBT - Bespoke Sewing Studio
 
+## Task 91 - Production user data backup and disaster recovery
+
+- This is **not** application rollback, Git history, or a release ZIP restore.
+  Git and release ZIP **are not** a backup of user data.
+- Backup stored only on the same netcup VPS is **not sufficient**.
+- The task is **not done** without a working schedule, encrypted offsite copy,
+  and a tested staging restore rehearsal with a recorded last-successful-restore date.
+- Do not implement in the current IN STOCK / Admin UI stage — planning only until
+  a dedicated backup/DR implementation pass.
+
+### Scope — full PostgreSQL dump (custom format)
+
+Must cover all durable application data, including at least:
+
+- requests / заявки;
+- orders / заказы;
+- contact messages;
+- users and roles;
+- CMS / Website Content / repeatable content;
+- Portfolio;
+- IN STOCK catalogue;
+- settings / Brand / SEO configuration stored in DB;
+- admin audit log;
+- email delivery log and email outbox;
+- upload / file metadata (`UploadedFile` and related relations).
+
+### Scope — permanent uploads and keys
+
+- All permanent upload roots: Portfolio, IN STOCK, Brand/SEO, Website Content,
+  order attachments, and any other user/admin uploaded files under storage;
+- ASP.NET Core Data Protection keys;
+- production configuration inventory **without raw secrets** (names/locations of
+  env vars, secret stores, and mount paths — never dump live passwords/keys into
+  the inventory artifact).
+
+### Operations requirements
+
+- Daily schedule (automated);
+- retain at least **14 daily** copies;
+- weekly / monthly retention tiers;
+- **encrypted offsite copy outside the netcup VPS**;
+- checksums + backup manifest per run;
+- verify dump with `pg_restore --list`;
+- verify uploads archive and Data Protection keys archive integrity;
+- alert / notify on failed backup;
+- prevent overlapping / parallel backup runs (single-flight lock);
+- take a backup before migrations and before bulk/mass data changes;
+- staging restore rehearsal that checks requests, images, attachments, Admin login,
+  Portfolio, and IN STOCK;
+- record and publish the **date of the last successful restore rehearsal**.
+
+### Explicit non-goals / clarifications
+
+- Restoring a previous app release from Git or a deploy ZIP does **not** restore
+  customer data, uploads, or keys.
+- Local-only VPS copies (same disk/host) do not meet the offsite requirement.
+- Task 42 docs (`BACKUP_RESTORE_RU.md`) remain the manual procedure reference;
+  this task is the production automated backup + DR capability on top of that.
+
 ## Task 90 - Fix netcup deploy remote health-check quoting (deployment tooling)
 
 - After a successful netcup release switch, embedded post-switch health checks failed with
@@ -46,20 +105,88 @@
   `VITE_PUBLIC_SITE_URL=https://oksanalogosha.com` all succeeded.
 - Updated `README.md`. `backend/README.md` unchanged (no API contract change).
 
-## Task 89 - IN STOCK ready-to-buy catalogue (future, not started)
+## Task 89 - IN STOCK ready-to-buy catalogue — Done
 
-- Future public page **IN STOCK** for finished pieces available for purchase.
-- Main navigation item immediately after **Services** and before **Portfolio**.
-- Future admin module (separate from Portfolio CMS) to manage:
-  - title, description, price;
-  - one or more photographs;
-  - availability / status: available, reserved, sold;
-  - publication flag and display order;
-  - optional sizes and materials.
-- Expected scope later: dedicated backend entities/API, uploads, admin UI, public
-  route, Brand Settings navigation fields, SEO and sitemap updates.
+- Public page **IN STOCK** for finished pieces available for purchase (enquiry
+  workflow; no checkout/cart/payment).
+- Main navigation item immediately after **Services** and before **Portfolio**
+  (desktop header, mobile menu, footer; Brand Settings label/visibility).
+- Admin module (separate from Portfolio CMS) manages title, description, price,
+  photographs, Available/Reserved/Sold, publication/display order, sizes/materials.
+- Scope completed: backend entities/API, uploads, admin UI, shared upload progress,
+  public catalogue + detail routes, Brand Settings navigation fields, SEO/JSON-LD
+  and dynamic sitemap.
 - Must not be mixed into the existing Portfolio gallery CMS.
-- Not implemented as part of Task 88 asset URL bugfix.
+
+### Progress status (Task 89 completed)
+
+- **Backend completed** (catalogue entities/API, atomic upload hardening, tests).
+- **Admin UI completed** (Work → IN STOCK module: list/create/edit/archive/restore,
+  multi-image management with shared upload progress).
+- **Shared Upload Progress completed** (one XHR transport + reusable progress
+  control/state machine wired to Portfolio, IN STOCK, Brand/SEO, Website Content
+  and Order attachments).
+- **Public catalogue completed** (`/in-stock`, `/in-stock/:slug`, navigation,
+  SEO/JSON-LD, dynamic `/sitemap.xml`, Vitest + backend sitemap tests).
+
+### Progress — Backend foundation completed
+
+- Added dedicated `InStockItem` / `InStockItemImage` entities (not PortfolioItem),
+  GBP currency, `Available`/`Reserved`/`Sold` status, publish/archive fields and
+  EF migration `20260726105255_AddInStockCatalogue`.
+- Public API: `GET /api/in-stock`, `GET /api/in-stock/{slug}`,
+  `GET /api/in-stock/images/{imageId}` (published + non-archived only;
+  root-relative image URLs; Reserved/Sold remain visible).
+- Admin API: CRUD, archive/restore, multi-image upload/order/alt/delete using
+  existing upload storage + ClamAV + deletion outbox; no permanent item delete,
+  no checkout/payment.
+- Backend tests cover validation, EF configuration, public/admin service rules,
+  uploads, authorization metadata, audit action shapes and opt-in PostgreSQL
+  schema uniqueness.
+
+### Progress — Backend atomic upload hardening (stage 1.1)
+
+- IN STOCK image attach now follows: quarantine → signature → ClamAV scan →
+  promote → single DB transaction linking `UploadedFile` + `InStockItemImage` +
+  `UpdatedAt` (no early `SaveChanges` of metadata alone).
+- After successful promote, `AddImageAsync` wraps nextOrder / entity creation /
+  BeginTransaction / SaveChanges / Commit in one try/catch. Rollback is
+  best-effort with an independent bounded cleanup token (not the cancelled
+  request token). Pre-commit failures compensate immediately; ambiguous
+  `CommitAsync` failures leave the promoted file for StorageMaintenance
+  reconciliation (no immediate delete). Original exceptions are always rethrown.
+- On DB link failure after promote: immediate safe file delete, else durable
+  deletion-outbox compensation (`in_stock_image.link_compensation`); public
+  endpoint cannot serve unlinked files; StorageMaintenance remains the last
+  resort orphan collector.
+- Image delete schedules `UploadFileDeletionJob` in the same DB transaction as
+  relation/metadata removal; physical delete stays with the background worker
+  after commit; scheduler/SaveChanges failure rolls back and keeps the relation.
+- Invalid multipart `displayOrder` returns ValidationProblem (not silently null).
+- Post-commit audit/cache failures are logged and must not turn a successful
+  mutation into a false client error.
+- **Frontend shared Upload Progress UX implemented (stage 2):**
+  `src/api/uploadTransport.ts` (XHR, real byte progress, cookies/Bearer, 401
+  refresh retry, ProblemDetails/ValidationProblem, abort/timeout) plus
+  `UploadProgressControl` / upload state machine used by Portfolio, IN STOCK,
+  Brand/SEO, Website Content and Order attachments. Sequential multi-file
+  uploads by default; no fake ClamAV percentage.
+
+### Progress — Public catalogue / SEO / sitemap (stage 3)
+
+- Public routes: `/in-stock` catalogue and `/in-stock/:slug` detail (lazy SPA
+  chunks; SPA fallback for direct open/refresh).
+- Navigation: Services → IN STOCK → Portfolio via shared `NAV_LINKS` + Brand
+  Settings `ShowInStockLink` / `InStockLabel` (defaults visible / `IN STOCK`).
+- Catalogue/detail UX: status badges, GBP price, ordered images, loading/error/
+  empty states, Contact enquiry CTAs with `subject`/`message` query prefill
+  (no auto-submit, no client reservation).
+- SEO: route metadata + detail overrides (canonical, OG image from first photo,
+  404 `noindex`); ItemList/Product JSON-LD with safe serialization.
+- Sitemap: static `public/sitemap.xml` removed; backend `GET /sitemap.xml`
+  includes catalogue + published item URLs under `https://oksanalogosha.com`
+  (draft/archived/admin excluded). Migration
+  `20260726154354_AddInStockNavigationSettings` for Brand nav columns.
 
 ## Task 87 - Admin owner workflow navigation restructure
 

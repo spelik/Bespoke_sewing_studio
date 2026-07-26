@@ -10,6 +10,10 @@ import type {
 } from "../app/types";
 import { apiClient } from "./apiClient";
 import { resolveApiAssetUrl } from "./resolveApiAssetUrl";
+import {
+  uploadWithProgress,
+  type UploadProgressEvent,
+} from "./uploadTransport";
 
 export async function getPublicPortfolioItems(): Promise<PortfolioItem[]> {
   const items = await apiClient.get<PortfolioItem[]>("portfolio");
@@ -35,10 +39,22 @@ export const updatePortfolioCategory = (id: string, request: SavePortfolioCatego
   apiClient.patch<SavePortfolioCategoryRequest, AdminPortfolioCategory>(`admin/portfolio/categories/${id}`, request);
 export const deletePortfolioCategory = (id: string) =>
   apiClient.delete<DeletePortfolioResult>(`admin/portfolio/categories/${id}`);
-export function uploadPortfolioImage(file: File): Promise<UploadedPortfolioImage> {
+export function uploadPortfolioImage(
+  file: File,
+  options?: {
+    onProgress?: (event: UploadProgressEvent) => void;
+    signal?: AbortSignal;
+  },
+): Promise<UploadedPortfolioImage> {
   const form = new FormData();
   form.append("file", file);
-  return apiClient.postForm<UploadedPortfolioImage>("admin/portfolio/uploads", form);
+  return uploadWithProgress<UploadedPortfolioImage>({
+    path: "admin/portfolio/uploads",
+    method: "POST",
+    body: form,
+    onProgress: options?.onProgress,
+    signal: options?.signal,
+  });
 }
 export const getAdminPortfolioImage = (id: string): Promise<Blob> =>
   apiClient.getBlob(`admin/portfolio/images/${id}`);

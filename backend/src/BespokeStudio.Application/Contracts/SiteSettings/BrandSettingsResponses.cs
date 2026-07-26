@@ -2,6 +2,7 @@ namespace BespokeStudio.Application.Contracts.SiteSettings;
 
 public sealed record BrandNavigationResponse(
     bool ShowServicesLink, string ServicesLabel,
+    bool ShowInStockLink, string InStockLabel,
     bool ShowPortfolioLink, string PortfolioLabel,
     bool ShowOrderLink, string OrderLabel,
     bool ShowAboutLink, string AboutLabel,
@@ -25,5 +26,6 @@ public sealed record UpdateBrandSettingsRequest(
     string HeaderCtaLabel, string HeaderCtaUrl, string DefaultMetaTitle,
     string DefaultMetaDescription, string? DefaultOgTitle, string? DefaultOgDescription,
     Guid? DefaultOgImageFileId, bool ShowServicesLink, string ServicesLabel,
+    bool ShowInStockLink, string InStockLabel,
     bool ShowPortfolioLink, string PortfolioLabel, bool ShowOrderLink, string OrderLabel,
     bool ShowAboutLink, string AboutLabel, bool ShowContactLink, string ContactLabel);

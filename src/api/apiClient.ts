@@ -7,6 +7,7 @@ export interface ApiClient {
   getBlob(path: string): Promise<Blob>;
   post<TRequest, TResponse>(path: string, body: TRequest): Promise<TResponse>;
   postForm<TResponse>(path: string, body: FormData): Promise<TResponse>;
+  put<TRequest, TResponse>(path: string, body: TRequest): Promise<TResponse>;
   patch<TRequest, TResponse>(path: string, body: TRequest): Promise<TResponse>;
   delete<TResponse>(path: string): Promise<TResponse>;
 }
@@ -34,7 +35,7 @@ export class ApiError extends Error {
   }
 }
 
-type ApiMethod = "GET" | "POST" | "PATCH" | "DELETE";
+type ApiMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 
 function buildUrl(path: string): string {
   return `${appConfig.apiBaseUrl.replace(/\/$/, "")}/${path.replace(/^\//, "")}`;
@@ -162,6 +163,9 @@ export const apiClient: ApiClient = {
   },
   async postForm<TResponse>(path: string, body: FormData) {
     return requestForm<TResponse>(path, body);
+  },
+  put<TRequest, TResponse>(path: string, body: TRequest) {
+    return request<TResponse>("PUT", path, body);
   },
   patch<TRequest, TResponse>(path: string, body: TRequest) {
     return request<TResponse>("PATCH", path, body);

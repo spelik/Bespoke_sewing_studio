@@ -15,6 +15,7 @@ public static class BrandSettingsValidator
         Optional(errors, nameof(request.DefaultOgTitle), request.DefaultOgTitle, 200);
         Optional(errors, nameof(request.DefaultOgDescription), request.DefaultOgDescription, 500);
         Required(errors, nameof(request.ServicesLabel), request.ServicesLabel, 50);
+        Required(errors, nameof(request.InStockLabel), request.InStockLabel, 50);
         Required(errors, nameof(request.PortfolioLabel), request.PortfolioLabel, 50);
         Required(errors, nameof(request.OrderLabel), request.OrderLabel, 50);
         Required(errors, nameof(request.AboutLabel), request.AboutLabel, 50);

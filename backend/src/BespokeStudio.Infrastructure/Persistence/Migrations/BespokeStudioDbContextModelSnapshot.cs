@@ -352,6 +352,115 @@ namespace BespokeStudio.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("BespokeStudio.Domain.Entities.InStockItem", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("ArchivedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .HasColumnType("character varying(3)");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)");
+
+                    b.Property<int>("DisplayOrder")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("IsPublished")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Materials")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<decimal>("Price")
+                        .HasPrecision(12, 2)
+                        .HasColumnType("numeric(12,2)");
+
+                    b.Property<string>("ShortDescription")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("Sizes")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("Slug")
+                        .IsRequired()
+                        .HasMaxLength(220)
+                        .HasColumnType("character varying(220)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ArchivedAt");
+
+                    b.HasIndex("Slug")
+                        .IsUnique()
+                        .HasFilter("\"ArchivedAt\" IS NULL");
+
+                    b.HasIndex("Status");
+
+                    b.HasIndex("IsPublished", "DisplayOrder", "CreatedAt");
+
+                    b.ToTable("InStockItems", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_InStockItems_Price", "\"Price\" >= 0");
+                        });
+                });
+
+            modelBuilder.Entity("BespokeStudio.Domain.Entities.InStockItemImage", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("AltText")
+                        .HasMaxLength(250)
+                        .HasColumnType("character varying(250)");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("DisplayOrder")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("InStockItemId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("UploadedFileId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UploadedFileId")
+                        .IsUnique();
+
+                    b.HasIndex("InStockItemId", "DisplayOrder");
+
+                    b.ToTable("InStockItemImages", (string)null);
+                });
+
             modelBuilder.Entity("BespokeStudio.Domain.Entities.Order", b =>
                 {
                     b.Property<Guid>("Id")
@@ -981,6 +1090,11 @@ namespace BespokeStudio.Infrastructure.Persistence.Migrations
                         .HasMaxLength(2048)
                         .HasColumnType("character varying(2048)");
 
+                    b.Property<string>("InStockLabel")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
                     b.Property<string>("InstagramUrl")
                         .HasMaxLength(2048)
                         .HasColumnType("character varying(2048)");
@@ -1028,6 +1142,9 @@ namespace BespokeStudio.Infrastructure.Persistence.Migrations
                         .HasColumnType("boolean");
 
                     b.Property<bool>("ShowContactLink")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("ShowInStockLink")
                         .HasColumnType("boolean");
 
                     b.Property<bool>("ShowOrderLink")
@@ -1092,6 +1209,7 @@ namespace BespokeStudio.Infrastructure.Persistence.Migrations
                             FooterText = "Bespoke Sewing Studio. All rights reserved.",
                             HeaderCtaLabel = "Book Now",
                             HeaderCtaUrl = "/order",
+                            InStockLabel = "IN STOCK",
                             LogoAltText = "Bespoke Sewing Studio logo",
                             OrderLabel = "Order",
                             PortfolioLabel = "Portfolio",
@@ -1100,6 +1218,7 @@ namespace BespokeStudio.Infrastructure.Persistence.Migrations
                             ServicesLabel = "Services",
                             ShowAboutLink = true,
                             ShowContactLink = true,
+                            ShowInStockLink = true,
                             ShowOrderLink = true,
                             ShowPortfolioLink = true,
                             ShowServicesLink = true,
@@ -1519,6 +1638,25 @@ namespace BespokeStudio.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.SetNull);
                 });
 
+            modelBuilder.Entity("BespokeStudio.Domain.Entities.InStockItemImage", b =>
+                {
+                    b.HasOne("BespokeStudio.Domain.Entities.InStockItem", "Item")
+                        .WithMany("Images")
+                        .HasForeignKey("InStockItemId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("BespokeStudio.Domain.Entities.UploadedFileMetadata", "UploadedFile")
+                        .WithMany()
+                        .HasForeignKey("UploadedFileId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Item");
+
+                    b.Navigation("UploadedFile");
+                });
+
             modelBuilder.Entity("BespokeStudio.Domain.Entities.Order", b =>
                 {
                     b.HasOne("BespokeStudio.Domain.Entities.Client", null)
@@ -1681,6 +1819,11 @@ namespace BespokeStudio.Infrastructure.Persistence.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("BespokeStudio.Domain.Entities.InStockItem", b =>
+                {
+                    b.Navigation("Images");
                 });
 
             modelBuilder.Entity("BespokeStudio.Domain.Entities.PortfolioCategory", b =>

@@ -1,4 +1,4 @@
-import { useEffect, useState, type DragEvent } from "react";
+import { useEffect, useRef, useState, type DragEvent } from "react";
 import { Link } from "react-router-dom";
 import { Check, ChevronDown, FileText, Image as ImageIcon, Send, Trash2, Upload } from "lucide-react";
 import {
@@ -13,6 +13,12 @@ import { useServices } from "../services/ServicesContext";
 import { usePageContent } from "../content/PageContentContext";
 import { CmsHeading } from "../components/CmsHeading";
 import { useSiteSettings } from "../siteSettings/SiteSettingsContext";
+import {
+  createEmptyUploadQueue,
+  getUploadButtonLabel,
+  reduceUploadQueue,
+  type UploadQueueState,
+} from "../uploads/uploadProgressMachine";
 
 export function OrderPage() {
   const { services } = useServices();
@@ -23,11 +29,73 @@ export function OrderPage() {
   const [attachments, setAttachments] = useState<File[]>([]);
   const [formLoadedAt] = useState(() => new Date().toISOString());
   const [attachmentError, setAttachmentError] = useState<string | null>(null);
+  const [uploadQueue, setUploadQueue] = useState<UploadQueueState>(createEmptyUploadQueue());
+  const [queueStatus, setQueueStatus] = useState<string | null>(null);
+  const uploadAbortRef = useRef<AbortController | null>(null);
+
+  useEffect(() => () => {
+    uploadAbortRef.current?.abort();
+  }, []);
+
   const { submitted, result, isSubmitting, errorMessage, handleSubmit } = useAsyncForm<
     OrderRequest,
     OrderSubmissionResponse
   >(
-    createOrder,
+    async (order) => {
+      uploadAbortRef.current?.abort();
+      const controller = new AbortController();
+      uploadAbortRef.current = controller;
+      setUploadQueue(createEmptyUploadQueue());
+      setQueueStatus(null);
+
+      try {
+        const response = await createOrder(order, {
+          signal: controller.signal,
+          onFileProgress: (index, total, event) => {
+            const id = `order-file-${index}`;
+            const fileName = order.attachments[index]?.name ?? `File ${index + 1}`;
+            setUploadQueue((current) => {
+              let next = current.items.some((item) => item.id === id)
+                ? current
+                : reduceUploadQueue(current, { type: "START", id, fileName });
+              next = reduceUploadQueue(next, {
+                type: "PROGRESS",
+                id,
+                percent: event.percent,
+              });
+              if (event.percent >= 100) {
+                next = reduceUploadQueue(next, { type: "TRANSFER_COMPLETE", id });
+              }
+              return next;
+            });
+            setQueueStatus(total > 1 ? `Uploading ${index + 1} of ${total}` : null);
+          },
+        });
+        setUploadQueue((current) =>
+          current.items.reduce(
+            (queue, item) => reduceUploadQueue(queue, { type: "SUCCESS", id: item.id }),
+            current,
+          ),
+        );
+        setQueueStatus(null);
+        return response;
+      } catch (error) {
+        setUploadQueue((current) =>
+          current.items.reduce(
+            (queue, item) =>
+              item.phase === "success"
+                ? queue
+                : reduceUploadQueue(queue, {
+                    type: "ERROR",
+                    id: item.id,
+                    message: getOrderSubmissionErrorMessage(error),
+                  }),
+            current,
+          ),
+        );
+        throw error;
+      }
+    },
     (formData) => {
       const selectedValue = String(formData.get("service") ?? "");
       const selectedService = services.find(
@@ -341,6 +409,59 @@ export function OrderPage() {
               >
                 {errorMessage}
               </p>
+            ) : null}
+
+            {isSubmitting && attachments.length > 0 ? (
+              <div className="space-y-2" aria-live="polite">
+                {queueStatus ? (
+                  <p className="text-[11px] text-muted-foreground font-sans text-center">
+                    {queueStatus}
+                  </p>
+                ) : null}
+                {uploadQueue.items.map((item) => (
+                  <div key={item.id} className="relative overflow-hidden border border-border px-4 py-2.5 text-[11px] font-sans">
+                    {(item.phase === "uploading" || item.phase === "scanning" || item.phase === "processing" || item.phase === "success") ? (
+                      <span
+                        aria-hidden="true"
+                        className={`absolute inset-y-0 left-0 bg-emerald-200/80 ${
+                          item.phase === "scanning" || item.phase === "processing"
+                            ? "upload-progress-pulse w-full"
+                            : ""
+                        }`}
+                        style={
+                          item.phase === "uploading" || item.phase === "success"
+                            ? { width: `${item.percent}%` }
+                            : undefined
+                        }
+                      />
+                    ) : null}
+                    <span className="relative z-[1]">
+                      {item.fileName}: {getUploadButtonLabel(item, "Waiting")}
+                    </span>
+                    {item.phase === "uploading" ? (
+                      <span
+                        className="sr-only"
+                        role="progressbar"
+                        aria-valuemin={0}
+                        aria-valuemax={100}
+                        aria-valuenow={item.percent}
+                      />
+                    ) : null}
+                  </div>
+                ))}
+                <style>{`
+                  @keyframes upload-progress-pulse {
+                    0%, 100% { opacity: 0.55; }
+                    50% { opacity: 0.95; }
+                  }
+                  .upload-progress-pulse {
+                    animation: upload-progress-pulse 1.2s ease-in-out infinite;
+                  }
+                  @media (prefers-reduced-motion: reduce) {
+                    .upload-progress-pulse { animation: none; }
+                  }
+                `}</style>
+              </div>
             ) : null}
 
             <button

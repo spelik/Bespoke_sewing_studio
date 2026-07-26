@@ -239,6 +239,17 @@ public sealed class StorageMaintenanceService : IStorageMaintenanceService
             relatedInfo[item.FileId] = $"Portfolio: {item.Title}";
         }
 
+        var inStockImages = await (
+            from image in _dbContext.InStockItemImages.AsNoTracking()
+            join item in _dbContext.InStockItems.AsNoTracking() on image.InStockItemId equals item.Id
+            where missingIds.Contains(image.UploadedFileId)
+            select new { image.UploadedFileId, item.Title })
+            .ToArrayAsync(cancellationToken);
+        foreach (var image in inStockImages)
+        {
+            relatedInfo[image.UploadedFileId] = $"IN STOCK: {image.Title}";
+        }
+
         var pageContent = await _dbContext.PageContents
             .AsNoTracking()
             .Where(content => content.ImageFileId != null && missingIds.Contains(content.ImageFileId.Value))

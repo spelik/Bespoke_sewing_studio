@@ -2,6 +2,8 @@ import { useEffect, useMemo } from "react";
 import { useLocation } from "react-router-dom";
 import { appConfig } from "../../config/appConfig";
 import { useSiteSettings } from "../siteSettings/SiteSettingsContext";
+import { useSeoOverride } from "./SeoOverrideContext";
+import { serializeJsonLd } from "../inStock/publicInStockHelpers";
 
 interface SeoDefinition {
   title: string;
@@ -32,6 +34,11 @@ const PUBLIC_ROUTE_SEO: Record<string, SeoDefinition> = {
       "Tailoring, Dressmaking, Alterations & Memory Bears | Bespoke Sewing Studio",
     description:
       "Explore tailoring, dressmaking, alterations and memory bear services from Bespoke Sewing Studio.",
+  },
+  "/in-stock": {
+    title: "IN STOCK | Ready-to-Buy Pieces | Bespoke Sewing Studio",
+    description:
+      "Browse finished pieces available now from Bespoke Sewing Studio. Limited quantities; contact the studio to buy.",
   },
   "/portfolio": {
     title: "Portfolio | Bespoke Sewing Studio",
@@ -71,6 +78,7 @@ const PUBLIC_ROBOTS = "index, follow";
 export function SeoManager() {
   const location = useLocation();
   const { brand, settings } = useSiteSettings();
+  const { override } = useSeoOverride();
 
   const seo = useMemo<SeoState>(() => {
     const pathname = normalizePath(location.pathname);
@@ -92,44 +100,62 @@ export function SeoManager() {
       };
     }
 
-    const route = PUBLIC_ROUTE_SEO[pathname] ?? {
-      title: "Page not found | Bespoke Sewing Studio",
-      description: "The requested page could not be found.",
-      robots: ADMIN_ROBOTS,
-    };
+    const isInStockDetail = /^\/in-stock\/.+/.test(pathname);
+    const route =
+      PUBLIC_ROUTE_SEO[pathname] ??
+      (isInStockDetail
+        ? {
+            title: "IN STOCK | Bespoke Sewing Studio",
+            description:
+              "Ready-to-buy piece from Bespoke Sewing Studio. Contact the studio to enquire.",
+          }
+        : {
+            title: "Page not found | Bespoke Sewing Studio",
+            description: "The requested page could not be found.",
+            robots: ADMIN_ROBOTS,
+          });
 
     const isHome = pathname === "/";
-    const title = isHome
-      ? brand.defaultMetaTitle || route.title
-      : route.title;
-    const description = isHome
-      ? brand.defaultMetaDescription || route.description
-      : route.description;
-    const canonicalUrl = buildAbsoluteUrl(pathname);
-    const imageUrl = toAbsoluteUrl(
-      brand.defaultOgImageUrl ?? brand.logoUrl,
-    );
-    const structuredData = isHome
-      ? createBusinessStructuredData({
-          description,
-          imageUrl,
-          logoUrl: toAbsoluteUrl(brand.logoUrl),
-          name: brand.brandDisplayName || settings.studioName,
-          phone: settings.phone,
-          sameAs: [
-            settings.facebookUrl,
-            settings.instagramUrl,
-            settings.tikTokUrl,
-            settings.pinterestUrl,
-          ],
-        })
-      : null;
+    const title = override?.title
+      ? override.title
+      : isHome
+        ? brand.defaultMetaTitle || route.title
+        : route.title;
+    const description = override?.description
+      ? override.description
+      : isHome
+        ? brand.defaultMetaDescription || route.description
+        : route.description;
+    const canonicalPath = override?.canonicalPath ?? pathname;
+    const canonicalUrl = buildAbsoluteUrl(canonicalPath);
+    const imageUrl =
+      override?.ogImageUrl !== undefined
+        ? toAbsoluteUrl(override.ogImageUrl)
+        : toAbsoluteUrl(brand.defaultOgImageUrl ?? brand.logoUrl);
+    const structuredData =
+      override?.structuredData !== undefined
+        ? override.structuredData
+        : isHome
+          ? createBusinessStructuredData({
+              description,
+              imageUrl,
+              logoUrl: toAbsoluteUrl(brand.logoUrl),
+              name: brand.brandDisplayName || settings.studioName,
+              phone: settings.phone,
+              sameAs: [
+                settings.facebookUrl,
+                settings.instagramUrl,
+                settings.tikTokUrl,
+                settings.pinterestUrl,
+              ],
+            })
+          : null;
 
     return {
       title,
       description,
-      robots: route.robots ?? PUBLIC_ROBOTS,
-      canonicalPath: pathname,
+      robots: override?.robots ?? route.robots ?? PUBLIC_ROBOTS,
+      canonicalPath,
       canonicalUrl,
       ogTitle: isHome ? brand.defaultOgTitle ?? title : title,
       ogDescription: isHome
@@ -138,7 +164,7 @@ export function SeoManager() {
       ogImageUrl: imageUrl,
       structuredData,
     };
-  }, [brand, location.pathname, settings]);
+  }, [brand, location.pathname, override, settings]);
 
   useEffect(() => {
     document.title = seo.title;
@@ -156,7 +182,7 @@ export function SeoManager() {
     setNamedMeta("twitter:image", seo.ogImageUrl ?? null);
     setCanonicalLink(seo.canonicalUrl);
     setFavicon(toAbsoluteUrl(brand.faviconUrl));
-    setJsonLd("business-jsonld", seo.structuredData);
+    setJsonLd("page-jsonld", seo.structuredData);
   }, [brand, seo, settings]);
 
   return null;
@@ -270,6 +296,8 @@ function setFavicon(href: string | null): void {
 
 function setJsonLd(id: string, value: Record<string, unknown> | null): void {
   const existing = document.getElementById(id) as HTMLScriptElement | null;
+  // Remove legacy id from earlier SEO revisions.
+  document.getElementById("business-jsonld")?.remove();
 
   if (!value) {
     existing?.remove();
@@ -279,7 +307,7 @@ function setJsonLd(id: string, value: Record<string, unknown> | null): void {
   const script = existing ?? document.createElement("script");
   script.id = id;
   script.type = "application/ld+json";
-  script.textContent = JSON.stringify(value);
+  script.textContent = serializeJsonLd(value);
 
   if (!script.parentNode) {
     document.head.append(script);

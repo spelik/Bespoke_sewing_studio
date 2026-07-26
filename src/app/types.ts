@@ -1,6 +1,7 @@
 export type Page =
   | "home"
   | "services"
+  | "inStock"
   | "portfolio"
   | "order"
   | "about"
@@ -117,6 +118,7 @@ export type UpdateSiteSettingsRequest = Omit<
 
 export interface BrandNavigationSettings {
   showServicesLink: boolean; servicesLabel: string;
+  showInStockLink: boolean; inStockLabel: string;
   showPortfolioLink: boolean; portfolioLabel: string;
   showOrderLink: boolean; orderLabel: string;
   showAboutLink: boolean; aboutLabel: string;
@@ -135,7 +137,9 @@ export interface UpdateBrandSettingsRequest {
   brandDisplayName: string; logoFileId: string | null; logoAltText: string; faviconFileId: string | null;
   headerCtaLabel: string; headerCtaUrl: string; defaultMetaTitle: string; defaultMetaDescription: string;
   defaultOgTitle: string | null; defaultOgDescription: string | null; defaultOgImageFileId: string | null;
-  showServicesLink: boolean; servicesLabel: string; showPortfolioLink: boolean; portfolioLabel: string;
+  showServicesLink: boolean; servicesLabel: string;
+  showInStockLink: boolean; inStockLabel: string;
+  showPortfolioLink: boolean; portfolioLabel: string;
   showOrderLink: boolean; orderLabel: string; showAboutLink: boolean; aboutLabel: string;
   showContactLink: boolean; contactLabel: string;
 }
@@ -294,6 +298,90 @@ export interface UploadedPortfolioImage {
   sizeBytes: number;
   purpose: "PortfolioImage";
   createdAt: string;
+}
+
+export type InStockItemStatus = "Available" | "Reserved" | "Sold";
+
+export interface PublicInStockImage {
+  id: string;
+  imageUrl: string;
+  altText: string | null;
+  displayOrder: number;
+}
+
+export interface PublicInStockItem {
+  id: string;
+  slug: string;
+  title: string;
+  shortDescription: string | null;
+  description: string | null;
+  price: number;
+  currency: string;
+  status: InStockItemStatus;
+  sizes: string | null;
+  materials: string | null;
+  images: PublicInStockImage[];
+}
+
+export interface AdminInStockImage {
+  id: string;
+  uploadedFileId: string;
+  imageUrl: string;
+  altText: string | null;
+  displayOrder: number;
+  originalFileName: string;
+  contentType: string;
+  fileSizeBytes: number;
+  createdAt: string;
+}
+
+export interface AdminInStockItem {
+  id: string;
+  slug: string;
+  title: string;
+  shortDescription: string | null;
+  description: string | null;
+  price: number;
+  currency: string;
+  status: InStockItemStatus;
+  isPublished: boolean;
+  displayOrder: number;
+  sizes: string | null;
+  materials: string | null;
+  createdAt: string;
+  updatedAt: string;
+  archivedAt: string | null;
+  images: AdminInStockImage[];
+}
+
+export interface SaveInStockItemRequest {
+  slug: string | null;
+  title: string;
+  shortDescription: string | null;
+  description: string | null;
+  price: number;
+  currency: string | null;
+  status: InStockItemStatus;
+  isPublished: boolean;
+  displayOrder: number;
+  sizes: string | null;
+  materials: string | null;
+}
+
+export interface UpdateInStockImageRequest {
+  altText: string | null;
+  displayOrder: number;
+}
+
+export interface ReorderInStockImagesRequest {
+  imageIds: string[];
+}
+
+export interface ArchiveInStockItemResult {
+  id: string;
+  archived: boolean;
+  restored: boolean;
+  message: string;
 }
 
 export interface PageContentSection {

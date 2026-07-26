@@ -49,11 +49,13 @@ public sealed class SiteSettings
     public string? DefaultOgTitle { get; set; }
     public string? DefaultOgDescription { get; set; }
     public bool ShowServicesLink { get; set; } = true;
+    public bool ShowInStockLink { get; set; } = true;
     public bool ShowPortfolioLink { get; set; } = true;
     public bool ShowOrderLink { get; set; } = true;
     public bool ShowAboutLink { get; set; } = true;
     public bool ShowContactLink { get; set; } = true;
     public required string ServicesLabel { get; set; }
+    public required string InStockLabel { get; set; }
     public required string PortfolioLabel { get; set; }
     public required string OrderLabel { get; set; }
     public required string AboutLabel { get; set; }

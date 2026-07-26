@@ -24,6 +24,91 @@ public sealed class PostgreSqlPersistenceIntegrationTests
         Assert.True(await context.Database.CanConnectAsync());
         Assert.Equal(0, await context.EmailDeliveryLogEntries.CountAsync());
         Assert.Equal(0, await context.EmailOutboxMessages.CountAsync());
+        Assert.Equal(0, await context.InStockItems.CountAsync());
+        Assert.Equal(0, await context.InStockItemImages.CountAsync());
+    }
+
+    [PostgreSqlIntegrationFact]
+    public async Task InStockCatalogue_RoundTripsItemImageAndFilteredSlugUniqueness()
+    {
+        await using var database = await PostgreSqlTestDatabase.CreateAsync();
+        await using var context = database.CreateContext();
+        await context.Database.MigrateAsync();
+
+        var now = DateTimeOffset.UtcNow;
+        var file = new UploadedFileMetadata
+        {
+            Purpose = UploadPurpose.InStockImage,
+            OriginalFileName = "piece.jpg",
+            StoredFileName = "piece.jpg",
+            StorageKey = $"in-stock-images/2026/07/{Guid.NewGuid():N}.jpg",
+            ContentType = "image/jpeg",
+            SizeBytes = 12,
+            ScanStatus = UploadScanStatus.Clean,
+            CreatedAt = now,
+            UpdatedAt = now
+        };
+        var item = new InStockItem
+        {
+            Slug = "linen-piece",
+            Title = "Linen piece",
+            Price = 125.50m,
+            Currency = InStockItem.DefaultCurrency,
+            Status = InStockItemStatus.Available,
+            IsPublished = true,
+            DisplayOrder = 1,
+            CreatedAt = now,
+            UpdatedAt = now
+        };
+        var image = new InStockItemImage
+        {
+            InStockItemId = item.Id,
+            UploadedFileId = file.Id,
+            AltText = "Front",
+            DisplayOrder = 0,
+            CreatedAt = now
+        };
+
+        context.UploadedFiles.Add(file);
+        context.InStockItems.Add(item);
+        context.InStockItemImages.Add(image);
+        await context.SaveChangesAsync();
+
+        var duplicate = new InStockItem
+        {
+            Slug = "linen-piece",
+            Title = "Duplicate",
+            Price = 10m,
+            Currency = InStockItem.DefaultCurrency,
+            Status = InStockItemStatus.Available,
+            IsPublished = false,
+            CreatedAt = now,
+            UpdatedAt = now
+        };
+        context.InStockItems.Add(duplicate);
+        await Assert.ThrowsAsync<DbUpdateException>(() => context.SaveChangesAsync());
+        context.ChangeTracker.Clear();
+
+        var existing = await context.InStockItems.SingleAsync(candidate => candidate.Slug == "linen-piece");
+        existing.ArchivedAt = now;
+        existing.IsPublished = false;
+        await context.SaveChangesAsync();
+
+        context.InStockItems.Add(new InStockItem
+        {
+            Slug = "linen-piece",
+            Title = "Reuse after archive",
+            Price = 11m,
+            Currency = InStockItem.DefaultCurrency,
+            Status = InStockItemStatus.Reserved,
+            IsPublished = false,
+            CreatedAt = now,
+            UpdatedAt = now
+        });
+        await context.SaveChangesAsync();
+
+        Assert.Equal(2, await context.InStockItems.CountAsync(candidate => candidate.Slug == "linen-piece"));
+        Assert.Equal(1, await context.InStockItemImages.CountAsync());
     }
 
     [PostgreSqlIntegrationFact]

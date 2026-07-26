@@ -86,7 +86,9 @@ public sealed class SiteSettingsService(BespokeStudioDbContext dbContext) : ISit
         s.FaviconFileId=request.FaviconFileId; s.HeaderCtaLabel=request.HeaderCtaLabel.Trim(); s.HeaderCtaUrl=request.HeaderCtaUrl.Trim();
         s.DefaultMetaTitle=request.DefaultMetaTitle.Trim(); s.DefaultMetaDescription=request.DefaultMetaDescription.Trim();
         s.DefaultOgTitle=Normalize(request.DefaultOgTitle); s.DefaultOgDescription=Normalize(request.DefaultOgDescription); s.DefaultOgImageFileId=request.DefaultOgImageFileId;
-        s.ShowServicesLink=request.ShowServicesLink; s.ServicesLabel=request.ServicesLabel.Trim(); s.ShowPortfolioLink=request.ShowPortfolioLink; s.PortfolioLabel=request.PortfolioLabel.Trim();
+        s.ShowServicesLink=request.ShowServicesLink; s.ServicesLabel=request.ServicesLabel.Trim();
+        s.ShowInStockLink=request.ShowInStockLink; s.InStockLabel=request.InStockLabel.Trim();
+        s.ShowPortfolioLink=request.ShowPortfolioLink; s.PortfolioLabel=request.PortfolioLabel.Trim();
         s.ShowOrderLink=request.ShowOrderLink; s.OrderLabel=request.OrderLabel.Trim(); s.ShowAboutLink=request.ShowAboutLink; s.AboutLabel=request.AboutLabel.Trim();
         s.ShowContactLink=request.ShowContactLink; s.ContactLabel=request.ContactLabel.Trim(); s.UpdatedAt=DateTimeOffset.UtcNow;
         await dbContext.SaveChangesAsync(cancellationToken); return ToAdminBrand(s);
@@ -135,8 +137,8 @@ public sealed class SiteSettingsService(BespokeStudioDbContext dbContext) : ISit
         LogoAltText = "Bespoke Sewing Studio logo", BrandDisplayName = "Bespoke Sewing Studio",
         HeaderCtaLabel = "Book Now", HeaderCtaUrl = "/order", DefaultMetaTitle = "Bespoke Sewing Studio",
         DefaultMetaDescription = "Bespoke sewing, tailoring, dressmaking, alterations and memory bears.",
-        ServicesLabel = "Services", PortfolioLabel = "Portfolio", OrderLabel = "Order", AboutLabel = "About", ContactLabel = "Contact",
-        ShowServicesLink = true, ShowPortfolioLink = true, ShowOrderLink = true, ShowAboutLink = true, ShowContactLink = true,
+        ServicesLabel = "Services", InStockLabel = "IN STOCK", PortfolioLabel = "Portfolio", OrderLabel = "Order", AboutLabel = "About", ContactLabel = "Contact",
+        ShowServicesLink = true, ShowInStockLink = true, ShowPortfolioLink = true, ShowOrderLink = true, ShowAboutLink = true, ShowContactLink = true,
         UpdatedAt = DateTimeOffset.UtcNow
     };
 
@@ -179,7 +181,13 @@ public sealed class SiteSettingsService(BespokeStudioDbContext dbContext) : ISit
             settings.BusinessLegalName,
             settings.UpdatedAt);
 
-    private static BrandNavigationResponse Navigation(SiteSettingsEntity s)=>new(s.ShowServicesLink,s.ServicesLabel,s.ShowPortfolioLink,s.PortfolioLabel,s.ShowOrderLink,s.OrderLabel,s.ShowAboutLink,s.AboutLabel,s.ShowContactLink,s.ContactLabel);
+    private static BrandNavigationResponse Navigation(SiteSettingsEntity s)=>new(
+        s.ShowServicesLink, s.ServicesLabel,
+        s.ShowInStockLink, s.InStockLabel,
+        s.ShowPortfolioLink, s.PortfolioLabel,
+        s.ShowOrderLink, s.OrderLabel,
+        s.ShowAboutLink, s.AboutLabel,
+        s.ShowContactLink, s.ContactLabel);
     private static string? BrandUrl(Guid? id)=>id is null?null:$"/api/brand/images/{id}";
     private static PublicBrandSettingsResponse ToPublicBrand(SiteSettingsEntity s)=>new(s.BrandDisplayName,BrandUrl(s.LogoFileId),s.LogoAltText,BrandUrl(s.FaviconFileId),s.HeaderCtaLabel,s.HeaderCtaUrl,s.DefaultMetaTitle,s.DefaultMetaDescription,s.DefaultOgTitle,s.DefaultOgDescription,BrandUrl(s.DefaultOgImageFileId),Navigation(s));
     private static AdminBrandSettingsResponse ToAdminBrand(SiteSettingsEntity s)=>new(s.BrandDisplayName,BrandUrl(s.LogoFileId),s.LogoFileId,s.LogoAltText,BrandUrl(s.FaviconFileId),s.FaviconFileId,s.HeaderCtaLabel,s.HeaderCtaUrl,s.DefaultMetaTitle,s.DefaultMetaDescription,s.DefaultOgTitle,s.DefaultOgDescription,BrandUrl(s.DefaultOgImageFileId),s.DefaultOgImageFileId,Navigation(s),s.UpdatedAt);

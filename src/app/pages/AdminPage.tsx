@@ -55,6 +55,7 @@ import { AdminContactMessagesPanel } from "../components/AdminContactMessagesPan
 import { AdminContentPanel } from "../components/AdminContentPanel";
 import { AdminOrderDetail } from "../components/AdminOrderDetail";
 import { AdminOrdersTable } from "../components/AdminOrdersTable";
+import { AdminInStockPanel } from "../components/AdminInStockPanel";
 import { AdminPortfolioPanel } from "../components/AdminPortfolioPanel";
 import { AdminProductionHealthPanel } from "../components/AdminProductionHealthPanel";
 import { AdminRepeatableContentPanel } from "../components/AdminRepeatableContentPanel";
@@ -630,6 +631,9 @@ export function AdminPage() {
           ) : null}
           {section === "services" ? (
             <AdminServicesPanel onUnauthorized={logout} />
+          ) : null}
+          {section === "inStock" ? (
+            <AdminInStockPanel onUnauthorized={logout} />
           ) : null}
           {section === "portfolio" ? (
             <AdminPortfolioPanel onUnauthorized={logout} />

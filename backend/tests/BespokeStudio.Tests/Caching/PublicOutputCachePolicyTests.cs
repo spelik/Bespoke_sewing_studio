@@ -17,6 +17,7 @@ public sealed class PublicOutputCachePolicyTests
     [InlineData(nameof(PublicOutputCachePolicy.AllPublicContentTag), "public-content")]
     [InlineData(nameof(PublicOutputCachePolicy.ServicesTag), "public-services")]
     [InlineData(nameof(PublicOutputCachePolicy.PortfolioTag), "public-portfolio")]
+    [InlineData(nameof(PublicOutputCachePolicy.InStockTag), "public-in-stock")]
     [InlineData(nameof(PublicOutputCachePolicy.PageContentTag), "public-page-content")]
     [InlineData(nameof(PublicOutputCachePolicy.RepeatableContentTag), "public-repeatable-content")]
     [InlineData(nameof(PublicOutputCachePolicy.SiteSettingsTag), "public-site-settings")]

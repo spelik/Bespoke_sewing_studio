@@ -12,6 +12,7 @@ import {
   Palette,
   Scissors,
   Settings,
+  Shirt,
   UserCircle,
   Users,
   type LucideIcon,
@@ -22,6 +23,7 @@ export type AdminSection =
   | "orders"
   | "contactMessages"
   | "services"
+  | "inStock"
   | "portfolio"
   | "content"
   | "repeatable"
@@ -82,6 +84,14 @@ export const ADMIN_NAV_GROUPS: ReadonlyArray<AdminNavGroup> = [
         description:
           "Control which services appear on the public site and order form.",
         icon: Scissors,
+      },
+      {
+        id: "inStock",
+        label: "IN STOCK",
+        title: "IN STOCK",
+        description:
+          "Manage finished pieces available to buy, with photos, price and availability.",
+        icon: Shirt,
       },
       {
         id: "portfolio",
@@ -200,6 +210,7 @@ export const ADMIN_SECTION_HASHES: Readonly<Record<AdminSection, string>> = {
   orders: "orders",
   contactMessages: "contact-messages",
   services: "services",
+  inStock: "in-stock",
   portfolio: "portfolio",
   content: "content",
   repeatable: "repeatable-content",
