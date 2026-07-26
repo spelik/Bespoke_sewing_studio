@@ -9,18 +9,16 @@ import type {
   UploadedPortfolioImage,
 } from "../app/types";
 import { apiClient } from "./apiClient";
-
-const resolveImageUrl = (url: string | null): string | null =>
-  url ? new URL(url, `${apiClient.baseUrl.replace(/\/api\/?$/, "")}/`).toString() : null;
+import { resolveApiAssetUrl } from "./resolveApiAssetUrl";
 
 export async function getPublicPortfolioItems(): Promise<PortfolioItem[]> {
   const items = await apiClient.get<PortfolioItem[]>("portfolio");
-  return items.map((item) => ({ ...item, imageUrl: resolveImageUrl(item.imageUrl) ?? "" }));
+  return items.map((item) => ({ ...item, imageUrl: resolveApiAssetUrl(item.imageUrl) ?? "" }));
 }
 export const getPublicPortfolioCategories = () => apiClient.get<PublicPortfolioCategory[]>("portfolio/categories");
 export async function getAdminPortfolioItems(): Promise<AdminPortfolioItem[]> {
   const items = await apiClient.get<AdminPortfolioItem[]>("admin/portfolio/items");
-  return items.map((item) => ({ ...item, imageUrl: resolveImageUrl(item.imageUrl) }));
+  return items.map((item) => ({ ...item, imageUrl: resolveApiAssetUrl(item.imageUrl) }));
 }
 export const getAdminPortfolioCategories = () => apiClient.get<AdminPortfolioCategory[]>("admin/portfolio/categories");
 export async function createPortfolioItem(request: SavePortfolioItemRequest): Promise<AdminPortfolioItem> {
@@ -47,5 +45,5 @@ export const getAdminPortfolioImage = (id: string): Promise<Blob> =>
 
 const normalizeAdminItem = (item: AdminPortfolioItem): AdminPortfolioItem => ({
   ...item,
-  imageUrl: resolveImageUrl(item.imageUrl),
+  imageUrl: resolveApiAssetUrl(item.imageUrl),
 });
