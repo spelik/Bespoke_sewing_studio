@@ -12,6 +12,7 @@ Current status:
 - uploads use local development storage plus PostgreSQL metadata; order attachments stay private
 - Services & Prices CMS manages dynamic services and text-based price options
 - Portfolio/Gallery CMS manages categories, work items, images, publication state and ordering
+- IN STOCK catalogue manages ready-to-buy pieces with GBP price, availability status, publication/archive state and multiple images (separate from Portfolio)
 - Website Content CMS manages page sections, copy, CTA data and page images
 - Repeatable Content CMS manages process steps, studio values, testimonials and privacy subsections
 - Admin Contact Messages module loads paged message lists, applies search/status filters server-side and updates workflow state
@@ -106,6 +107,7 @@ cache with the named `PublicContent` policy:
 
 - `GET /api/services`;
 - `GET /api/portfolio` and `GET /api/portfolio/categories`;
+- `GET /api/in-stock` and `GET /api/in-stock/{slug}`;
 - `GET /api/content/pages/{pageKey}`;
 - `GET /api/repeatable-content` and `GET /api/repeatable-content/groups/{groupKey}`;
 - `GET /api/site-settings/public`;
@@ -121,9 +123,10 @@ repeat request can be used to verify a server-side cache hit.
 No cache policy is attached to `/api/admin/*`, `/api/auth/*`, Order or Contact
 submissions, uploads/downloads, public or admin image/file responses, Email/Audit
 logs, health checks or `/api/version`. Public JSON responses are tagged by content
-area (`public-services`, `public-portfolio`, `public-page-content`,
-`public-repeatable-content`, `public-site-settings`, `public-brand-settings`, plus
-the shared `public-content` tag). After a successful admin CMS or settings mutation,
+area (`public-services`, `public-portfolio`, `public-in-stock`,
+`public-page-content`, `public-repeatable-content`, `public-site-settings`,
+`public-brand-settings`, plus the shared `public-content` tag). After a successful
+admin CMS or settings mutation,
 matching tags are evicted through `IOutputCacheStore.EvictByTagAsync`, so public
 pages and JSON endpoints reflect the change immediately without waiting for the
 60-second TTL. Browser/CDN `Cache-Control` headers are still not forced; production
@@ -217,6 +220,60 @@ physical files for later cleanup or restoration.
 Security boundary: `/api/portfolio/images/{id}` never exposes arbitrary upload
 metadata or order attachments. Order attachments continue to be downloaded
 only through the Admin-protected `/api/uploads/{uploadedFileId}` endpoint.
+
+## IN STOCK catalogue API
+
+Dedicated ready-to-buy catalogue module, separate from Portfolio CMS. Migration:
+`20260726105255_AddInStockCatalogue`.
+
+Public endpoints do not require JWT:
+
+- `GET /api/in-stock` returns published, non-archived items ordered by
+  `DisplayOrder`, then `CreatedAt`, including ordered image DTOs
+- `GET /api/in-stock/{slug}` returns one published, non-archived item or `404`
+- `GET /api/in-stock/images/{imageId}` streams an image only when linked to a
+  published, non-archived item
+
+Public responses include `Available`, `Reserved` and `Sold` statuses. Currency is
+`GBP` (`numeric(12,2)` price). Image URLs are root-relative
+`/api/in-stock/images/{imageId}` where `{imageId}` is the `InStockItemImage` id.
+
+Admin JWT with the `Admin` role is required for:
+
+- `GET|POST /api/admin/in-stock/items`
+- `GET|PUT /api/admin/in-stock/items/{id}`
+- `POST /api/admin/in-stock/items/{id}/archive`
+- `POST /api/admin/in-stock/items/{id}/restore`
+- `POST /api/admin/in-stock/items/{id}/images` (multipart JPG/PNG/WebP)
+- `PATCH|DELETE /api/admin/in-stock/items/{id}/images/{imageId}`
+- `GET /api/admin/in-stock/images/{imageId}` for authenticated previews
+
+Items can be created without images. Multiple images are supported; the primary
+image is the lowest `DisplayOrder`. Uploads reuse the shared storage/ClamAV path
+under `in-stock-images` with `UploadPurpose.InStockImage`.
+
+IN STOCK attach pipeline (atomic link):
+
+1. accept multipart file;
+2. write to quarantine;
+3. validate image signature;
+4. ClamAV scan (infected/failed never promote);
+5. promote clean file to permanent relative storage key;
+6. in one PostgreSQL transaction insert `UploadedFile` + `InStockItemImage` and
+   touch `InStockItem.UpdatedAt`;
+7. on DB failure after promote, compensate by deleting the promoted file or
+   scheduling durable deletion-outbox cleanup (never leave a publicly linked
+   image without a successful commit).
+
+Image delete schedules physical cleanup through the existing upload deletion
+outbox in the same DB transaction as relation/metadata removal; the background
+worker removes the file only after commit. Archiving retains images and does not
+delete files. Restore clears `ArchivedAt` and leaves `IsPublished=false`.
+Permanent item delete and checkout/payment are not implemented. Slug uniqueness
+matches other CMS modules: unique among non-archived rows (`ArchivedAt IS NULL`
+filtered unique index). Invalid multipart `displayOrder` values return
+validation errors. Audit/cache side effects after a successful mutation must not
+report a false primary failure to the client.
 
 ## Website Content API
 
@@ -1373,9 +1430,11 @@ Expected result with PostgreSQL running: all requests return HTTP `200`.
 `/health/ready` and `/readyz` return `503` when PostgreSQL cannot be reached;
 the liveness, version and compatibility endpoints remain available in that condition.
 
-Portfolio/Gallery CRUD and its dedicated image upload are implemented. General
-upload-library management is not implemented. Public pages are backend-first for
-Site/Brand Settings, Services, Portfolio, Page Content, Repeatable Content and Brand/SEO settings;
+Portfolio/Gallery CRUD and its dedicated image upload are implemented. IN STOCK
+catalogue backend/API foundation is implemented (admin UI and public page are
+pending). General upload-library management is not implemented. Public pages are
+backend-first for Site/Brand Settings, Services, Portfolio, IN STOCK (API ready),
+Page Content, Repeatable Content and Brand/SEO settings;
 centralised typed frontend fallbacks are used only when a public API is
 unavailable. The backend does not implement multilingual content variants; the
 current product scope is English-only. Refresh tokens, password reset, email

@@ -8,6 +8,7 @@ using BespokeStudio.Domain.Enums;
 using BespokeStudio.Infrastructure.Persistence;
 using BespokeStudio.Infrastructure.Storage;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace BespokeStudio.Infrastructure.Services;
@@ -28,19 +29,22 @@ public sealed class LocalUploadService : IUploadService
     private readonly IMalwareScanner _malwareScanner;
     private readonly IUploadFileDeletionScheduler _fileDeletionScheduler;
     private readonly IUploadStorage _storage;
+    private readonly ILogger<LocalUploadService> _logger;
 
     public LocalUploadService(
         BespokeStudioDbContext dbContext,
         IOptions<UploadStorageOptions> options,
         IMalwareScanner malwareScanner,
         IUploadFileDeletionScheduler fileDeletionScheduler,
-        IUploadStorage storage)
+        IUploadStorage storage,
+        ILogger<LocalUploadService> logger)
     {
         _dbContext = dbContext;
         _options = options.Value;
         _malwareScanner = malwareScanner;
         _fileDeletionScheduler = fileDeletionScheduler;
         _storage = storage;
+        _logger = logger;
     }
 
     public async Task<IReadOnlyList<UploadedFileResponse>> UploadOrderAttachmentsAsync(
@@ -110,6 +114,109 @@ public sealed class LocalUploadService : IUploadService
             _storage.DeleteIfExists(storedUpload.FinalStorageKey);
             throw;
         }
+    }
+
+    public async Task<PreparedUploadFile> PrepareInStockImageAsync(
+        UploadFileRequest file,
+        CancellationToken cancellationToken = default)
+    {
+        var prepared = ValidateAndPrepare(file);
+        if (!prepared.ContentType.StartsWith("image/", StringComparison.Ordinal))
+        {
+            throw new UploadValidationException("IN STOCK uploads must be JPG, PNG or WebP images.");
+        }
+
+        // Quarantine → signature → ClamAV → promote. Metadata is returned unsaved.
+        var storedUpload = await StoreValidatedFileAsync(
+            prepared,
+            UploadPurpose.InStockImage,
+            "in-stock-images",
+            cancellationToken);
+
+        return new PreparedUploadFile(storedUpload.Metadata, storedUpload.FinalStorageKey);
+    }
+
+    public async Task CompensateOrphanedPromotedFileAsync(
+        string storageKey,
+        string? originalFileName,
+        long? fileSizeBytes,
+        CancellationToken cancellationToken = default)
+    {
+        var normalizedKey = _storage.NormalizeAndValidateStorageKey(storageKey);
+
+        try
+        {
+            if (_storage.DeleteIfExists(normalizedKey))
+            {
+                return;
+            }
+        }
+        catch (Exception exception)
+        {
+            // Relative storage key only — never log absolute physical paths.
+            _logger.LogWarning(
+                exception,
+                "Immediate compensation delete failed for promoted upload key {StorageKey}. Scheduling durable cleanup.",
+                normalizedKey);
+        }
+
+        try
+        {
+            // Failed caller transaction may have dirtied the tracker; clear before durable schedule.
+            _dbContext.ChangeTracker.Clear();
+            await _fileDeletionScheduler.ScheduleAsync(
+                new ScheduleUploadFileDeletionRequest(
+                    normalizedKey,
+                    originalFileName,
+                    fileSizeBytes,
+                    "InStockItemImage",
+                    null,
+                    "in_stock_image.link_compensation"),
+                cancellationToken);
+            await _dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (Exception exception)
+        {
+            _logger.LogError(
+                exception,
+                "Durable compensation scheduling failed for promoted upload key {StorageKey}. Storage maintenance may collect the orphan later.",
+                normalizedKey);
+        }
+    }
+
+    public async Task<UploadDownloadResponse?> OpenPublicInStockImageAsync(
+        Guid imageId,
+        CancellationToken cancellationToken = default)
+    {
+        var metadata = await (
+            from image in _dbContext.InStockItemImages.AsNoTracking()
+            join item in _dbContext.InStockItems.AsNoTracking() on image.InStockItemId equals item.Id
+            join file in _dbContext.UploadedFiles.AsNoTracking() on image.UploadedFileId equals file.Id
+            where image.Id == imageId &&
+                file.Purpose == UploadPurpose.InStockImage &&
+                item.IsPublished &&
+                item.ArchivedAt == null &&
+                file.ContentType.StartsWith("image/")
+            select file)
+            .SingleOrDefaultAsync(cancellationToken);
+
+        return OpenFile(metadata);
+    }
+
+    public async Task<UploadDownloadResponse?> OpenInStockImageForAdminAsync(
+        Guid imageId,
+        CancellationToken cancellationToken = default)
+    {
+        var metadata = await (
+            from image in _dbContext.InStockItemImages.AsNoTracking()
+            join file in _dbContext.UploadedFiles.AsNoTracking() on image.UploadedFileId equals file.Id
+            where image.Id == imageId &&
+                file.Purpose == UploadPurpose.InStockImage &&
+                file.ContentType.StartsWith("image/")
+            select file)
+            .SingleOrDefaultAsync(cancellationToken);
+
+        return OpenFile(metadata);
     }
 
     public async Task<UploadedFileResponse> UploadContentImageAsync(

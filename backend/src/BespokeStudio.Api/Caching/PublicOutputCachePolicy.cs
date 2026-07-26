@@ -10,6 +10,7 @@ public static class PublicOutputCachePolicy
     public const string AllPublicContentTag = "public-content";
     public const string ServicesTag = "public-services";
     public const string PortfolioTag = "public-portfolio";
+    public const string InStockTag = "public-in-stock";
     public const string PageContentTag = "public-page-content";
     public const string RepeatableContentTag = "public-repeatable-content";
     public const string SiteSettingsTag = "public-site-settings";

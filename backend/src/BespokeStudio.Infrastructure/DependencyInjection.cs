@@ -106,6 +106,8 @@ public static class DependencyInjection
         services.AddScoped<IOrderService, OrderService>();
         services.AddScoped<IServiceOfferingService, ServiceOfferingService>();
         services.AddScoped<IPortfolioService, PortfolioService>();
+        services.AddScoped<IDbContextTransactionFactory, BespokeStudioDbContextTransactionFactory>();
+        services.AddScoped<IInStockService, InStockService>();
         services.AddScoped<IPageContentService, PageContentService>();
         services.AddScoped<IRepeatableContentService, RepeatableContentService>();
         services.AddScoped<ISiteSettingsService, SiteSettingsService>();

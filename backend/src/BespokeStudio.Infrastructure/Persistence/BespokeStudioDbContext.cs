@@ -22,6 +22,8 @@ public sealed class BespokeStudioDbContext(DbContextOptions<BespokeStudioDbConte
     public DbSet<PortfolioCategory> PortfolioCategories => Set<PortfolioCategory>();
     public DbSet<RepeatableContentItem> RepeatableContentItems => Set<RepeatableContentItem>();
     public DbSet<PortfolioItem> PortfolioItems => Set<PortfolioItem>();
+    public DbSet<InStockItem> InStockItems => Set<InStockItem>();
+    public DbSet<InStockItemImage> InStockItemImages => Set<InStockItemImage>();
     public DbSet<ServiceOffering> ServiceOfferings => Set<ServiceOffering>();
     public DbSet<ServicePriceOption> ServicePriceOptions => Set<ServicePriceOption>();
     public DbSet<SiteSettings> SiteSettings => Set<SiteSettings>();

@@ -5,5 +5,6 @@ public enum UploadPurpose
     OrderAttachment,
     PortfolioImage,
     SiteAsset,
-    BrandAsset
+    BrandAsset,
+    InStockImage
 }

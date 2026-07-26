@@ -1,5 +1,64 @@
 # TECH DEBT - Bespoke Sewing Studio
 
+## Task 91 - Production user data backup and disaster recovery
+
+- This is **not** application rollback, Git history, or a release ZIP restore.
+  Git and release ZIP **are not** a backup of user data.
+- Backup stored only on the same netcup VPS is **not sufficient**.
+- The task is **not done** without a working schedule, encrypted offsite copy,
+  and a tested staging restore rehearsal with a recorded last-successful-restore date.
+- Do not implement in the current IN STOCK / Admin UI stage — planning only until
+  a dedicated backup/DR implementation pass.
+
+### Scope — full PostgreSQL dump (custom format)
+
+Must cover all durable application data, including at least:
+
+- requests / заявки;
+- orders / заказы;
+- contact messages;
+- users and roles;
+- CMS / Website Content / repeatable content;
+- Portfolio;
+- IN STOCK catalogue;
+- settings / Brand / SEO configuration stored in DB;
+- admin audit log;
+- email delivery log and email outbox;
+- upload / file metadata (`UploadedFile` and related relations).
+
+### Scope — permanent uploads and keys
+
+- All permanent upload roots: Portfolio, IN STOCK, Brand/SEO, Website Content,
+  order attachments, and any other user/admin uploaded files under storage;
+- ASP.NET Core Data Protection keys;
+- production configuration inventory **without raw secrets** (names/locations of
+  env vars, secret stores, and mount paths — never dump live passwords/keys into
+  the inventory artifact).
+
+### Operations requirements
+
+- Daily schedule (automated);
+- retain at least **14 daily** copies;
+- weekly / monthly retention tiers;
+- **encrypted offsite copy outside the netcup VPS**;
+- checksums + backup manifest per run;
+- verify dump with `pg_restore --list`;
+- verify uploads archive and Data Protection keys archive integrity;
+- alert / notify on failed backup;
+- prevent overlapping / parallel backup runs (single-flight lock);
+- take a backup before migrations and before bulk/mass data changes;
+- staging restore rehearsal that checks requests, images, attachments, Admin login,
+  Portfolio, and IN STOCK;
+- record and publish the **date of the last successful restore rehearsal**.
+
+### Explicit non-goals / clarifications
+
+- Restoring a previous app release from Git or a deploy ZIP does **not** restore
+  customer data, uploads, or keys.
+- Local-only VPS copies (same disk/host) do not meet the offsite requirement.
+- Task 42 docs (`BACKUP_RESTORE_RU.md`) remain the manual procedure reference;
+  this task is the production automated backup + DR capability on top of that.
+
 ## Task 90 - Fix netcup deploy remote health-check quoting (deployment tooling)
 
 - After a successful netcup release switch, embedded post-switch health checks failed with
@@ -46,7 +105,7 @@
   `VITE_PUBLIC_SITE_URL=https://oksanalogosha.com` all succeeded.
 - Updated `README.md`. `backend/README.md` unchanged (no API contract change).
 
-## Task 89 - IN STOCK ready-to-buy catalogue (future, not started)
+## Task 89 - IN STOCK ready-to-buy catalogue (in progress)
 
 - Future public page **IN STOCK** for finished pieces available for purchase.
 - Main navigation item immediately after **Services** and before **Portfolio**.
@@ -60,6 +119,58 @@
   route, Brand Settings navigation fields, SEO and sitemap updates.
 - Must not be mixed into the existing Portfolio gallery CMS.
 - Not implemented as part of Task 88 asset URL bugfix.
+
+### Progress — Backend foundation completed, frontend/admin UI pending
+
+- Added dedicated `InStockItem` / `InStockItemImage` entities (not PortfolioItem),
+  GBP currency, `Available`/`Reserved`/`Sold` status, publish/archive fields and
+  EF migration `20260726105255_AddInStockCatalogue`.
+- Public API: `GET /api/in-stock`, `GET /api/in-stock/{slug}`,
+  `GET /api/in-stock/images/{imageId}` (published + non-archived only;
+  root-relative image URLs; Reserved/Sold remain visible).
+- Admin API: CRUD, archive/restore, multi-image upload/order/alt/delete using
+  existing upload storage + ClamAV + deletion outbox; no permanent item delete,
+  no checkout/payment.
+- Backend tests cover validation, EF configuration, public/admin service rules,
+  uploads, authorization metadata, audit action shapes and opt-in PostgreSQL
+  schema uniqueness.
+- Still pending: Admin UI (stage 2), public page/navigation/SEO/sitemap (stage 3).
+
+### Progress — Backend atomic upload hardening (stage 1.1)
+
+- IN STOCK image attach now follows: quarantine → signature → ClamAV scan →
+  promote → single DB transaction linking `UploadedFile` + `InStockItemImage` +
+  `UpdatedAt` (no early `SaveChanges` of metadata alone).
+- After successful promote, `AddImageAsync` wraps nextOrder / entity creation /
+  BeginTransaction / SaveChanges / Commit in one try/catch. Rollback is
+  best-effort with an independent bounded cleanup token (not the cancelled
+  request token). Pre-commit failures compensate immediately; ambiguous
+  `CommitAsync` failures leave the promoted file for StorageMaintenance
+  reconciliation (no immediate delete). Original exceptions are always rethrown.
+- On DB link failure after promote: immediate safe file delete, else durable
+  deletion-outbox compensation (`in_stock_image.link_compensation`); public
+  endpoint cannot serve unlinked files; StorageMaintenance remains the last
+  resort orphan collector.
+- Image delete schedules `UploadFileDeletionJob` in the same DB transaction as
+  relation/metadata removal; physical delete stays with the background worker
+  after commit; scheduler/SaveChanges failure rolls back and keeps the relation.
+- Invalid multipart `displayOrder` returns ValidationProblem (not silently null).
+- Post-commit audit/cache failures are logged and must not turn a successful
+  mutation into a false client error.
+- **Frontend shared Upload Progress UX is mandatory for the next frontend stage
+  (not implemented yet):** one reusable upload component + one transport for the
+  whole site (Portfolio, IN STOCK, Brand/SEO, Website Content, Order attachments
+  and any other `src` upload controls after audit). Required behaviour:
+  - transfer: button stays put, light-green fill L→R, real `Uploading N%` from
+    bytes sent, button disabled while uploading;
+  - after 100% transfer: `Scanning file…` indeterminate/pulse (no fake scan %);
+  - then `Saving…`/`Processing…` → short `Uploaded` → restore idle button;
+  - per-file errors + Retry; multi-file per-file progress + `Uploading X of Y`;
+  - a11y: aria-live stages, valuemin/max/now while transferring, keyboard,
+    non-color-only progress, prefers-reduced-motion for scanning animation;
+  - transport: XMLHttpRequest / onUploadProgress (fetch has no upload progress),
+    keep auth/cookies/CSRF, abort on form close; no heavy dependency without need.
+  Do not invent separate progress logic per admin panel.
 
 ## Task 87 - Admin owner workflow navigation restructure
 

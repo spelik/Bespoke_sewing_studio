@@ -13,6 +13,30 @@ public interface IUploadService
     Task<UploadedFileResponse> UploadPortfolioImageAsync(
         UploadFileRequest file,
         CancellationToken cancellationToken = default);
+    /// <summary>
+    /// Quarantine → signature → ClamAV → promote. Does not persist UploadedFile metadata.
+    /// Caller must link metadata in one DB transaction, then compensate the promoted file on failure.
+    /// </summary>
+    Task<PreparedUploadFile> PrepareInStockImageAsync(
+        UploadFileRequest file,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Best-effort cleanup after a promoted file could not be linked in the database.
+    /// Tries immediate safe delete, then durable deletion-outbox scheduling.
+    /// </summary>
+    Task CompensateOrphanedPromotedFileAsync(
+        string storageKey,
+        string? originalFileName,
+        long? fileSizeBytes,
+        CancellationToken cancellationToken = default);
+
+    Task<UploadDownloadResponse?> OpenPublicInStockImageAsync(
+        Guid imageId,
+        CancellationToken cancellationToken = default);
+    Task<UploadDownloadResponse?> OpenInStockImageForAdminAsync(
+        Guid imageId,
+        CancellationToken cancellationToken = default);
     Task<UploadedFileResponse> UploadContentImageAsync(UploadFileRequest file, CancellationToken cancellationToken = default);
     Task<UploadDownloadResponse?> OpenPublicContentImageAsync(Guid uploadedFileId, CancellationToken cancellationToken = default);
     Task<UploadDownloadResponse?> OpenContentImageForAdminAsync(Guid uploadedFileId, CancellationToken cancellationToken = default);

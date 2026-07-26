@@ -64,6 +64,7 @@ Current backend status:
 - public portfolio/gallery data loads from `GET /api/portfolio`
 - the Admin **Portfolio** section manages categories, work items, publication state, order and featured items
 - portfolio images are uploaded to local development storage and served publicly only while linked to an active portfolio item
+- IN STOCK catalogue backend/API is available (`GET /api/in-stock`, admin `/api/admin/in-stock/*`); public page and admin UI are pending
 - page headings, body text, CTAs and key page images load from the Website Content CMS
 - repeatable public blocks such as process steps, studio values, testimonials and privacy subsections load from the Repeatable Content CMS
 - logo, favicon, default SEO metadata, header CTA and navigation labels/visibility are managed in Admin **Brand / SEO**

@@ -414,6 +414,7 @@ app.MapEmailDeliveryLogEndpoints();
 app.MapProductionReadinessEndpoints();
 app.MapServiceOfferingEndpoints();
 app.MapPortfolioEndpoints();
+app.MapInStockEndpoints();
 app.MapContentEndpoints();
 app.MapRepeatableContentEndpoints();
 app.MapBrandSettingsEndpoints();
