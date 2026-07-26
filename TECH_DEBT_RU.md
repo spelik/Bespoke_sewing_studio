@@ -59,6 +59,17 @@ Must cover all durable application data, including at least:
 - Task 42 docs (`BACKUP_RESTORE_RU.md`) remain the manual procedure reference;
   this task is the production automated backup + DR capability on top of that.
 
+## Task 92 - Fix netcup deploy SSH bash stdin CRLF (deployment tooling)
+
+- Production deploy aborted before file upload with
+  `: invalid option namepefail` / `Remote SSH command failed (prepare remote directories and verify .env). Exit code: 2`.
+- Cause: `Invoke-RemoteBashScript` sent Windows here-string bodies with CRLF over the
+  PowerShell pipeline to `ssh ... bash -s`, so remote bash received `set -euo pipefail\r`.
+- Fix in `scripts/production/netcup-deploy-release.ps1`: normalize CRLF/CR to LF, then write
+  raw UTF-8 bytes to ssh stdin (Process `StandardInput.BaseStream`) so PowerShell does not
+  reintroduce CRLF. SSH host/keys/paths, migrations, backup and health-check logic unchanged.
+- Validated with PowerShell 5.1 `-WhatIf` dry-run. Real deploy, commit and push were not performed.
+
 ## Task 90 - Fix netcup deploy remote health-check quoting (deployment tooling)
 
 - After a successful netcup release switch, embedded post-switch health checks failed with
@@ -76,6 +87,7 @@ Must cover all durable application data, including at least:
   - existing rollback hint via `trap` / `current.previous` is preserved.
 - Updated `scripts/production/README_RU.md`. No frontend/backend/API/DB/compose changes.
   Real deploy, commit and push were not performed.
+  Follow-up CRLF stdin hardening is Task 92.
 
 ## Task 88 - Fix production CMS asset URL resolution (frontend)
 

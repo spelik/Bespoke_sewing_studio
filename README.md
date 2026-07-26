@@ -396,10 +396,12 @@ Full (strict), Caddy and Docker Compose. Use
 [`DEPLOY_NETCUP_RU.md`](DEPLOY_NETCUP_RU.md) for the concrete netcup runbook,
 [`docker-compose.production.yml`](docker-compose.production.yml) for the compose
 configuration, and `scripts/production/netcup-*` for release build, deploy,
-backup, checks and home-server data migration. The old home-server deployment
-(`192.168.2.202`, home Nginx, Cloudflare Tunnel/cloudflared, systemd service and
-old `/var/www`/`/var/lib` paths) is deprecated and must only be referenced as the
-source of a one-time migration.
+backup, checks and home-server data migration. `netcup-deploy-release.ps1` sends
+remote bash over SSH stdin with CRLF normalized to LF (Windows PowerShell
+here-strings must not deliver `set -euo pipefail\r` to bash). The old home-server
+deployment (`192.168.2.202`, home Nginx, Cloudflare Tunnel/cloudflared, systemd
+service and old `/var/www`/`/var/lib` paths) is deprecated and must only be
+referenced as the source of a one-time migration.
 
 On the day of the release, follow
 [`PRODUCTION_GO_LIVE_RU.md`](PRODUCTION_GO_LIVE_RU.md), a short day-of-launch

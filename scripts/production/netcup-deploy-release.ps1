@@ -69,9 +69,48 @@ function Invoke-RemoteBashScript {
 
     # Pass the multiline bash script on stdin so remote quoting is preserved.
     # Do not pass the script body as an ssh command-line argument.
-    $Script | ssh -i $SshKeyPath $remote "bash -s"
-    if ($LASTEXITCODE -ne 0) {
-        throw "Remote SSH command failed ($Description). Exit code: $LASTEXITCODE."
+    #
+    # Normalize CRLF / lone CR to LF before send. Here-strings from Windows
+    # PowerShell often contain CRLF; if "set -euo pipefail\r" reaches remote
+    # bash, it fails with ": invalid option name". Write raw UTF-8 bytes to
+    # ssh stdin (not via the PowerShell pipeline) so LF is not rewritten to CRLF.
+    # Redirect only stdin: leave stdout/stderr on the console for live output and
+    # to avoid pipe-buffer deadlocks from RedirectStandardOutput/Error + ReadToEnd.
+    $normalizedScript = ($Script -replace "`r`n", "`n") -replace "`r", "`n"
+
+    $psi = New-Object System.Diagnostics.ProcessStartInfo
+    $psi.FileName = "ssh"
+    $psi.Arguments = "-i `"$SshKeyPath`" $remote `"bash -s`""
+    $psi.UseShellExecute = $false
+    $psi.RedirectStandardInput = $true
+    $psi.RedirectStandardOutput = $false
+    $psi.RedirectStandardError = $false
+    $psi.CreateNoWindow = $false
+
+    $process = New-Object System.Diagnostics.Process
+    $process.StartInfo = $psi
+    $exitCode = -1
+    try {
+        $null = $process.Start()
+
+        $utf8NoBom = New-Object System.Text.UTF8Encoding $false
+        $payload = $utf8NoBom.GetBytes($normalizedScript)
+        $process.StandardInput.BaseStream.Write($payload, 0, $payload.Length)
+        $process.StandardInput.BaseStream.Flush()
+        $process.StandardInput.Close()
+
+        $null = $process.WaitForExit()
+        $exitCode = $process.ExitCode
+    }
+    finally {
+        if (-not $process.HasExited) {
+            try { $process.Kill() } catch { }
+        }
+        $process.Dispose()
+    }
+
+    if ($exitCode -ne 0) {
+        throw "Remote SSH command failed ($Description). Exit code: $exitCode."
     }
 }
 
