@@ -104,10 +104,24 @@ export function Footer() {
 
         <StitchDivider />
 
-        <div className="mt-6 flex flex-col md:flex-row items-center justify-between gap-4 text-[11px] text-primary-foreground/30">
-          <span>
-            &copy; 2024 {settings.footerText ?? brand.brandDisplayName}
-          </span>
+        <div className="mt-6 flex flex-col md:flex-row items-center md:items-end justify-between gap-4 text-[11px] text-primary-foreground/30">
+          <div className="text-center md:text-left space-y-1">
+            <p>
+              &copy; {new Date().getFullYear()}{" "}
+              {brand.brandDisplayName || "Bespoke Sewing Studio"}
+            </p>
+            <p>
+              Website designed & developed by{" "}
+              <a
+                href="https://ds-cores.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-primary-foreground/60 transition-colors"
+              >
+                Dmytro Shevliuha
+              </a>
+            </p>
+          </div>
           <div className="flex items-center gap-6">
             <Link to="/privacy" className="hover:text-primary-foreground/60 transition-colors">
               Privacy Policy

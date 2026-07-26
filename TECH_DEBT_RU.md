@@ -1,5 +1,14 @@
 # TECH DEBT - Bespoke Sewing Studio
 
+## Task 93 - Footer developer credit (frontend)
+
+- Public Footer bottom line updated in `src/app/layout/Footer.tsx`:
+  - dynamic copyright year via `new Date().getFullYear()`;
+  - two-line credit: studio name + “Website designed & developed by Dmytro Shevliuha”;
+  - developer name links to `https://ds-cores.com` (`target="_blank"`, `rel="noopener noreferrer"`);
+  - mobile centered, desktop left-aligned; Privacy / Terms / Studio Login unchanged.
+- No backend, database or dependency changes.
+
 ## Task 91 - Production user data backup and disaster recovery
 
 - This is **not** application rollback, Git history, or a release ZIP restore.

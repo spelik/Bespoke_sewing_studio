@@ -57,6 +57,7 @@ Current backend status:
 - administrators can manually remove expired orphan uploads through a protected fallback cleanup endpoint
 - Admin **Storage** shows automatic cleanup job health, compares database metadata with local files and provides diagnostic orphan cleanup
 - public contact, social and footer settings load from `GET /api/site-settings/public`
+- the public Footer shows a dynamic copyright year and a developer credit linking to `https://ds-cores.com` (Privacy / Terms / Studio Login unchanged)
 - the Admin **Settings** section edits public contact and notification settings
 - the Admin **Contact Messages** section lists Contact form messages and manages their workflow status
 - public services/prices load from `GET /api/services`
