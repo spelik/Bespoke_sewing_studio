@@ -58,6 +58,23 @@ function Assert-ZipArchiveHasNoBackslashEntries {
     }
 }
 
+function Invoke-RemoteBashScript {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Script,
+
+        [Parameter(Mandatory = $true)]
+        [string]$Description
+    )
+
+    # Pass the multiline bash script on stdin so remote quoting is preserved.
+    # Do not pass the script body as an ssh command-line argument.
+    $Script | ssh -i $SshKeyPath $remote "bash -s"
+    if ($LASTEXITCODE -ne 0) {
+        throw "Remote SSH command failed ($Description). Exit code: $LASTEXITCODE."
+    }
+}
+
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot "../..")
 $releaseArchivePath = (Resolve-Path $ReleaseArchive).ProviderPath
 $migrationScriptPath = (Resolve-Path (Join-Path $repoRoot $MigrationScript)).ProviderPath
@@ -92,7 +109,7 @@ test -f '$RemoteRoot/.env'
 "@
 
 if ($PSCmdlet.ShouldProcess($remote, "prepare remote directories and verify .env")) {
-    ssh -i $SshKeyPath $remote $remotePrepare
+    Invoke-RemoteBashScript -Script $remotePrepare -Description "prepare remote directories and verify .env"
 }
 
 if ($PSCmdlet.ShouldProcess($remote, "upload compose, release archive and migration SQL")) {
@@ -103,6 +120,9 @@ if ($PSCmdlet.ShouldProcess($remote, "upload compose, release archive and migrat
         scp -i $SshKeyPath $scriptPath "${remote}:$RemoteRoot/scripts/production/"
     }
     ssh -i $SshKeyPath $remote "chmod +x '$RemoteRoot/scripts/production/netcup-backup.sh' '$RemoteRoot/scripts/production/netcup-check.sh'"
+    if ($LASTEXITCODE -ne 0) {
+        throw "Remote SSH command failed (chmod production scripts). Exit code: $LASTEXITCODE."
+    }
 }
 
 $remoteDeploy = @"
@@ -122,7 +142,7 @@ trap print_rollback_hint ERR
 check_local_endpoint() {
   endpoint="`$1"
   status_file="`$(mktemp)"
-  if http_status="`$(curl -sS -o "`$status_file" -w '%{http_code}' -H "Host: `$APP_HOST" -H "X-Forwarded-Proto: https" -H "X-Forwarded-Host: `$APP_HOST" "http://127.0.0.1:5030`$endpoint")"; then
+  if http_status="`$(curl -sS --noproxy 127.0.0.1 -o "`$status_file" -w '%{http_code}' -H "Host:`$APP_HOST" -H "X-Forwarded-Proto:https" -H "X-Forwarded-Host:`$APP_HOST" "http://127.0.0.1:5030`$endpoint")"; then
     :
   else
     curl_exit="`$?"
@@ -132,6 +152,12 @@ check_local_endpoint() {
     exit 25
   fi
   rm -f "`$status_file"
+  case "`$http_status" in
+    ''|*[!0-9]*)
+      echo "Post-switch health check failed for `$endpoint: invalid HTTP status '`$http_status'." >&2
+      exit 25
+      ;;
+  esac
   if [ "`$http_status" -lt 200 ] || [ "`$http_status" -ge 400 ]; then
     echo "Post-switch health check failed for `$endpoint: HTTP status `$http_status." >&2
     echo "Hint: verify the Host header uses `$APP_HOST and matches the backend AllowedHosts configuration." >&2
@@ -198,5 +224,5 @@ echo "Deployment completed successfully."
 "@
 
 if ($PSCmdlet.ShouldProcess($remote, "deploy release and restart compose services")) {
-    ssh -i $SshKeyPath $remote $remoteDeploy
+    Invoke-RemoteBashScript -Script $remoteDeploy -Description "deploy release and restart compose services"
 }
