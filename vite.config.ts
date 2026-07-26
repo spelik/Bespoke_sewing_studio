@@ -1,7 +1,7 @@
-import { defineConfig } from 'vite'
 import path from 'path'
 import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
+import { defineConfig } from 'vitest/config'
 
 
 export default defineConfig({
@@ -23,4 +23,9 @@ export default defineConfig({
 
   // File types to support raw imports. Never add .css, .tsx, or .ts files to this.
   assetsInclude: ['**/*.svg', '**/*.csv'],
+
+  test: {
+    environment: 'node',
+    include: ['src/**/*.test.ts'],
+  },
 })

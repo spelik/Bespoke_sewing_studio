@@ -8,6 +8,7 @@ import {
 } from "../../api/portfolioApi";
 import { usePortfolio } from "../portfolio/PortfolioContext";
 import type { AdminPortfolioCategory, AdminPortfolioItem, SavePortfolioCategoryRequest, SavePortfolioItemRequest } from "../types";
+import { shouldShowAdminPortfolioEmptyState } from "./adminPortfolioListState";
 
 interface Props { onUnauthorized(): void; }
 const input = "w-full border border-border bg-background px-3 py-2.5 text-[11px] focus:outline-none focus:border-accent";
@@ -23,6 +24,7 @@ export function AdminPortfolioPanel({ onUnauthorized }: Props) {
   const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [hasLoadedSuccessfully, setHasLoadedSuccessfully] = useState(false);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -31,10 +33,11 @@ export function AdminPortfolioPanel({ onUnauthorized }: Props) {
   useEffect(() => { void load(); }, []);
 
   async function load() {
-    setLoading(true); setError(null);
+    setLoading(true); setError(null); setHasLoadedSuccessfully(false);
     try {
       const [nextItems, nextCategories] = await Promise.all([getAdminPortfolioItems(), getAdminPortfolioCategories()]);
       setItems(nextItems); setCategories(nextCategories);
+      setHasLoadedSuccessfully(true);
     } catch (reason) { handleError(reason); } finally { setLoading(false); }
   }
 
@@ -43,6 +46,9 @@ export function AdminPortfolioPanel({ onUnauthorized }: Props) {
     if (reason instanceof ApiError) {
       setError(reason.errors ? Object.values(reason.errors).flat().find(Boolean) ?? reason.message : reason.message);
       return;
+    }
+    if (import.meta.env.DEV) {
+      console.error("Admin portfolio request failed.", reason);
     }
     setError("The portfolio request could not be completed. Please try again.");
   }
@@ -176,7 +182,7 @@ export function AdminPortfolioPanel({ onUnauthorized }: Props) {
         <button disabled={saving || uploading} className="bg-foreground text-primary-foreground px-6 py-2.5 text-[10px] disabled:opacity-50">{saving ? "Saving..." : "Save item"}</button>
       </form> : null}
       <div className="space-y-3">
-        {items.length === 0 ? <div className="bg-card border border-border p-6 text-[11px] text-muted-foreground font-sans">No portfolio items yet. Add your first portfolio item.</div> : null}
+        {shouldShowAdminPortfolioEmptyState({ loading, hasLoadedSuccessfully, error, itemCount: items.length }) ? <div className="bg-card border border-border p-6 text-[11px] text-muted-foreground font-sans">No portfolio items yet. Add your first portfolio item.</div> : null}
         {items.map((item) => <article key={item.id} className={`bg-card border p-4 flex flex-col sm:flex-row gap-4 ${item.archivedAt ? "border-amber-300 opacity-75" : "border-border"}`}>
         {item.imageFileId ? <AdminPortfolioImage imageFileId={item.imageFileId} alt={item.altText} className="w-20 aspect-[3/4] object-cover bg-muted"/> : <div className="w-20 aspect-[3/4] bg-muted"/>}
         <div className="flex-1"><div className="flex flex-wrap gap-2 items-center"><h3 className="font-serif text-lg font-light">{item.title}</h3><Badge text={item.categoryName}/>{item.archivedAt ? <Badge text="Archived"/> : null}{!item.isActive ? <Badge text="Hidden"/> : null}{item.isFeatured ? <Badge text="Featured"/> : null}</div><p className="text-[10px] text-muted-foreground mt-2">Order: {item.displayOrder} · /{item.slug}</p></div>

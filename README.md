@@ -25,7 +25,10 @@ API configuration lives in `src/config/appConfig.ts`. `VITE_API_BASE_URL`
 defaults to `http://localhost:5099/api` for local development. Production frontend
 builds should set `VITE_PUBLIC_SITE_URL=https://oksanalogosha.com` (the canonical
 apex origin, no `www`), which is used for client-side canonical and Open Graph
-URLs. Copy `.env.example` to `.env.local` when an explicit override is needed;
+URLs, and typically use same-origin `VITE_API_BASE_URL=/api`. CMS asset URLs
+(portfolio, content and brand images) are resolved by `resolveApiAssetUrl`, which
+supports both the absolute development API base and production relative `/api`.
+Copy `.env.example` to `.env.local` when an explicit override is needed;
 `.env.local` is ignored by Git.
 
 ## Backend
@@ -741,6 +744,12 @@ Run strict TypeScript checks:
 
 ```powershell
 npm.cmd run typecheck
+```
+
+Run frontend unit tests (Vitest):
+
+```powershell
+npm.cmd test
 ```
 
 Create a production build:

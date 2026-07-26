@@ -1,7 +1,7 @@
 import { createContext, type ReactNode, useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { getPublicPortfolioCategories, getPublicPortfolioItems } from "../../api/portfolioApi";
 import { PORTFOLIO_CATEGORIES, PORTFOLIO_ITEMS } from "../../data/portfolioData";
 import type { PortfolioItem, PublicPortfolioCategory } from "../types";
+import { loadPublicPortfolio } from "./loadPublicPortfolio";
 
 interface PortfolioContextValue {
   items: PortfolioItem[];
@@ -18,22 +18,26 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
   const [isFallback, setIsFallback] = useState(true);
 
   const refresh = useCallback(async () => {
-    const [nextItems, nextCategories] = await Promise.all([getPublicPortfolioItems(), getPublicPortfolioCategories()]);
-    setItems(nextItems);
-    setCategories(nextCategories);
+    const data = await loadPublicPortfolio();
+    setItems(data.items);
+    setCategories(data.categories);
     setIsFallback(false);
   }, []);
 
   useEffect(() => {
     let active = true;
-    Promise.all([getPublicPortfolioItems(), getPublicPortfolioCategories()])
-      .then(([nextItems, nextCategories]) => {
+    loadPublicPortfolio()
+      .then((data) => {
         if (!active) return;
-        setItems(nextItems);
-        setCategories(nextCategories);
+        setItems(data.items);
+        setCategories(data.categories);
         setIsFallback(false);
       })
-      .catch(() => undefined);
+      .catch((reason) => {
+        if (import.meta.env.DEV) {
+          console.error("Public portfolio load failed; using fallback content.", reason);
+        }
+      });
     return () => { active = false; };
   }, []);
 

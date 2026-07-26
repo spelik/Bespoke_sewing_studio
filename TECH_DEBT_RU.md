@@ -1,5 +1,48 @@
 # TECH DEBT - Bespoke Sewing Studio
 
+## Task 88 - Fix production CMS asset URL resolution (frontend)
+
+- Production bug: with `VITE_API_BASE_URL=/api`, CMS APIs returned HTTP 200, but the
+  frontend threw `TypeError: Invalid URL` while resolving root-relative asset URLs
+  such as `/api/portfolio/images/{id}` via `new URL(..., apiClient.baseUrl.replace(/\/api\/?$/, "") + "/")`.
+- Local development did not show the failure because the default API base is absolute
+  (`http://127.0.0.1:5099/api`).
+- Added shared pure helper `src/api/resolveApiAssetUrl.ts`:
+  - production relative `/api` keeps root-relative `/api/...` assets as-is;
+  - absolute development API base rewrites assets to the backend absolute URL;
+  - `javascript:`, `data:`, `blob:` and other unknown schemes are rejected (`null`);
+  - no `window` / `document` dependency.
+- Helper wired into Portfolio, Website Content and Brand Settings API modules.
+- Admin Portfolio: error state no longer shows a false empty state; empty state only
+  after a successful load of an empty list; reload resets `hasLoadedSuccessfully`.
+- Public Portfolio: shared `loadPublicPortfolio()`; successful CMS response replaces
+  typed fallback and sets `isFallback=false`; real API failure keeps fallback; DEV-only
+  `console.error` on initial load failure.
+- Added minimal Vitest infrastructure (`npm.cmd test`) and unit tests for the helper,
+  Portfolio/Content/Brand API mapping, Admin Portfolio list-state helper and Public
+  Portfolio loader (46 tests passed).
+- Backend, API contracts, migrations, database schema and production data were not
+  changed; re-uploading already saved images is not required.
+- Validation: `npm.cmd test` (46 passed), `npm.cmd run typecheck`, `npm.cmd run build`,
+  and a production-like build with `VITE_API_BASE_URL=/api` plus
+  `VITE_PUBLIC_SITE_URL=https://oksanalogosha.com` all succeeded.
+- Updated `README.md`. `backend/README.md` unchanged (no API contract change).
+
+## Task 89 - IN STOCK ready-to-buy catalogue (future, not started)
+
+- Future public page **IN STOCK** for finished pieces available for purchase.
+- Main navigation item immediately after **Services** and before **Portfolio**.
+- Future admin module (separate from Portfolio CMS) to manage:
+  - title, description, price;
+  - one or more photographs;
+  - availability / status: available, reserved, sold;
+  - publication flag and display order;
+  - optional sizes and materials.
+- Expected scope later: dedicated backend entities/API, uploads, admin UI, public
+  route, Brand Settings navigation fields, SEO and sitemap updates.
+- Must not be mixed into the existing Portfolio gallery CMS.
+- Not implemented as part of Task 88 asset URL bugfix.
+
 ## Task 87 - Admin owner workflow navigation restructure
 
 - Admin navigation reorganized from one flat developer-style list into owner-facing
