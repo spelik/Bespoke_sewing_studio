@@ -51,6 +51,7 @@ public sealed class SiteSettingsConfiguration : IEntityTypeConfiguration<SiteSet
         builder.Property(x => x.DefaultOgTitle).HasMaxLength(200);
         builder.Property(x => x.DefaultOgDescription).HasMaxLength(500);
         builder.Property(x => x.ServicesLabel).HasMaxLength(50).IsRequired();
+        builder.Property(x => x.InStockLabel).HasMaxLength(50).IsRequired();
         builder.Property(x => x.PortfolioLabel).HasMaxLength(50).IsRequired();
         builder.Property(x => x.OrderLabel).HasMaxLength(50).IsRequired();
         builder.Property(x => x.AboutLabel).HasMaxLength(50).IsRequired();
@@ -87,11 +88,13 @@ public sealed class SiteSettingsConfiguration : IEntityTypeConfiguration<SiteSet
             DefaultMetaTitle = "Bespoke Sewing Studio",
             DefaultMetaDescription = "Bespoke sewing, tailoring, dressmaking, alterations and memory bears.",
             ServicesLabel = "Services",
+            InStockLabel = "IN STOCK",
             PortfolioLabel = "Portfolio",
             OrderLabel = "Order",
             AboutLabel = "About",
             ContactLabel = "Contact",
             ShowServicesLink = true,
+            ShowInStockLink = true,
             ShowPortfolioLink = true,
             ShowOrderLink = true,
             ShowAboutLink = true,

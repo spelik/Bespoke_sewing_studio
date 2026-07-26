@@ -419,6 +419,8 @@ app.MapContentEndpoints();
 app.MapRepeatableContentEndpoints();
 app.MapBrandSettingsEndpoints();
 app.MapUploadEndpoints(uploadStorageSettings.PublicBasePath);
+// Served dynamically (published IN STOCK slugs). Static public/sitemap.xml removed.
+app.MapSitemapEndpoints();
 
 app.MapFallback(context => ServeSpaFallbackAsync(context, app.Environment));
 

@@ -1,5 +1,5 @@
 import { type ChangeEvent, type FormEvent, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { Check, Mail, MapPin, Phone } from "lucide-react";
 import {
   createContactMessage,
@@ -24,8 +24,26 @@ function createEmptyForm(): ContactMessageRequest {
   };
 }
 
+function createFormFromSearchParams(
+  searchParams: URLSearchParams,
+): ContactMessageRequest {
+  const form = createEmptyForm();
+  const subject = searchParams.get("subject");
+  const message = searchParams.get("message");
+  if (subject) {
+    form.subject = subject;
+  }
+  if (message) {
+    form.message = message;
+  }
+  return form;
+}
+
 export function ContactPage() {
-  const [form, setForm] = useState<ContactMessageRequest>(() => createEmptyForm());
+  const [searchParams] = useSearchParams();
+  const [form, setForm] = useState<ContactMessageRequest>(() =>
+    createFormFromSearchParams(searchParams),
+  );
   const [submittedReference, setSubmittedReference] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -114,7 +132,7 @@ export function ContactPage() {
                 <div className="border border-accent/30 bg-secondary p-8 text-center" aria-live="polite">
                   <Check size={20} className="mx-auto text-accent mb-3" />
                   <p className="font-serif text-[1rem] font-light text-foreground">
-                    Message received — thank you.
+                    {"Message received \u2014 thank you."}
                   </p>
                   <p className="text-[12px] text-muted-foreground mt-2 font-sans">
                     We will be in touch within one working day.

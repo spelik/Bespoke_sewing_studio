@@ -33,6 +33,8 @@ const empty: UpdateBrandSettingsRequest = {
   defaultOgImageFileId: null,
   showServicesLink: true,
   servicesLabel: "Services",
+  showInStockLink: true,
+  inStockLabel: "IN STOCK",
   showPortfolioLink: true,
   portfolioLabel: "Portfolio",
   showOrderLink: true,
@@ -42,6 +44,19 @@ const empty: UpdateBrandSettingsRequest = {
   showContactLink: true,
   contactLabel: "Contact",
 };
+
+const NAV_FIELD_ROWS: ReadonlyArray<{
+  name: string;
+  showKey: keyof UpdateBrandSettingsRequest;
+  labelKey: keyof UpdateBrandSettingsRequest;
+}> = [
+  { name: "Services", showKey: "showServicesLink", labelKey: "servicesLabel" },
+  { name: "IN STOCK", showKey: "showInStockLink", labelKey: "inStockLabel" },
+  { name: "Portfolio", showKey: "showPortfolioLink", labelKey: "portfolioLabel" },
+  { name: "Order", showKey: "showOrderLink", labelKey: "orderLabel" },
+  { name: "About", showKey: "showAboutLink", labelKey: "aboutLabel" },
+  { name: "Contact", showKey: "showContactLink", labelKey: "contactLabel" },
+];
 const requestFrom = (s: AdminBrandSettings): UpdateBrandSettingsRequest => ({
   ...empty,
   brandDisplayName: s.brandDisplayName,
@@ -253,37 +268,27 @@ export function AdminBrandSettingsPanel({ onUnauthorized }: Props) {
       <section className="bg-card border border-border p-6">
         <h2 className="font-serif text-xl mb-4">Navigation</h2>
         <div className="grid md:grid-cols-2 gap-4">
-          {(["Services", "Portfolio", "Order", "About", "Contact"] as const).map((name) => {
-            const lower = name.toLowerCase() as
-              | "services"
-              | "portfolio"
-              | "order"
-              | "about"
-              | "contact";
-            const show = `show${name}Link` as keyof UpdateBrandSettingsRequest;
-            const label = `${lower}Label` as keyof UpdateBrandSettingsRequest;
-            return (
-              <div key={name} className="flex items-end gap-3">
-                <label className="flex items-center gap-2 pb-2.5 text-[11px]">
-                  <input
-                    type="checkbox"
-                    checked={form[show] as boolean}
-                    onChange={(e) =>
-                      setForm((old) => ({ ...old, [show]: e.target.checked }))
-                    }
-                  />{" "}
-                  Show
-                </label>
-                <div className="flex-1">
-                  <Field
-                    label={`${name} label`}
-                    value={form[label] as string}
-                    onChange={(v) => setForm((old) => ({ ...old, [label]: v }))}
-                  />
-                </div>
+          {NAV_FIELD_ROWS.map(({ name, showKey, labelKey }) => (
+            <div key={name} className="flex items-end gap-3">
+              <label className="flex items-center gap-2 pb-2.5 text-[11px]">
+                <input
+                  type="checkbox"
+                  checked={form[showKey] as boolean}
+                  onChange={(e) =>
+                    setForm((old) => ({ ...old, [showKey]: e.target.checked }))
+                  }
+                />{" "}
+                Show
+              </label>
+              <div className="flex-1">
+                <Field
+                  label={`${name} label`}
+                  value={form[labelKey] as string}
+                  onChange={(v) => setForm((old) => ({ ...old, [labelKey]: v }))}
+                />
               </div>
-            );
-          })}
+            </div>
+          ))}
         </div>
       </section>
       <button

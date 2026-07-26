@@ -1,6 +1,7 @@
 export type Page =
   | "home"
   | "services"
+  | "inStock"
   | "portfolio"
   | "order"
   | "about"
@@ -117,6 +118,7 @@ export type UpdateSiteSettingsRequest = Omit<
 
 export interface BrandNavigationSettings {
   showServicesLink: boolean; servicesLabel: string;
+  showInStockLink: boolean; inStockLabel: string;
   showPortfolioLink: boolean; portfolioLabel: string;
   showOrderLink: boolean; orderLabel: string;
   showAboutLink: boolean; aboutLabel: string;
@@ -135,7 +137,9 @@ export interface UpdateBrandSettingsRequest {
   brandDisplayName: string; logoFileId: string | null; logoAltText: string; faviconFileId: string | null;
   headerCtaLabel: string; headerCtaUrl: string; defaultMetaTitle: string; defaultMetaDescription: string;
   defaultOgTitle: string | null; defaultOgDescription: string | null; defaultOgImageFileId: string | null;
-  showServicesLink: boolean; servicesLabel: string; showPortfolioLink: boolean; portfolioLabel: string;
+  showServicesLink: boolean; servicesLabel: string;
+  showInStockLink: boolean; inStockLabel: string;
+  showPortfolioLink: boolean; portfolioLabel: string;
   showOrderLink: boolean; orderLabel: string; showAboutLink: boolean; aboutLabel: string;
   showContactLink: boolean; contactLabel: string;
 }
@@ -297,6 +301,27 @@ export interface UploadedPortfolioImage {
 }
 
 export type InStockItemStatus = "Available" | "Reserved" | "Sold";
+
+export interface PublicInStockImage {
+  id: string;
+  imageUrl: string;
+  altText: string | null;
+  displayOrder: number;
+}
+
+export interface PublicInStockItem {
+  id: string;
+  slug: string;
+  title: string;
+  shortDescription: string | null;
+  description: string | null;
+  price: number;
+  currency: string;
+  status: InStockItemStatus;
+  sizes: string | null;
+  materials: string | null;
+  images: PublicInStockImage[];
+}
 
 export interface AdminInStockImage {
   id: string;

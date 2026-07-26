@@ -223,8 +223,10 @@ only through the Admin-protected `/api/uploads/{uploadedFileId}` endpoint.
 
 ## IN STOCK catalogue API
 
-Dedicated ready-to-buy catalogue module, separate from Portfolio CMS. Migration:
-`20260726105255_AddInStockCatalogue`.
+Dedicated ready-to-buy catalogue module, separate from Portfolio CMS. Migrations:
+`20260726105255_AddInStockCatalogue`,
+`20260726154354_AddInStockNavigationSettings` (Brand Settings
+`ShowInStockLink` / `InStockLabel`, defaults visible / `IN STOCK`).
 
 Public endpoints do not require JWT:
 
@@ -237,6 +239,19 @@ Public endpoints do not require JWT:
 Public responses include `Available`, `Reserved` and `Sold` statuses. Currency is
 `GBP` (`numeric(12,2)` price). Image URLs are root-relative
 `/api/in-stock/images/{imageId}` where `{imageId}` is the `InStockItemImage` id.
+
+Dynamic sitemap (anonymous):
+
+- `GET /sitemap.xml` — XML sitemap for static public routes plus published,
+  non-archived IN STOCK item URLs (`/in-stock/{slug}`)
+- Origin from `PublicSiteUrl` / `PUBLIC_SITE_URL`, default
+  `https://oksanalogosha.com`
+- Draft, archived and admin routes are never included; `<loc>` values are
+  HTML-encoded
+
+Brand Settings navigation includes `ShowInStockLink` / `InStockLabel` (public +
+admin Brand/SEO payloads) so the public menu can show **IN STOCK** after
+Services and before Portfolio.
 
 Admin JWT with the `Admin` role is required for:
 
@@ -1439,10 +1454,11 @@ Expected result with PostgreSQL running: all requests return HTTP `200`.
 the liveness, version and compatibility endpoints remain available in that condition.
 
 Portfolio/Gallery CRUD and its dedicated image upload are implemented. IN STOCK
-catalogue backend/API foundation is implemented (admin UI and public page are
-pending). General upload-library management is not implemented. Public pages are
-backend-first for Site/Brand Settings, Services, Portfolio, IN STOCK (API ready),
-Page Content, Repeatable Content and Brand/SEO settings;
+catalogue is implemented end-to-end (API, admin UI, public catalogue/detail,
+Brand nav fields and dynamic `/sitemap.xml`). General upload-library management
+is not implemented. Public pages are backend-first for Site/Brand Settings,
+Services, Portfolio, IN STOCK, Page Content, Repeatable Content and Brand/SEO
+settings;
 centralised typed frontend fallbacks are used only when a public API is
 unavailable. The backend does not implement multilingual content variants; the
 current product scope is English-only. Refresh tokens, password reset, email

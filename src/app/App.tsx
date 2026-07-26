@@ -16,12 +16,21 @@ import { PortfolioProvider } from "./portfolio/PortfolioContext";
 import { PageContentProvider } from "./content/PageContentContext";
 import { RepeatableContentProvider } from "./repeatableContent/RepeatableContentContext";
 import { SeoManager } from "./seo/SeoManager";
+import { SeoOverrideProvider } from "./seo/SeoOverrideContext";
 
 const HomePage = lazy(() =>
   import("./pages/HomePage").then((module) => ({ default: module.HomePage })),
 );
 const ServicesPage = lazy(() =>
   import("./pages/ServicesPage").then((module) => ({ default: module.ServicesPage })),
+);
+const InStockPage = lazy(() =>
+  import("./pages/InStockPage").then((module) => ({ default: module.InStockPage })),
+);
+const InStockDetailPage = lazy(() =>
+  import("./pages/InStockDetailPage").then((module) => ({
+    default: module.InStockDetailPage,
+  })),
 );
 const PortfolioPage = lazy(() =>
   import("./pages/PortfolioPage").then((module) => ({ default: module.PortfolioPage })),
@@ -75,6 +84,8 @@ function SiteShell() {
           <Routes>
             <Route path="/" element={<HomePage />} />
             <Route path="/services" element={<ServicesPage />} />
+            <Route path="/in-stock" element={<InStockPage />} />
+            <Route path="/in-stock/:slug" element={<InStockDetailPage />} />
             <Route path="/portfolio" element={<PortfolioPage />} />
             <Route path="/order" element={<OrderPage />} />
             <Route path="/about" element={<AboutPage />} />
@@ -101,7 +112,13 @@ export default function App() {
         <SiteSettingsProvider>
           <ServicesProvider>
             <PortfolioProvider>
-              <PageContentProvider><RepeatableContentProvider><SiteShell /></RepeatableContentProvider></PageContentProvider>
+              <PageContentProvider>
+                <RepeatableContentProvider>
+                  <SeoOverrideProvider>
+                    <SiteShell />
+                  </SeoOverrideProvider>
+                </RepeatableContentProvider>
+              </PageContentProvider>
             </PortfolioProvider>
           </ServicesProvider>
         </SiteSettingsProvider>

@@ -105,22 +105,20 @@ Must cover all durable application data, including at least:
   `VITE_PUBLIC_SITE_URL=https://oksanalogosha.com` all succeeded.
 - Updated `README.md`. `backend/README.md` unchanged (no API contract change).
 
-## Task 89 - IN STOCK ready-to-buy catalogue (in progress)
+## Task 89 - IN STOCK ready-to-buy catalogue — Done
 
-- Future public page **IN STOCK** for finished pieces available for purchase.
-- Main navigation item immediately after **Services** and before **Portfolio**.
-- Future admin module (separate from Portfolio CMS) to manage:
-  - title, description, price;
-  - one or more photographs;
-  - availability / status: available, reserved, sold;
-  - publication flag and display order;
-  - optional sizes and materials.
-- Expected scope later: dedicated backend entities/API, uploads, admin UI, public
-  route, Brand Settings navigation fields, SEO and sitemap updates.
+- Public page **IN STOCK** for finished pieces available for purchase (enquiry
+  workflow; no checkout/cart/payment).
+- Main navigation item immediately after **Services** and before **Portfolio**
+  (desktop header, mobile menu, footer; Brand Settings label/visibility).
+- Admin module (separate from Portfolio CMS) manages title, description, price,
+  photographs, Available/Reserved/Sold, publication/display order, sizes/materials.
+- Scope completed: backend entities/API, uploads, admin UI, shared upload progress,
+  public catalogue + detail routes, Brand Settings navigation fields, SEO/JSON-LD
+  and dynamic sitemap.
 - Must not be mixed into the existing Portfolio gallery CMS.
-- Not implemented as part of Task 88 asset URL bugfix.
 
-### Progress status (Task 89 still in progress)
+### Progress status (Task 89 completed)
 
 - **Backend completed** (catalogue entities/API, atomic upload hardening, tests).
 - **Admin UI completed** (Work → IN STOCK module: list/create/edit/archive/restore,
@@ -128,8 +126,8 @@ Must cover all durable application data, including at least:
 - **Shared Upload Progress completed** (one XHR transport + reusable progress
   control/state machine wired to Portfolio, IN STOCK, Brand/SEO, Website Content
   and Order attachments).
-- **Still pending:** public IN STOCK page, public navigation placement, SEO and
-  sitemap updates (stage 3). Do not mark Task 89 fully done until stage 3 lands.
+- **Public catalogue completed** (`/in-stock`, `/in-stock/:slug`, navigation,
+  SEO/JSON-LD, dynamic `/sitemap.xml`, Vitest + backend sitemap tests).
 
 ### Progress — Backend foundation completed
 
@@ -173,6 +171,22 @@ Must cover all durable application data, including at least:
   `UploadProgressControl` / upload state machine used by Portfolio, IN STOCK,
   Brand/SEO, Website Content and Order attachments. Sequential multi-file
   uploads by default; no fake ClamAV percentage.
+
+### Progress — Public catalogue / SEO / sitemap (stage 3)
+
+- Public routes: `/in-stock` catalogue and `/in-stock/:slug` detail (lazy SPA
+  chunks; SPA fallback for direct open/refresh).
+- Navigation: Services → IN STOCK → Portfolio via shared `NAV_LINKS` + Brand
+  Settings `ShowInStockLink` / `InStockLabel` (defaults visible / `IN STOCK`).
+- Catalogue/detail UX: status badges, GBP price, ordered images, loading/error/
+  empty states, Contact enquiry CTAs with `subject`/`message` query prefill
+  (no auto-submit, no client reservation).
+- SEO: route metadata + detail overrides (canonical, OG image from first photo,
+  404 `noindex`); ItemList/Product JSON-LD with safe serialization.
+- Sitemap: static `public/sitemap.xml` removed; backend `GET /sitemap.xml`
+  includes catalogue + published item URLs under `https://oksanalogosha.com`
+  (draft/archived/admin excluded). Migration
+  `20260726154354_AddInStockNavigationSettings` for Brand nav columns.
 
 ## Task 87 - Admin owner workflow navigation restructure
 

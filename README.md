@@ -64,8 +64,8 @@ Current backend status:
 - public portfolio/gallery data loads from `GET /api/portfolio`
 - the Admin **Portfolio** section manages categories, work items, publication state, order and featured items
 - portfolio images are uploaded to local development storage and served publicly only while linked to an active portfolio item
-- IN STOCK catalogue backend/API is available (`GET /api/in-stock`, admin `/api/admin/in-stock/*`); Admin **IN STOCK** UI lives under Work; public page/navigation/SEO/sitemap are still pending
-- Shared multipart upload progress uses an XHR transport (`src/api/uploadTransport.ts`) with a reusable admin/public upload progress control (real transfer %, then Scanning file…); Vitest covers the transport, upload state machine and IN STOCK admin helpers
+- IN STOCK ready-to-buy catalogue: public `/in-stock` and `/in-stock/:slug`, API `GET /api/in-stock` (+ admin `/api/admin/in-stock/*`), Work → **IN STOCK** admin UI, Brand Settings nav label/visibility, SEO/JSON-LD, and backend-generated `/sitemap.xml` (published items only; no checkout)
+- Shared multipart upload progress uses an XHR transport (`src/api/uploadTransport.ts`) with a reusable admin/public upload progress control (real transfer %, then Scanning file…); Vitest covers the transport, upload state machine and IN STOCK admin/public helpers
 - page headings, body text, CTAs and key page images load from the Website Content CMS
 - repeatable public blocks such as process steps, studio values, testimonials and privacy subsections load from the Repeatable Content CMS
 - logo, favicon, default SEO metadata, header CTA and navigation labels/visibility are managed in Admin **Brand / SEO**
@@ -411,8 +411,9 @@ persistent Data Protection keys and a final public HTTPS smoke test.
 
 Before the first public launch or a production-domain migration, review
 `PRODUCTION_LAUNCH_CHECKLIST_RU.md`. The canonical production origin is
-`https://oksanalogosha.com` and is already used in `public/robots.txt` and
-`public/sitemap.xml`. Set `VITE_PUBLIC_SITE_URL=https://oksanalogosha.com` for the
+`https://oksanalogosha.com` and is already used in `public/robots.txt` and the
+backend-generated `/sitemap.xml` (includes `/in-stock` and published IN STOCK
+item URLs). Set `VITE_PUBLIC_SITE_URL=https://oksanalogosha.com` for the
 production frontend build, verify `/robots.txt` and `/sitemap.xml` resolve on
 `https://oksanalogosha.com`, and complete the backup, email, upload-security,
 HTTPS, secrets and legal-text checks.
@@ -668,10 +669,12 @@ tags and Home `LocalBusiness`/`ProfessionalService` JSON-LD are managed by the
 frontend SEO manager. If the backend is unavailable, the bundled logo and typed
 defaults keep the public site usable. SVG upload is intentionally disabled.
 
-The static `public/robots.txt` blocks `/admin` and `/admin/login`. The static
-`public/sitemap.xml` lists public routes only and uses the canonical production
-origin `https://oksanalogosha.com`. Admin routes must never be added to the
-sitemap and are served with `noindex, nofollow` by the frontend SEO manager.
+The static `public/robots.txt` blocks `/admin` and `/admin/login` and points
+`Sitemap:` at `https://oksanalogosha.com/sitemap.xml`. The API serves a dynamic
+`/sitemap.xml` (static pages plus published IN STOCK slugs) using
+`PublicSiteUrl` / `PUBLIC_SITE_URL` or the canonical origin
+`https://oksanalogosha.com`. Admin, draft and archived routes must never appear
+in the sitemap; admin pages use `noindex, nofollow` via the frontend SEO manager.
 
 Commands:
 

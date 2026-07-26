@@ -2,6 +2,8 @@ import type {
   AdminInStockImage,
   AdminInStockItem,
   ArchiveInStockItemResult,
+  PublicInStockImage,
+  PublicInStockItem,
   ReorderInStockImagesRequest,
   SaveInStockItemRequest,
   UpdateInStockImageRequest,
@@ -25,6 +27,35 @@ function normalizeItem(item: AdminInStockItem): AdminInStockItem {
     ...item,
     images: (item.images ?? []).map(normalizeImage),
   };
+}
+
+function normalizePublicImage(image: PublicInStockImage): PublicInStockImage {
+  return {
+    ...image,
+    imageUrl: resolveApiAssetUrl(image.imageUrl) ?? image.imageUrl,
+  };
+}
+
+function normalizePublicItem(item: PublicInStockItem): PublicInStockItem {
+  return {
+    ...item,
+    images: Array.isArray(item.images)
+      ? item.images.map(normalizePublicImage)
+      : [],
+  };
+}
+
+export async function getPublicInStockItems(): Promise<PublicInStockItem[]> {
+  const items = await apiClient.get<PublicInStockItem[]>("in-stock");
+  return items.map(normalizePublicItem);
+}
+
+export async function getPublicInStockItemBySlug(
+  slug: string,
+): Promise<PublicInStockItem> {
+  return normalizePublicItem(
+    await apiClient.get<PublicInStockItem>(`in-stock/${encodeURIComponent(slug)}`),
+  );
 }
 
 export async function getAdminInStockItems(): Promise<AdminInStockItem[]> {

@@ -34,6 +34,8 @@ import {
 const navigation = {
   showServicesLink: true,
   servicesLabel: "Services",
+  showInStockLink: true,
+  inStockLabel: "IN STOCK",
   showPortfolioLink: true,
   portfolioLabel: "Portfolio",
   showOrderLink: true,
@@ -87,6 +89,8 @@ const updateRequest: UpdateBrandSettingsRequest = {
   defaultOgImageFileId: "33333333-3333-3333-3333-333333333333",
   showServicesLink: true,
   servicesLabel: "Services",
+  showInStockLink: true,
+  inStockLabel: "IN STOCK",
   showPortfolioLink: true,
   portfolioLabel: "Portfolio",
   showOrderLink: true,
