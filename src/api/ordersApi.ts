@@ -7,6 +7,10 @@ import type {
 } from "../app/types";
 import { ApiError, apiClient } from "./apiClient";
 import type { PagedResponse } from "./pagination";
+import {
+  uploadWithProgress,
+  type UploadProgressEvent,
+} from "./uploadTransport";
 
 const API_SERVICE_TYPES: Readonly<Record<OrderServiceType, OrderApiServiceType>> = {
   Tailoring: "Tailoring",
@@ -139,10 +143,15 @@ export interface AdminOrderDetail {
 
 export async function createOrder(
   order: OrderRequest,
+  uploadOptions?: {
+    onProgress?: (event: UploadProgressEvent) => void;
+    onFileProgress?: (index: number, total: number, event: UploadProgressEvent) => void;
+    signal?: AbortSignal;
+  },
 ): Promise<OrderSubmissionResponse> {
   validateOrderAttachments(order.attachments);
   const uploadedFiles = order.attachments.length > 0
-    ? await uploadOrderAttachments(order.attachments)
+    ? await uploadOrderAttachments(order.attachments, uploadOptions)
     : [];
   const request: CreateOrderApiRequest = {
     fullName: order.fullName.trim(),
@@ -184,10 +193,39 @@ export function validateOrderAttachments(files: readonly File[]): void {
   }
 }
 
-export function uploadOrderAttachments(files: readonly File[]): Promise<UploadedOrderAttachment[]> {
-  const formData = new FormData();
-  files.forEach((file) => formData.append("files", file, file.name));
-  return apiClient.postForm<UploadedOrderAttachment[]>("/uploads/order-attachments", formData);
+/**
+ * Uploads order attachments sequentially (one multipart request per file) so
+ * progress and ClamAV load stay predictable. Aggregate multi-file FormData is
+ * still accepted by the backend, but sequential uploads give real per-file %.
+ */
+export async function uploadOrderAttachments(
+  files: readonly File[],
+  options?: {
+    onProgress?: (event: UploadProgressEvent) => void;
+    onFileProgress?: (index: number, total: number, event: UploadProgressEvent) => void;
+    signal?: AbortSignal;
+  },
+): Promise<UploadedOrderAttachment[]> {
+  const uploaded: UploadedOrderAttachment[] = [];
+
+  for (let index = 0; index < files.length; index += 1) {
+    const file = files[index]!;
+    const formData = new FormData();
+    formData.append("files", file, file.name);
+    const batch = await uploadWithProgress<UploadedOrderAttachment[]>({
+      path: "/uploads/order-attachments",
+      method: "POST",
+      body: formData,
+      signal: options?.signal,
+      onProgress: (event) => {
+        options?.onProgress?.(event);
+        options?.onFileProgress?.(index, files.length, event);
+      },
+    });
+    uploaded.push(...batch);
+  }
+
+  return uploaded;
 }
 
 export function getAdminAttachmentFile(uploadedFileId: string): Promise<Blob> {

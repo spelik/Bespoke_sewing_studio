@@ -48,6 +48,23 @@ public static partial class InStockValidator
         return errors;
     }
 
+    public static IReadOnlyDictionary<string, string[]> Validate(ReorderInStockImagesRequest request)
+    {
+        var errors = new Dictionary<string, string[]>();
+        if (request.ImageIds is null || request.ImageIds.Count == 0)
+        {
+            errors[nameof(request.ImageIds)] = ["Provide the complete ordered list of image IDs."];
+            return errors;
+        }
+
+        if (request.ImageIds.Distinct().Count() != request.ImageIds.Count)
+        {
+            errors[nameof(request.ImageIds)] = ["Image IDs must be unique."];
+        }
+
+        return errors;
+    }
+
     /// <summary>
     /// Parses optional multipart displayOrder. Blank means omit; invalid integers are errors.
     /// </summary>

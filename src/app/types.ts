@@ -296,6 +296,69 @@ export interface UploadedPortfolioImage {
   createdAt: string;
 }
 
+export type InStockItemStatus = "Available" | "Reserved" | "Sold";
+
+export interface AdminInStockImage {
+  id: string;
+  uploadedFileId: string;
+  imageUrl: string;
+  altText: string | null;
+  displayOrder: number;
+  originalFileName: string;
+  contentType: string;
+  fileSizeBytes: number;
+  createdAt: string;
+}
+
+export interface AdminInStockItem {
+  id: string;
+  slug: string;
+  title: string;
+  shortDescription: string | null;
+  description: string | null;
+  price: number;
+  currency: string;
+  status: InStockItemStatus;
+  isPublished: boolean;
+  displayOrder: number;
+  sizes: string | null;
+  materials: string | null;
+  createdAt: string;
+  updatedAt: string;
+  archivedAt: string | null;
+  images: AdminInStockImage[];
+}
+
+export interface SaveInStockItemRequest {
+  slug: string | null;
+  title: string;
+  shortDescription: string | null;
+  description: string | null;
+  price: number;
+  currency: string | null;
+  status: InStockItemStatus;
+  isPublished: boolean;
+  displayOrder: number;
+  sizes: string | null;
+  materials: string | null;
+}
+
+export interface UpdateInStockImageRequest {
+  altText: string | null;
+  displayOrder: number;
+}
+
+export interface ReorderInStockImagesRequest {
+  imageIds: string[];
+}
+
+export interface ArchiveInStockItemResult {
+  id: string;
+  archived: boolean;
+  restored: boolean;
+  message: string;
+}
+
 export interface PageContentSection {
   id: string;
   sectionKey: string;

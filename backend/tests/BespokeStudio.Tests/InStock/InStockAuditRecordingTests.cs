@@ -17,6 +17,7 @@ public sealed class InStockAuditRecordingTests
     [InlineData("in_stock.restored", "InStockItem")]
     [InlineData("in_stock.image_uploaded", "InStockItemImage")]
     [InlineData("in_stock.image_deleted", "InStockItemImage")]
+    [InlineData("in_stock.images_reordered", "InStockItem")]
     public async Task AdminAuditLogService_PersistsInStockActionsWithoutFileContents(
         string action,
         string entityType)

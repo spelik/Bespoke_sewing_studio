@@ -40,6 +40,18 @@ public sealed class InStockValidatorTests
         Assert.Contains("DisplayOrder", errors.Keys);
     }
 
+    [Fact]
+    public void ValidateReorder_RejectsEmptyAndDuplicateImageIds()
+    {
+        var empty = InStockValidator.Validate(new ReorderInStockImagesRequest([]));
+        Assert.Contains("ImageIds", empty.Keys);
+
+        var duplicateId = Guid.NewGuid();
+        var duplicates = InStockValidator.Validate(
+            new ReorderInStockImagesRequest([duplicateId, duplicateId]));
+        Assert.Contains("ImageIds", duplicates.Keys);
+    }
+
     [Theory]
     [InlineData(null, true, null)]
     [InlineData("", true, null)]

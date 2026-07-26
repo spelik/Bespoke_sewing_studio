@@ -120,7 +120,18 @@ Must cover all durable application data, including at least:
 - Must not be mixed into the existing Portfolio gallery CMS.
 - Not implemented as part of Task 88 asset URL bugfix.
 
-### Progress — Backend foundation completed, frontend/admin UI pending
+### Progress status (Task 89 still in progress)
+
+- **Backend completed** (catalogue entities/API, atomic upload hardening, tests).
+- **Admin UI completed** (Work → IN STOCK module: list/create/edit/archive/restore,
+  multi-image management with shared upload progress).
+- **Shared Upload Progress completed** (one XHR transport + reusable progress
+  control/state machine wired to Portfolio, IN STOCK, Brand/SEO, Website Content
+  and Order attachments).
+- **Still pending:** public IN STOCK page, public navigation placement, SEO and
+  sitemap updates (stage 3). Do not mark Task 89 fully done until stage 3 lands.
+
+### Progress — Backend foundation completed
 
 - Added dedicated `InStockItem` / `InStockItemImage` entities (not PortfolioItem),
   GBP currency, `Available`/`Reserved`/`Sold` status, publish/archive fields and
@@ -134,7 +145,6 @@ Must cover all durable application data, including at least:
 - Backend tests cover validation, EF configuration, public/admin service rules,
   uploads, authorization metadata, audit action shapes and opt-in PostgreSQL
   schema uniqueness.
-- Still pending: Admin UI (stage 2), public page/navigation/SEO/sitemap (stage 3).
 
 ### Progress — Backend atomic upload hardening (stage 1.1)
 
@@ -157,20 +167,12 @@ Must cover all durable application data, including at least:
 - Invalid multipart `displayOrder` returns ValidationProblem (not silently null).
 - Post-commit audit/cache failures are logged and must not turn a successful
   mutation into a false client error.
-- **Frontend shared Upload Progress UX is mandatory for the next frontend stage
-  (not implemented yet):** one reusable upload component + one transport for the
-  whole site (Portfolio, IN STOCK, Brand/SEO, Website Content, Order attachments
-  and any other `src` upload controls after audit). Required behaviour:
-  - transfer: button stays put, light-green fill L→R, real `Uploading N%` from
-    bytes sent, button disabled while uploading;
-  - after 100% transfer: `Scanning file…` indeterminate/pulse (no fake scan %);
-  - then `Saving…`/`Processing…` → short `Uploaded` → restore idle button;
-  - per-file errors + Retry; multi-file per-file progress + `Uploading X of Y`;
-  - a11y: aria-live stages, valuemin/max/now while transferring, keyboard,
-    non-color-only progress, prefers-reduced-motion for scanning animation;
-  - transport: XMLHttpRequest / onUploadProgress (fetch has no upload progress),
-    keep auth/cookies/CSRF, abort on form close; no heavy dependency without need.
-  Do not invent separate progress logic per admin panel.
+- **Frontend shared Upload Progress UX implemented (stage 2):**
+  `src/api/uploadTransport.ts` (XHR, real byte progress, cookies/Bearer, 401
+  refresh retry, ProblemDetails/ValidationProblem, abort/timeout) plus
+  `UploadProgressControl` / upload state machine used by Portfolio, IN STOCK,
+  Brand/SEO, Website Content and Order attachments. Sequential multi-file
+  uploads by default; no fake ClamAV percentage.
 
 ## Task 87 - Admin owner workflow navigation restructure
 

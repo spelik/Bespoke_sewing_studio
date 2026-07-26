@@ -82,6 +82,13 @@ public static class InStockEndpoints
             .ProducesValidationProblem()
             .Produces(StatusCodes.Status404NotFound);
 
+        // Register before /images/{imageId} so "reorder" is not captured as an image id.
+        admin.MapPut("/items/{id:guid}/images/reorder", ReorderImagesAsync)
+            .WithName("ReorderAdminInStockImages")
+            .Produces<IReadOnlyList<AdminInStockImageResponse>>()
+            .ProducesValidationProblem()
+            .Produces(StatusCodes.Status404NotFound);
+
         admin.MapPatch("/items/{id:guid}/images/{imageId:guid}", UpdateImageAsync)
             .WithName("UpdateAdminInStockImage")
             .Produces<AdminInStockImageResponse>()
@@ -387,6 +394,51 @@ public static class InStockEndpoints
                 ct),
             () => EvictCacheAsync(outputCacheStore, ct));
         return TypedResults.Ok(image);
+    }
+
+    private static async Task<IResult> ReorderImagesAsync(
+        Guid id,
+        ReorderInStockImagesRequest request,
+        ClaimsPrincipal principal,
+        IInStockService service,
+        IAdminAuditLogService auditLogService,
+        IOutputCacheStore outputCacheStore,
+        ILoggerFactory loggerFactory,
+        CancellationToken ct)
+    {
+        var errors = InStockValidator.Validate(request);
+        if (errors.Count > 0)
+        {
+            return Validation(errors);
+        }
+
+        try
+        {
+            var images = await service.ReorderImagesAsync(id, request, ct);
+            if (images is null)
+            {
+                return TypedResults.NotFound();
+            }
+
+            await TrySecondaryAsync(
+                loggerFactory,
+                "image_reorder",
+                () => auditLogService.RecordAsync(
+                    AdminAuditEndpointHelpers.CreateAuditRequest(
+                        principal,
+                        "in_stock.images_reordered",
+                        "InStockItem",
+                        id.ToString(),
+                        null,
+                        "IN STOCK image order was updated."),
+                    ct),
+                () => EvictCacheAsync(outputCacheStore, ct));
+            return TypedResults.Ok(images);
+        }
+        catch (InStockConflictException exception)
+        {
+            return Conflict(exception);
+        }
     }
 
     private static async Task<IResult> DeleteImageAsync(

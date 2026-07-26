@@ -245,8 +245,16 @@ Admin JWT with the `Admin` role is required for:
 - `POST /api/admin/in-stock/items/{id}/archive`
 - `POST /api/admin/in-stock/items/{id}/restore`
 - `POST /api/admin/in-stock/items/{id}/images` (multipart JPG/PNG/WebP)
+- `PUT /api/admin/in-stock/items/{id}/images/reorder` — atomic image order update
 - `PATCH|DELETE /api/admin/in-stock/items/{id}/images/{imageId}`
 - `GET /api/admin/in-stock/images/{imageId}` for authenticated previews
+
+`PUT /api/admin/in-stock/items/{id}/images/reorder` accepts a JSON body with the
+full ordered `imageIds` list for that item. Every photograph of the item must be
+supplied exactly once; duplicate, missing or foreign image IDs are rejected.
+`DisplayOrder` values are rewritten atomically in one DB transaction (no new
+migration). A successful reorder records one audit event:
+`in_stock.images_reordered`.
 
 Items can be created without images. Multiple images are supported; the primary
 image is the lowest `DisplayOrder`. Uploads reuse the shared storage/ClamAV path

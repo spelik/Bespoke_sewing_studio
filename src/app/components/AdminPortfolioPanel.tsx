@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Plus, Upload } from "lucide-react";
 import { ApiError } from "../../api/apiClient";
 import {
@@ -8,7 +8,13 @@ import {
 } from "../../api/portfolioApi";
 import { usePortfolio } from "../portfolio/PortfolioContext";
 import type { AdminPortfolioCategory, AdminPortfolioItem, SavePortfolioCategoryRequest, SavePortfolioItemRequest } from "../types";
+import { runSequentialUploads } from "../uploads/runSequentialUploads";
+import {
+  createEmptyUploadQueue,
+  type UploadQueueState,
+} from "../uploads/uploadProgressMachine";
 import { shouldShowAdminPortfolioEmptyState } from "./adminPortfolioListState";
+import { UploadProgressControl } from "./UploadProgressControl";
 
 interface Props { onUnauthorized(): void; }
 const input = "w-full border border-border bg-background px-3 py-2.5 text-[11px] focus:outline-none focus:border-accent";
@@ -26,11 +32,18 @@ export function AdminPortfolioPanel({ onUnauthorized }: Props) {
   const [loading, setLoading] = useState(true);
   const [hasLoadedSuccessfully, setHasLoadedSuccessfully] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [uploadQueue, setUploadQueue] = useState<UploadQueueState>(createEmptyUploadQueue());
+  const [lastUploadFile, setLastUploadFile] = useState<File | null>(null);
+  const uploadAbortRef = useRef<AbortController | null>(null);
 
-  useEffect(() => { void load(); }, []);
+  useEffect(() => {
+    void load();
+    return () => {
+      uploadAbortRef.current?.abort();
+    };
+  }, []);
 
   async function load() {
     setLoading(true); setError(null); setHasLoadedSuccessfully(false);
@@ -82,13 +95,37 @@ export function AdminPortfolioPanel({ onUnauthorized }: Props) {
 
   async function uploadImage(file: File | undefined) {
     if (!file || !itemForm) return;
-    setUploading(true); setError(null); setMessage(null);
-    try {
-      const uploaded = await uploadPortfolioImage(file);
-      setItemForm((current) => current ? { ...current, imageFileId: uploaded.id } : current);
-      setPreviewUrl(URL.createObjectURL(file));
-      setMessage("Image uploaded. Save the portfolio item to publish it.");
-    } catch (reason) { handleError(reason); } finally { setUploading(false); }
+    setError(null); setMessage(null);
+    setLastUploadFile(file);
+    uploadAbortRef.current?.abort();
+    const controller = new AbortController();
+    uploadAbortRef.current = controller;
+    const outcome = await runSequentialUploads(
+      [{
+        id: "portfolio-image",
+        file,
+        upload: ({ onProgress, signal }) =>
+          uploadPortfolioImage(file, { onProgress, signal }),
+      }],
+      {
+        signal: controller.signal,
+        onQueueChange: setUploadQueue,
+      },
+    );
+    if (outcome.cancelled) {
+      return;
+    }
+    if (outcome.failures.length > 0) {
+      handleError(outcome.failures[0]?.error);
+      return;
+    }
+    const uploaded = outcome.results[0]?.result;
+    if (!uploaded) {
+      return;
+    }
+    setItemForm((current) => current ? { ...current, imageFileId: uploaded.id } : current);
+    setPreviewUrl(URL.createObjectURL(file));
+    setMessage("Image uploaded. Save the portfolio item to publish it.");
   }
 
   async function toggleItem(item: AdminPortfolioItem, field: "isActive" | "isFeatured") {
@@ -177,9 +214,15 @@ export function AdminPortfolioPanel({ onUnauthorized }: Props) {
         </div>
         <div className="border border-border bg-background p-4 flex flex-col sm:flex-row gap-4 items-start">
           {previewUrl ? <img src={previewUrl} alt="Portfolio upload preview" className="w-28 aspect-[3/4] object-cover"/> : itemForm.imageFileId ? <AdminPortfolioImage imageFileId={itemForm.imageFileId} alt={itemForm.altText || itemForm.title} className="w-28 aspect-[3/4] object-cover"/> : <div className="w-28 aspect-[3/4] bg-muted flex items-center justify-center text-[9px] text-muted-foreground">No image</div>}
-          <label className="inline-flex items-center gap-2 border border-border px-4 py-2.5 text-[10px] cursor-pointer hover:border-foreground"><Upload size={12}/>{uploading ? "Uploading..." : "Upload JPG, PNG or WebP"}<input type="file" accept="image/jpeg,image/png,image/webp" disabled={uploading} onChange={(event) => void uploadImage(event.target.files?.[0])} className="sr-only"/></label>
+          <UploadProgressControl
+            idleLabel="Upload JPG, PNG or WebP"
+            icon={<Upload size={12} />}
+            item={uploadQueue.items[0] ?? null}
+            onFilesSelected={(files) => void uploadImage(files[0])}
+            onRetry={lastUploadFile ? () => void uploadImage(lastUploadFile) : undefined}
+          />
         </div>
-        <button disabled={saving || uploading} className="bg-foreground text-primary-foreground px-6 py-2.5 text-[10px] disabled:opacity-50">{saving ? "Saving..." : "Save item"}</button>
+        <button disabled={saving || uploadQueue.items.some((item) => item.phase === "uploading" || item.phase === "scanning" || item.phase === "processing")} className="bg-foreground text-primary-foreground px-6 py-2.5 text-[10px] disabled:opacity-50">{saving ? "Saving..." : "Save item"}</button>
       </form> : null}
       <div className="space-y-3">
         {shouldShowAdminPortfolioEmptyState({ loading, hasLoadedSuccessfully, error, itemCount: items.length }) ? <div className="bg-card border border-border p-6 text-[11px] text-muted-foreground font-sans">No portfolio items yet. Add your first portfolio item.</div> : null}

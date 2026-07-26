@@ -49,6 +49,11 @@ public interface IInStockService
         UpdateInStockImageRequest request,
         CancellationToken cancellationToken = default);
 
+    Task<IReadOnlyList<AdminInStockImageResponse>?> ReorderImagesAsync(
+        Guid itemId,
+        ReorderInStockImagesRequest request,
+        CancellationToken cancellationToken = default);
+
     Task<bool> DeleteImageAsync(
         Guid itemId,
         Guid imageId,

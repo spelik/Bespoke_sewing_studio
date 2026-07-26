@@ -129,6 +129,12 @@ public sealed class InStockEndpointsAuthorizationTests
             CancellationToken cancellationToken = default) =>
             throw new NotSupportedException();
 
+        public Task<IReadOnlyList<AdminInStockImageResponse>?> ReorderImagesAsync(
+            Guid itemId,
+            ReorderInStockImagesRequest request,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
         public Task<bool> DeleteImageAsync(
             Guid itemId,
             Guid imageId,

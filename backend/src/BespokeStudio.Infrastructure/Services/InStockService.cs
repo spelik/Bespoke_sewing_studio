@@ -358,6 +358,107 @@ public sealed partial class InStockService(
         return ToAdminImage(image);
     }
 
+    public async Task<IReadOnlyList<AdminInStockImageResponse>?> ReorderImagesAsync(
+        Guid itemId,
+        ReorderInStockImagesRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        IDbContextTransaction? transaction = null;
+
+        try
+        {
+            transaction = await transactionFactory.BeginTransactionAsync(cancellationToken);
+
+            var item = await dbContext.InStockItems
+                .Include(candidate => candidate.Images)
+                .ThenInclude(image => image.UploadedFile)
+                .SingleOrDefaultAsync(candidate => candidate.Id == itemId, cancellationToken);
+            if (item is null)
+            {
+                return null;
+            }
+
+            var existingById = item.Images.ToDictionary(image => image.Id);
+            if (request.ImageIds.Count != existingById.Count)
+            {
+                throw new InStockConflictException(
+                    "ImageIds",
+                    "Provide every image ID for this item exactly once.");
+            }
+
+            var seen = new HashSet<Guid>();
+            for (var index = 0; index < request.ImageIds.Count; index++)
+            {
+                var imageId = request.ImageIds[index];
+                if (!seen.Add(imageId))
+                {
+                    throw new InStockConflictException(
+                        "ImageIds",
+                        "Image IDs must be unique.");
+                }
+
+                if (!existingById.TryGetValue(imageId, out var image))
+                {
+                    throw new InStockConflictException(
+                        "ImageIds",
+                        "One or more images do not belong to this item.");
+                }
+
+                image.DisplayOrder = index;
+            }
+
+            item.UpdatedAt = DateTimeOffset.UtcNow;
+            await dbContext.SaveChangesAsync(cancellationToken);
+            if (transaction is not null)
+            {
+                await transaction.CommitAsync(cancellationToken);
+            }
+
+            return item.Images
+                .OrderBy(image => image.DisplayOrder)
+                .ThenBy(image => image.CreatedAt)
+                .Select(ToAdminImage)
+                .ToArray();
+        }
+        catch
+        {
+            if (transaction is not null)
+            {
+                using var cleanupCts = new CancellationTokenSource(CleanupTimeout);
+                try
+                {
+                    await transaction.RollbackAsync(cleanupCts.Token);
+                }
+                catch (Exception rollbackException)
+                {
+                    logger.LogWarning(
+                        rollbackException,
+                        "IN STOCK image reorder rollback failed. Relation may need manual inspection.");
+                }
+            }
+
+            throw;
+        }
+        finally
+        {
+            if (transaction is not null)
+            {
+                try
+                {
+                    await transaction.DisposeAsync();
+                }
+                catch (Exception disposeException)
+                {
+                    // Dispose must not replace the original exception, fail a successful commit,
+                    // or turn a null/404-style result into an unexpected 500.
+                    logger.LogWarning(
+                        disposeException,
+                        "IN STOCK image reorder transaction dispose failed. Operation outcome is unchanged.");
+                }
+            }
+        }
+    }
+
     public async Task<bool> DeleteImageAsync(
         Guid itemId,
         Guid imageId,
